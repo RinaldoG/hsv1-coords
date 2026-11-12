@@ -1,0 +1,9 @@
+file	source	bytes	sha256	fetched	why
+ref_NC_001806.2.gb	NC_001806.2	330122	aaee9fc6ea1903632264f05cafb9cbbebb050bbc2d138b01dacb19abfa26a222	2026-11-13	RefSeq reference, 77 CDS, provisional, 2018
+alt_BK012101.1.gb	BK012101.1	417376	442e722bf3e534a1d1071b5f0c796e53ded02a47fbb1bacc7cbe9e48dbab3314	2026-11-13	300 CDS over the identical 152,222 bases
+base_JN555585.1.gb	JN555585.1	310555	3365b45ef91a294c2443b8069f300d115fa32d555352d9344eddff1eff20d44f	2026-11-13	coordinate base of the Whisnant 2020 annotation
+isomer_ON783214.1.gb	ON783214.1	266310	ae602a3d20333d3f4125a188ceec2f562f9d69f4f27b77ea13e2296a9116a6bf	2026-11-13	isomer-resolved genome 1 of 4 (PRJNA846339)
+isomer_ON783215.1.gb	ON783215.1	268411	f0356053cdc4ffb0df5aeccbe68c5cc77cc4a1a466356b95956d503f148aac45	2026-11-13	isomer-resolved genome 2 of 4
+isomer_ON783216.1.gb	ON783216.1	265491	606ba50bab43cc9d703a7ba44ac1eac581bb90fe25d731809b3469dbe264a710	2026-11-13	isomer-resolved genome 3 of 4
+isomer_ON783217.1.gb	ON783217.1	269689	262ddaac2e644a66fa8837aab9ddd66bf7e28e97ff90bf1cc31b42a5bba86581	2026-11-13	isomer-resolved genome 4 of 4
+HSV1_Annotation.gtf	https://zenodo.org/records/3724023/files/HSV1_Annotation.gtf?download=1	113012	fabbadd420875ac50c2fe1fb791204df34ed809d991ed2d5be362f0c4ccf8ac7	2026-11-13	Whisnant et al. 2020 re-annotation, seqname JN555585

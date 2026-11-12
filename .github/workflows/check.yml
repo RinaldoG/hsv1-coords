@@ -1,0 +1,21 @@
+name: check
+on:
+  push:
+  pull_request:
+  schedule:
+    # Weekly, so an input moving upstream is caught without anyone watching.
+    - cron: "0 19 * * 1"
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch inputs
+        run: make inputs
+      - name: Verify inputs and assumptions
+        run: make check
+      - name: Tests
+        run: make test
