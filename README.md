@@ -4,7 +4,7 @@ A coordinate and annotation layer for herpes simplex virus 1, so that a position
 HSV-1 genome means one thing.
 
 **Status: early. Nothing here is usable yet.** Milestone 0 of the plan: inputs and
-skeleton only. See `PLAN.md` for what is being built and the acceptance threshold each
+skeleton only. See `ROADMAP.md` for what is being built and the acceptance threshold each
 component must clear before it is released.
 
 ## The problem this addresses
