@@ -48,3 +48,60 @@ including nested reiteration sets inside `TRL` (the 'a' sequence at `1..399`, a 
 set at `98..320`, and further sets at `988..1040`, `2466..2624`, `5732..5878` and
 `8554..8585`). The mask in milestone 4 has more structure available to it than the four
 large repeats alone, and should use it.
+
+## Correction: `BK012101.1` is the 2020 re-annotation, not a competing record
+
+Established 13 November 2026 by reading the record header, which the research strands had
+not done.
+
+`BK012101.1` is a **Third Party Annotation** deposit by Whisnant, Juerges, Erhard and
+Doelken (submitted 7 November 2019, released 7 November 2020), citing Whisnant et al.,
+"Integrative functional genomics decodes herpes simplex virus 1", *Nature Communications*
+11(1):2038, 2020, PMID 32341360. Its `COMMENT` block states outright that it uses data
+from `JN555585.1`, which this repository has separately confirmed is byte-identical to
+`NC_001806.2`.
+
+**So the "77 CDS against 300 CDS on identical bases" is not two laboratories disagreeing.**
+It is the 2018 RefSeq annotation against the 2020 re-annotation, correctly deposited as TPA
+on the same sequence and properly linked to its paper. The earlier framing, carried from
+the research strands, overstated this. The 2020 work is in GenBank, discoverable and
+attributed.
+
+The 300 CDS features are also not 300 genes. Across the record's 83 gene names:
+
+| Kind of name | Count |
+|---|---|
+| Hyphenated span, e.g. `UL11-UL14`, `TRL1-TRL2` | 42 |
+| Plain gene name | 24 |
+| `sORF` (small open reading frame) | 11 |
+| `uORF` (upstream) | 3 |
+| `iORF`, `uoORF`, `dORF` (internal, upstream-overlapping, downstream) | 1 each |
+
+So the record annotates nested and alternative reading frames and multi-gene transcript
+units that the RefSeq annotation does not attempt. The two records describe different
+**classes** of feature, and the counts are not in contradiction.
+
+## What the naming problem actually is
+
+The premise needed correcting, but the naming problem is real and is sharper than stated.
+
+Of **232 distinct gene names** across the four sources, only **5 appear in all four**:
+`UL22`, `UL36`, `UL41`, `UL43`, `UL48`. 135 names appear in exactly one source. The
+`product` text differs between sources for **92** genes.
+
+The clearest case, and the one that makes the project's case on its own: **the same group's
+own two artefacts use different naming for the same features.** The Whisnant 2020 GenBank
+TPA deposit carries 83 gene names, the Whisnant 2020 Zenodo GTF carries 170, and they share
+**27**. The GTF names novel open reading frames individually (`UL5.5`, `UL11.5`,
+`IRL1.5`), while the TPA deposit names transcript units spanning them (`UL11-UL14`,
+`TRL1-TRL2`, `IRL2-IRL1`). `LAT_gene` in the GTF is `LAT-ORF-O` in the TPA record.
+
+Neither is wrong. They are describing the same biology at two levels, for two different
+submission formats, and nothing anywhere states the mapping. A reader with both files in
+hand, from one paper, cannot join them.
+
+**Consequence for the plan.** Milestone 2 shrinks: there is no annotation to arbitrate,
+because the good annotation already exists and is deposited twice. What is missing is the
+**crosswalk between naming systems**, including between one paper's own two deposits. That
+is milestone 1's job, and it has just become the centre of the project rather than its
+warm-up.

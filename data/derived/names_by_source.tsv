@@ -1,0 +1,404 @@
+gene	source	feature_types	products	locus_tags	notes
+AL-RNA	BK012101.1	gene;mRNA	AL-RNA		Perng et al., JVI 2002, not observed
+AL-RNA	whisnant2020	exon;gene;transcript	protein_coding		
+IRL1	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+IRL1.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+IRL2	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+IRL2-IRL1	BK012101.1	CDS;gene;mRNA	IRL1 | IRL1.5 | IRL1A sORF | IRL2 | IRL2 dORF RNA iso1 | IRL2 iso1 | IRL2 iso2 | IRL2A		ICP0; IE110 | NAGNAG | NAGNAG, spliced | icp34.5 | orphan, located within intron 1 | rl2 cds with different c-terminus due to intron retention of intron 1 | spliced | uoorf of rl1; 93aa initiating from ATG | with retained intron 1
+IRL2.5	BK012101.1	CDS;gene;mRNA	IRL2.5 | IRL2.5 #1 | IRL2.5 *1 | IRL2.5 *2		LAT 0.7kb; pri-miRNA-H1 | TaSS not determined due to repeat regions upstream | orphan | pri-miRNA-H1
+IRL2.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+IRL3	whisnant2020	exon;gene;transcript	protein_coding		
+IRS1	BK012101.1	CDS;gene;mRNA	IRS1 | IRS1 #1		icp4; ie175 | orphan; may encode truncated isoform of IRS1
+IRS1	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+LAT	NC_001806.2	gene;ncRNA;regulatory	LAT	HHV1gp00s01;HHV1gp00s02	
+LAT	JN555585.1	gene;ncRNA;regulatory	LAT		
+LAT-ORF-O	BK012101.1	CDS;gene;mRNA	LAT | LAT iso1 | ORF-O | ORF-O/P | ORF-P | pri-miRNA-H2/H7/H8/H3/H4/H5 | pri-miRNA-H7/H8/H3/H4/H5		TaSS probably 76nt upstream of orf-p initiating from acg start codon; no evidence of frame-shift | initiates within LAT | pri-miRNA-H3/H4/H5, inhibited by ICP4 | spliced
+LAT_gene	whisnant2020	exon;gene;transcript	protein_coding		
+ORF-O	BK012101.1	CDS;gene	ORF-O		TaSS probably 76nt upstream of orf-p initiating from acg start codon; no evidence of frame-shift; orphan
+ORF-O	whisnant2020	CDS;gene	protein_coding		
+ORF-O/P	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+ORF-P	BK012101.1	CDS;gene	ORF-P		orphan
+ORF-P	whisnant2020	CDS;gene	protein_coding		
+Ori-S	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+Ori-S-TRS1	BK012101.1	CDS;gene;mRNA	Ori-S | TRS1 | TRS1 #1		Hubenthal-Voss,Starr,Roizman JVI 1987; encode Ori-S CDS | hubenthal-voss,starr,roizman jvi 1987 | icp4; ie175; may include 21aa n-terminal extension initiating with gug | orphan, may encode truncated isoform of TRS1 CDS
+RL1	NC_001806.2	CDS;gene;regulatory;repeat_region	neurovirulence protein ICP34.5	HHV1gp00p16;HHV1gp00p77	RL reiteration set 6 | virion protein; inhibits stress-induced translational arrest; related to eIF2 phosphatase regulatory subunit GADD34; binds protein phosphatase 1 to form a holoenzyme capable of dephosphorylating eIF2-alpha; involved in translational regulation
+RL1	JN555585.1	CDS;gene;regulatory;repeat_region	neurovirulence protein ICP34.5		RL reiteration set 6 | virion protein; inhibits stress-induced translational arrest; related to eIF2 phosphatase regulatory subunit GADD34; binds protein phosphatase 1 to form a holoenzyme capable of dephosphorylating eIF2-alpha; involved in translational regulation
+RL2	NC_001806.2	CDS;gene;mRNA;regulatory;repeat_region	contains a RING finger; disrupts ND10; proteasome-dependent degradation of several cellular proteins; involved in gene regulation; involved in cellular protein degradation; involved in latency | ubiquitin E3 ligase ICP0	HHV1gp00p17;HHV1gp00p76	RL reiteration set 5 | contains a RING finger; disrupts ND10; proteasome-dependent degradation of several cellular proteins; involved in gene regulation; involved in cellular protein degradation; involved in latency | immediate early gene | ubiquitin E3 ligase ICP0
+RL2	JN555585.1	CDS;gene;mRNA;regulatory;repeat_region	ubiquitin E3 ligase ICP0		RL reiteration set 5 | contains a RING finger; disrupts ND10; proteasome-dependent degradation of several cellular proteins; involved in gene regulation; involved in cellular protein degradation; involved in latency | immediate early gene
+RS1	NC_001806.2	CDS;gene;mRNA;regulatory	transcriptional regulator ICP4	HHV1gp00p01;HHV1gp00p15	alpha gene; immediate early gene | involved in gene regulation | involved in gene regulation; immediate early protein; transcriptional regulator
+RS1	JN555585.1	CDS;gene;mRNA;regulatory	transcriptional regulator ICP4		alpha gene; immediate early gene | involved in gene regulation | involved in gene regulation; immediate early protein; transcriptional regulator
+TRL1	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+TRL1-TRL2	BK012101.1	CDS;gene;mRNA	TRL1 | TRL1.5 | TRL1A sORF | TRL2 | TRL2 dORF RNA iso1 | TRL2 iso1 | TRL2 iso2 | TRL2A		ICP0; IE110 | NAGNAG | icp34.5 | includes different c-terminus due to retention of intron 1 | located within intron 1 | uoorf of rl1 | with retained intron 1
+TRL1.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+TRL2	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+TRL2.5	BK012101.1	CDS;gene;mRNA	TRL2.5 | TRL2.5 #1 | TRL2.5 *1 | TRL2.5 *2		LAT 0.7kb; pri-miRNA-H1 | TaSS not determined due to repeat regions upstream | orphan | pri-miRNA-H1
+TRL2.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+TRL3	whisnant2020	exon;gene;transcript	protein_coding		
+TRL3-UL3	BK012101.1	CDS;gene;mRNA	TRL3 | UL1 | UL1 uORF | UL2 | UL3 | UL3 #1 | UL3 *1 | UL3 uORF RNA *1		glycoprotein l | orphan | read-through transcript | uracil-DNA glycosylase
+TRS1	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL1	NC_001806.2	CDS;gene	envelope glycoprotein L	HHV1gp00p75	contains a signal peptide; complexed with envelope glycoprotein H; involved in cell entry; involved in cell-to-cell spread | core gene
+UL1	JN555585.1	CDS;gene	envelope glycoprotein L		contains a signal peptide; complexed with envelope glycoprotein H; involved in cell entry; involved in cell-to-cell spread | core gene
+UL1	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL10	NC_001806.2	CDS;gene;regulatory	envelope glycoprotein M	HHV1gp00p66	core gene | type 3 membrane protein; 8 transmembrane domains; complexed with envelope glycoprotein N; involved in virion morphogenesis; involved in membrane fusion
+UL10	JN555585.1	CDS;gene;regulatory	envelope glycoprotein M		core gene | type 3 membrane protein; 8 transmembrane domains; complexed with envelope glycoprotein N; involved in virion morphogenesis; involved in membrane fusion
+UL10	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL11	NC_001806.2	CDS;gene	myristylated tegument protein	HHV1gp00p62	core gene | envelope-associated; involved in virion morphogenesis
+UL11	JN555585.1	CDS;gene	myristylated tegument protein		core gene | envelope-associated; involved in virion morphogenesis
+UL11	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL11-UL14	BK012101.1	CDS;gene;mRNA	UL11 | UL11.5 | UL12 | UL12 uoORF | UL12.5 | UL13 | UL14 | UL14 #1 | UL14 uORF 1 | UL14 uORF 2		TaSS not determined, could also be at 26971 | does not encode UL14 uORF 1 & 2 | orphan | serine-threonince protein kinase | tegument protein | truncated isoform of ul12
+UL11.5	whisnant2020	exon;gene;transcript	protein_coding		
+UL12	NC_001806.2	CDS;gene	deoxyribonuclease	HHV1gp00p63	core gene | involved in DNA processing
+UL12	JN555585.1	CDS;gene	deoxyribonuclease		core gene | involved in DNA processing
+UL12	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL12.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL13	NC_001806.2	CDS;gene	tegument serine/threonine protein kinase	HHV1gp00p64	core gene | involved in protein phosphorylation; PK family
+UL13	JN555585.1	CDS;gene	tegument serine/threonine protein kinase		core gene | involved in protein phosphorylation; PK family
+UL13	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL13.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL13.5-UL15	BK012101.1	CDS;gene;mRNA	UL13.5 | UL13.5 #1 | UL15 | UL15 iORF 1 | UL15 iORF 2 | UL15 iORF 3 | UL15 iso1 | UL15 uORF | UL15 uoORF		includes retained intron 1 | located in exon 2; orphan | located in intron; orphan | spliced | terminase; processing and packaging DNA | truncated isoform of 85aa of ul13.5 orf initiating at 27814 from ATG | ul15 cds with different c-terminus due to intron retention
+UL14	NC_001806.2	CDS;gene	tegument protein UL14	HHV1gp00p65	core gene | involved in virion morphogenesis
+UL14	JN555585.1	CDS;gene	tegument protein UL14		core gene | involved in virion morphogenesis
+UL14	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL15	NC_001806.2	CDS;gene;regulatory	DNA packaging terminase subunit 1	HHV1gp00p61	contains an ATPase domain; involved in DNA encapsidation; transiently associated with maturing capsids | core gene
+UL15	JN555585.1	CDS;gene;regulatory	DNA packaging terminase subunit 1		contains an ATPase domain; involved in DNA encapsidation; transiently associated with maturing capsids | core gene
+UL15	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL15.4	whisnant2020	CDS;gene	protein_coding		
+UL15.4 sORF 1	BK012101.1	CDS;gene	UL15.4 sORF 1		orphan; possible alternative TaSS at 30021, ATG
+UL15.4 sORF 2	BK012101.1	CDS;gene	UL15.4 sORF 2		orphan
+UL15.5	BK012101.1	CDS;gene	UL15.5		orphan; capsid-associated protein
+UL15.5	whisnant2020	CDS;gene	protein_coding		
+UL16	NC_001806.2	CDS;gene	tegument protein UL16	HHV1gp00p59	core gene | possibly involved in virion morphogenesis
+UL16	JN555585.1	CDS;gene	tegument protein UL16		core gene | possibly involved in virion morphogenesis
+UL16	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL16-UL17	BK012101.1	CDS;gene;mRNA	UL16 | UL17 | UL17 #1 | UL17 *1 | UL17 uORF | UL17 uoORF		TaSS not determined | processing and packaging | tegument protein
+UL17	NC_001806.2	CDS;gene	DNA packaging tegument protein UL17	HHV1gp00p60	capsid-associated; involved in DNA encapsidation; involved in capsid transport | core gene
+UL17	JN555585.1	CDS;gene	DNA packaging tegument protein UL17		capsid-associated; involved in DNA encapsidation; involved in capsid transport | core gene
+UL17	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL17.4	whisnant2020	CDS;gene	protein_coding		
+UL17.4 sORF 1	BK012101.1	CDS;gene	UL17.4 sORF 1		orphan
+UL17.4 sORF 2	BK012101.1	CDS;gene;mRNA	UL17 uORF RNA *1 | UL17.4 sORF 2		orphan, contains 36aa n-terminal extension of ul17 uorf 1 RNA *1 initiating from ATG
+UL17.5	BK012101.1	CDS;gene	UL17.5		orphan
+UL17.5	whisnant2020	CDS;gene	protein_coding		
+UL17.5 uoORF	BK012101.1	CDS;gene	UL17.5 uoORF		orphan
+UL18	NC_001806.2	CDS;gene	capsid triplex subunit 2	HHV1gp00p58	complexed 2:1 with capsid triplex subunit 1 to connect capsid hexons and pentons; involved in capsid morphogenesis; VP23 | core gene
+UL18	JN555585.1	CDS;gene	capsid triplex subunit 2		complexed 2:1 with capsid triplex subunit 1 to connect capsid hexons and pentons; involved in capsid morphogenesis; VP23 | core gene
+UL18	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL18-UL20.6	BK012101.1	CDS;gene;mRNA	UL18 | UL18 uORF | UL18 uoORF | UL19 | UL19 *1 | UL20 | UL20 iORF | UL20.6 | UL20.6 uORF		includes 11 aa n-terminal extension initiating from auc | membrane protein | orf initiates 13nt downstream of ul20 from ATG | vp23; capsid protein | vp5; major capsid protein
+UL19	NC_001806.2	CDS;gene	major capsid protein	HHV1gp00p56	6 copies form hexons, 5 copies form pentons; involved in capsid morphogenesis; VP5 | core gene
+UL19	JN555585.1	CDS;gene	major capsid protein		6 copies form hexons, 5 copies form pentons; involved in capsid morphogenesis; VP5 | core gene
+UL19	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL19.4	whisnant2020	CDS;gene	protein_coding		
+UL19.4 sORF	BK012101.1	CDS;gene	UL19.4 sORF		orphan
+UL19.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL19.5-UL21	BK012101.1	CDS;gene;mRNA	UL19.5 | UL19.5 sORF | UL20.4 | UL20.4 dORF 1 | UL20.4 dORF 2 | UL21 | UL21 #1 | UL21 *1		alternative TaSS at next ATG 6nt downstream at 41487 | does not encode N-terminal extension of UL21 | encodes N-terminal extension of UL21 | includes 65 aa n-terminal extension initiating from cug | may be part of new orf initiating at 39420 | tegument protein
+UL2	NC_001806.2	CDS;gene	uracil-DNA glycosylase	HHV1gp00p74	core gene | involved in DNA repair
+UL2	JN555585.1	CDS;gene	uracil-DNA glycosylase		core gene | involved in DNA repair
+UL2	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL20	NC_001806.2	CDS;gene	envelope protein UL20	HHV1gp00p57	alpha gene | type 3 membrane protein; 4 transmembrane domains; involved in virion morphogenesis; involved in membrane fusion
+UL20	JN555585.1	CDS;gene	envelope protein UL20		alpha gene | type 3 membrane protein; 4 transmembrane domains; involved in virion morphogenesis; involved in membrane fusion
+UL20	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL20.4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL20.5	BK012101.1	CDS;gene	UL20 uORF | UL20.5		corresponds to c-terminal part of ul20.5 cds | orphan
+UL20.5	whisnant2020	CDS;gene	protein_coding		
+UL20.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL21	NC_001806.2	CDS;gene;regulatory	tegument protein UL21	HHV1gp00p55	alpha gene | interacts with microtubules; involved in virion morphogenesis
+UL21	JN555585.1	CDS;gene;regulatory	tegument protein UL21		alpha gene | interacts with microtubules; involved in virion morphogenesis
+UL21	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL22	NC_001806.2	CDS;gene;regulatory	envelope glycoprotein H	HHV1gp00p54	core gene | type 1 membrane protein; contains a signal peptide; possible membrane fusogen; complexed with envelope glycoprotein L; involved in cell entry; involved in cell-to-cell spread
+UL22	BK012101.1	CDS;gene;mRNA	UL22 | UL22 uORF 1 | UL22 uORF 2		glycoprotein h | possible alternative TaSS downstream at 46468, gug | uoorf for ul22 uorf 2
+UL22	JN555585.1	CDS;gene;regulatory	envelope glycoprotein H		core gene | type 1 membrane protein; contains a signal peptide; possible membrane fusogen; complexed with envelope glycoprotein L; involved in cell entry; involved in cell-to-cell spread
+UL22	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL22.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL22.5-UL26.5	BK012101.1	CDS;gene;mRNA	UL22.5 | UL22.5 sORF | UL23.5 | UL23.5 uORF | UL24 | UL24 *1 | UL24 uORF 1 RNA *1 | UL24 uORF 2 RNA *1 | UL24 uORF 3 RNA *1 | UL24.5 | UL25 | UL26 | UL26.5		exonuclease activity | p40; vp24; vp22a; capsid protein | processing and packaging DNA; capside protein | read-through transcript | truncated isoform of ul24 | truncated isoform of ul26
+UL23	NC_001806.2	CDS;gene;regulatory	involved in nucleotide metabolism	HHV1gp00p53	core gene | thymidine kinase
+UL23	JN555585.1	CDS;gene;regulatory	thymidine kinase		core gene | involved in nucleotide metabolism
+UL23	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL23-UL25.5	BK012101.1	CDS;gene;mRNA	UL23 | UL23 *1 | UL25.5		includes 15 aa n-terminal extension initiating from gug | thymidine kinase; peripheral to DNA replication
+UL23.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL23.6	BK012101.1	CDS;gene	UL23 uORF 1 | UL23 uORF 2 | UL23.6		orphan | uoorf for n-terminal extension of ul23; c-terminal 7 aa of ul23.6 orf
+UL23.6	whisnant2020	CDS;gene	protein_coding		
+UL24	NC_001806.2	CDS;gene	nuclear protein UL24	HHV1gp00p52	core gene
+UL24	JN555585.1	CDS;gene	nuclear protein UL24		core gene
+UL24	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL24.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL25	NC_001806.2	CDS;gene	DNA packaging tegument protein UL25	HHV1gp00p51	core gene | located on capsid near vertices; possibly stabilizes the capsid and retains the genome; involved in DNA encapsidation
+UL25	JN555585.1	CDS;gene	DNA packaging tegument protein UL25		core gene | located on capsid near vertices; possibly stabilizes the capsid and retains the genome; involved in DNA encapsidation
+UL25	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL25.4	BK012101.1	CDS;gene	UL25.4		orphan
+UL25.4	whisnant2020	CDS;gene	protein_coding		
+UL25.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL26	NC_001806.2	CDS;gene	capsid maturation protease	HHV1gp00p50	core gene | serine protease (N-terminal region); minor scaffold protein (remainder of protein, clipped near C terminus); involved in capsid morphogenesis; VP24; VP21
+UL26	JN555585.1	CDS;gene	capsid maturation protease		core gene | serine protease (N-terminal region); minor scaffold protein (remainder of protein, clipped near C terminus); involved in capsid morphogenesis; VP24; VP21
+UL26	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL26.5	NC_001806.2	CDS;gene	capsid scaffold protein	HHV1gp00p49	clipped near C terminus; involved in capsid morphogenesis; VP22a | core gene
+UL26.5	JN555585.1	CDS;gene	capsid scaffold protein		clipped near C terminus; involved in capsid morphogenesis; VP22a | core gene
+UL26.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL27	NC_001806.2	CDS;gene	envelope glycoprotein B	HHV1gp00p48	core gene | type 1 membrane protein; contains a signal peptide; possible membrane fusogen; binds cell surface heparan sulphate; involved in cell entry; involved in cell-to-cell spread
+UL27	JN555585.1	CDS;gene	envelope glycoprotein B		core gene | type 1 membrane protein; contains a signal peptide; possible membrane fusogen; binds cell surface heparan sulphate; involved in cell entry; involved in cell-to-cell spread
+UL27	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL27-UL28	BK012101.1	CDS;gene;mRNA	UL27 | UL27 *1 | UL28 | UL28 uORF		glycoprotein b | icp18.5; processing and packaging | includes 43 aa n-terminal extension initiating from acg
+UL27.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL27.5-UL30	BK012101.1	CDS;gene;mRNA	UL27.5 | UL27.5 sORF | UL27.6 | UL27.6 uORF | UL28.4 | UL28.4 sORF | UL30 | UL30 *1 | UL30 uORF		DNA polymerase | Ori-L RNA
+UL27.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL28	NC_001806.2	CDS;gene	DNA packaging terminase subunit 2	HHV1gp00p47	core gene | involved in DNA encapsidation; transiently associated with maturing capsids
+UL28	JN555585.1	CDS;gene	DNA packaging terminase subunit 2		core gene | involved in DNA encapsidation; transiently associated with maturing capsids
+UL28	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL28.4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL28.6	BK012101.1	CDS;gene	UL28.6		orphan
+UL28.6	whisnant2020	CDS;gene	protein_coding		
+UL29	NC_001806.2	CDS;gene;regulatory	single-stranded DNA-binding protein	HHV1gp00p46	contains a zinc-finger; involved in DNA replication; possibly involved in gene regulation; ICP8 | core gene
+UL29	JN555585.1	CDS;gene;regulatory	single-stranded DNA-binding protein		contains a zinc-finger; involved in DNA replication; possibly involved in gene regulation; ICP8 | core gene
+UL29	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL29.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL29.5-UL30.6	BK012101.1	CDS;gene;mRNA	UL29 | UL29.5 | UL30.5 | UL30.5 #1 | UL30.5 sORF 1 | UL30.5 sORF 2 | UL30.5 sORF RNA #1 | UL30.6 | UL30.6 sORF		comprises only the c-terminal 4aa of ul30.5 sorf 2; initiated from ATG | icp8; major DNA-binding protein | truncated isoform of ul29
+UL3	NC_001806.2	CDS;gene;regulatory	nuclear protein UL3	HHV1gp00p73	alpha gene | colocalizes with regulatory protein ICP22 and nuclear protein UL4 in small, dense nuclear bodies
+UL3	JN555585.1	CDS;gene;regulatory	nuclear protein UL3		alpha gene | colocalizes with regulatory protein ICP22 and nuclear protein UL4 in small, dense nuclear bodies
+UL3	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL30	NC_001806.2	CDS;gene;regulatory	DNA polymerase catalytic subunit	HHV1gp00p45	core gene | involved in DNA replication
+UL30	JN555585.1	CDS;gene;regulatory	DNA polymerase catalytic subunit		core gene | involved in DNA replication
+UL30	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL30.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL30.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL31	NC_001806.2	CDS;gene	nuclear egress lamina protein	HHV1gp00p43	core gene | interacts with nuclear egress membrane protein; involved in nuclear egress
+UL31	JN555585.1	CDS;gene	nuclear egress lamina protein		core gene | interacts with nuclear egress membrane protein; involved in nuclear egress
+UL31	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL31-UL32	BK012101.1	CDS;gene;mRNA	UL31 | UL32		nuclear matrix protein | processing and packaging
+UL31.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL31.5-UL35	BK012101.1	CDS;gene;mRNA	UL31.5 | UL31.5 *1 | UL31.5 uORF 1 RNA *1 | UL31.5 uORF 2 RNA *1 | UL31.6 | UL32.5 | UL32.5 uORF | UL32.6 | UL33 | UL33 *1 | UL34 | UL35		TaSS not determined | c-terminal part is identical to ul32.5 orf | includes 21 aa n-terminal extension initiating from acg | inner nuclear membrane protein | processing and packaging DNA | vp26; capsid protein
+UL31.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL32	NC_001806.2	CDS;gene	DNA packaging protein UL32	HHV1gp00p44	core gene | involved in DNA encapsidation; possibly involved in capsid transport
+UL32	JN555585.1	CDS;gene	DNA packaging protein UL32		core gene | involved in DNA encapsidation; possibly involved in capsid transport
+UL32	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL32.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL32.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL33	NC_001806.2	CDS;gene	DNA packaging protein UL33	HHV1gp00p42	core gene | interacts with DNA packaging terminase subunit 2; involved in DNA encapsidation
+UL33	JN555585.1	CDS;gene	DNA packaging protein UL33		core gene | interacts with DNA packaging terminase subunit 2; involved in DNA encapsidation
+UL33	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL34	NC_001806.2	CDS;gene	nuclear egress membrane protein	HHV1gp00p41	core gene | type 2 membrane protein; interacts with nuclear egress lamina protein; involved in nuclear egress
+UL34	JN555585.1	CDS;gene	nuclear egress membrane protein		core gene | type 2 membrane protein; interacts with nuclear egress lamina protein; involved in nuclear egress
+UL34	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL34.5	whisnant2020	CDS;gene	protein_coding		
+UL34.5 sORF 1	BK012101.1	CDS;gene	UL34.5 sORF 1		orphan
+UL34.5 sORF 2	BK012101.1	CDS;gene	UL34.5 sORF 2		orphan
+UL35	NC_001806.2	CDS;gene	small capsid protein	HHV1gp00p40	core gene | located externally on capsid hexons; involved in capsid morphogenesis; possibly involved in capsid transport; VP26; interacts with dynein
+UL35	JN555585.1	CDS;gene	small capsid protein		core gene | located externally on capsid hexons; involved in capsid morphogenesis; possibly involved in capsid transport; VP26; interacts with dynein
+UL35	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL36	NC_001806.2	CDS;gene;regulatory	large tegument protein	HHV1gp00p39	complexed with tegument protein UL37; ubiquitin-specific protease (N-terminal region); involved in capsid transport; VP1/2 | core gene
+UL36	BK012101.1	CDS;gene;mRNA	UL36 | UL36 #1 | UL36 *1		includes 10 aa n-terminal extension initiating from ATG | omega peptidase activity; tegument protein | orphan, may encode truncated isoform of UL36 CDS
+UL36	JN555585.1	CDS;gene;regulatory	large tegument protein		complexed with tegument protein UL37; ubiquitin-specific protease (N-terminal region); involved in capsid transport; VP1/2 | core gene
+UL36	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL36.4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL36.4-UL38	BK012101.1	CDS;gene;mRNA	UL36.4 | UL36.4 uORF | UL36.5 | UL36.6 | UL36.6 iso1 | UL36.6 iso2 | UL36.6 uORF | UL38		NAGNAG, spliced | may start further upstream at 79448 or 79373 according to PacBio | possible truncated isoform initiating from ATG at 80316 | possible truncated isoform initiating from ATGs at 73767 and 73929 | spliced | vp19c; capsid protein; DNA maturation
+UL36.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL36.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL37	NC_001806.2	CDS;gene;regulatory	tegument protein UL37	HHV1gp00p38	complexed with large tegument protein; involved in virion morphogenesis | core gene
+UL37	JN555585.1	CDS;gene;regulatory	tegument protein UL37		complexed with large tegument protein; involved in virion morphogenesis | core gene
+UL37	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL37-UL39.6	BK012101.1	CDS;gene;mRNA	UL37 | UL37 #1 | UL37 uoORF | UL37 uoORF *1 | UL37.5 | UL37.5 #1 | UL37.5 uORF 1 | UL37.5 uORF 2 | UL37.5 uORF 3 | UL37.6 | UL37.6 #1 | UL37.6 uoORF | UL39.4 | UL39.4 sORF | UL39.5 | UL39.6 | UL39.6 dORF 1 | UL39.6 dORF 2		c-terminal 23aa of ul39.5 orf, initiating from ATG | could also initiate from second ATG directly following first ATG | initiates downstream of TaSS of UL37 uoORF | orphan, n-terminal 23aa extension of ul37 uoorf initiating from ATG | tegument protein; capsid assembly | translated from ul37.6 RNA #1 initiating with ATG; lacks the first 24aa of ul37.6 orf | uorf of ul37.5 RNA #1; ends directly in front of TaSS of ul37.5 orf
+UL37.3	BK012101.1	CDS;gene	UL37.3		orphan; possible 7aa n-terminal extension initiating from ATG at 81763
+UL37.3	whisnant2020	CDS;gene	protein_coding		
+UL37.4	BK012101.1	CDS;gene	UL37.4		orphan, TaSS not determined: most likely at 83320 from ATG
+UL37.4	whisnant2020	CDS;gene	protein_coding		
+UL37.4 uORF	BK012101.1	CDS;gene	UL37.4 uORF		orphan, probable uorf of the ul37.4 orf
+UL37.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL37.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL38	NC_001806.2	CDS;gene;regulatory	capsid triplex subunit 1	HHV1gp00p37	complexed 1:2 with capsid triplex subunit 2 to connect capsid hexons and pentons; involved in capsid morphogenesis; VP19C | core gene
+UL38	JN555585.1	CDS;gene;regulatory	capsid triplex subunit 1		complexed 1:2 with capsid triplex subunit 2 to connect capsid hexons and pentons; involved in capsid morphogenesis; VP19C | core gene
+UL38	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL39	NC_001806.2	CDS;gene	ribonucleotide reductase subunit 1	HHV1gp00p36	core gene | involved in nucleotide metabolism; translation initiation factor-associated protein (N-terminal region)
+UL39	JN555585.1	CDS;gene	ribonucleotide reductase subunit 1		core gene | involved in nucleotide metabolism; translation initiation factor-associated protein (N-terminal region)
+UL39	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL39-UL40	BK012101.1	CDS;gene;mRNA	UL39 | UL39 *1 | UL40		icp6; rr-1; ribonucleotide reductase; large subunit | includes 38 aa n-terminal extension initiating from uug | rr-2; ribonucleotride reductase; small subunit
+UL39.4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL39.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL39.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL4	NC_001806.2	CDS;gene	nuclear protein UL4	HHV1gp00p71	alpha gene | colocalizes with regulatory protein ICP22 and nuclear protein UL3 in small, dense nuclear bodies
+UL4	JN555585.1	CDS;gene	nuclear protein UL4		alpha gene | colocalizes with regulatory protein ICP22 and nuclear protein UL3 in small, dense nuclear bodies
+UL4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL4-UL6.6	BK012101.1	CDS;gene;mRNA	UL4 | UL4.6 | UL5 | UL5 *1 | UL5 uORF | UL6.4 | UL6.4 sORF 1 | UL6.4 sORF 2 | UL6.5 | UL6.5 sORF 1 | UL6.5 sORF 2 | UL6.5 sORF 3 | UL6.5 sORF 4 | UL6.6		ATP binding; helicate-primase complex-associated protein | c-terminal 47aa of us6.4 sorf 2 | includes 9 aa n-terminal extension initiating from gug | may include n-terminal 28aa extension initiating from gug | orphan; PacBio only
+UL4.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL4.5-UL7	BK012101.1	CDS;gene;mRNA	UL4.5 | UL4.5 *1 | UL4.5 iORF | UL4.5 iso1 | UL5.5 | UL5.5 #1 | UL5.5 dORF | UL5.5 iORF 1 | UL5.5 iORF 2 | UL5.5 iORF 3 | UL5.5 uORF | UL5.6 | UL5.6 dORF | UL5.7 | UL6 | UL6 #1 | UL6 #2 | UL6 *1 | UL6 *2 | UL6 iORF RNA #1 | UL6 uORF | UL6 uORF RNA *2 | UL7 | UL7 *1		TaSS not determined; orf validated by two independent peptides | TaSS only 3nt downstream of tiss ul6 RNA*1 | encodes UL6 iORF | includes 15 aa n-terminal extension initiating from cug | includes retained intron | located in intron | located within ul5.5 orf, different frame | orphan | spliced | tegument protein | virion portal protein
+UL4.6	whisnant2020	exon;gene;transcript	protein_coding		
+UL40	NC_001806.2	CDS;gene	ribonucleotide reductase subunit 2	HHV1gp00p35	core gene | involved in nucleotide metabolism
+UL40	JN555585.1	CDS;gene	ribonucleotide reductase subunit 2		core gene | involved in nucleotide metabolism
+UL40	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL40.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL40.5-UL42	BK012101.1	CDS;gene;mRNA	UL40.5 | UL40.5 #1 | UL40.5 *1 | UL40.5 iORF | UL40.5 iso1 | UL40.5 uORF | UL40.6 | UL40.6 iso1 | UL40.6 sORF 1 | UL40.6 sORF 2 | UL40.7 | UL40.7 dORF | UL40.7A | UL40.7B | UL42		DNA polymerase processivity factor | TaSS not determined, probably located further upstream | alternative TaSS 2aa downstream initiating from ATG at 91425 | encodes UL40.5 iORF | in different frame than ul40.7a, overlapping c-terminal half | spliced, encodes UL40.5 iORF | spliced, encodes UL40.7 dORF | translated from ul40.6 spliced RNA
+UL40.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL40.7	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL41	NC_001806.2	CDS;gene;regulatory	tegument host shutoff protein	HHV1gp00p34	alpha gene | mRNA-specific RNase; involved in cellular mRNA degradation
+UL41	BK012101.1	CDS;gene;mRNA	UL41 | UL41 #1 | UL41 #2 | UL41 iORF RNA #1 | UL41 uORF 1 | UL41 uORF 2 | UL41 uoORF		VHS | encodes UL41 iORF | iorf of ul41 uorf 1 | overlaps ul41 uoorf | translated from ul41 RNA #1 & #2 | vhs; tegument protein
+UL41	JN555585.1	CDS;gene;regulatory	tegument host shutoff protein		alpha gene | mRNA-specific RNase; involved in cellular mRNA degradation
+UL41	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL42	NC_001806.2	CDS;gene;regulatory	DNA polymerase processivity subunit	HHV1gp00p33	alpha gene | dsDNA-binding protein; involved in DNA replication
+UL42	JN555585.1	CDS;gene;regulatory	DNA polymerase processivity subunit		alpha gene | dsDNA-binding protein; involved in DNA replication
+UL42	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL43	NC_001806.2	CDS;gene;regulatory	envelope protein UL43	HHV1gp00p32	core gene | type 3 membrane protein; possibly involved in membrane fusion; 11 transmembrane domains
+UL43	BK012101.1	CDS;gene;mRNA	UL43		membrane protein
+UL43	JN555585.1	CDS;gene;regulatory	envelope protein UL43		core gene | type 3 membrane protein; possibly involved in membrane fusion; 11 transmembrane domains
+UL43	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL43.5	BK012101.1	CDS;gene	UL43.5		orphan; TaSS not determined
+UL43.5	whisnant2020	CDS;gene	protein_coding		
+UL43.5 iORF	BK012101.1	CDS;gene	UL43.5 iORF		orphan
+UL43.5 uORF	BK012101.1	CDS;gene	UL43.5 uORF		orphan
+UL43.6	BK012101.1	CDS;gene	UL43.6		orphan
+UL43.6	whisnant2020	CDS;gene	protein_coding		
+UL43.6 uORF	BK012101.1	CDS;gene	UL43.6 uORF		orphan; may have alternative TaSS further upstream
+UL44	NC_001806.2	CDS;gene	envelope glycoprotein C	HHV1gp00p31	alpha gene | type 1 membrane protein; contains a signal peptide; binds cell surface heparan sulphate; binds complement C3b to block neutralization; involved in cell attachment
+UL44	JN555585.1	CDS;gene	envelope glycoprotein C		alpha gene | type 1 membrane protein; contains a signal peptide; binds cell surface heparan sulphate; binds complement C3b to block neutralization; involved in cell attachment
+UL44	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL44-UL45	BK012101.1	CDS;gene;mRNA	UL44 | UL44 iORF | UL44 iso1 | UL45		altered C-terminus | glycoprotein c | membrane protein; c-type lectin | spliced
+UL44.5	BK012101.1	CDS;gene	UL44.5		orphan
+UL44.5	whisnant2020	CDS;gene	protein_coding		
+UL45	NC_001806.2	CDS;gene	membrane protein UL45	HHV1gp00p30	alpha gene | type 2 membrane protein; tegument-associated; possibly involved in membrane fusion
+UL45	JN555585.1	CDS;gene	membrane protein UL45		alpha gene | type 2 membrane protein; tegument-associated; possibly involved in membrane fusion
+UL45	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL46	NC_001806.2	CDS;gene	tegument protein VP11/12	HHV1gp00p29	alpha gene | modulates transactivating tegument protein VP16; possibly involved in gene regulation
+UL46	JN555585.1	CDS;gene	tegument protein VP11/12		alpha gene | modulates transactivating tegument protein VP16; possibly involved in gene regulation
+UL46	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL46-UL47	BK012101.1	CDS;gene;mRNA	UL46 | UL47 | UL47 #1		VP11/12 | VP13/14 | vp11; vp12; tegument protein | vp13; vp14; tegument protein
+UL46.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL46.5-UL50	BK012101.1	CDS;gene;mRNA	UL46.5 | UL46.5 sORF 1 | UL46.5 sORF 2 | UL47.5 | UL50 | UL50 *1 | UL50 *2		dutpase | includes 10 aa n-terminal extension intitating from cug | includes 23 aa n-terminal extension intitating from acg | orphan
+UL47	NC_001806.2	CDS;gene	tegument protein VP13/14	HHV1gp00p28	alpha gene | modulates transactivating tegument protein VP16; RNA-binding protein; possibly involved in gene regulation
+UL47	JN555585.1	CDS;gene	tegument protein VP13/14		alpha gene | modulates transactivating tegument protein VP16; RNA-binding protein; possibly involved in gene regulation
+UL47	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL47.5	whisnant2020	exon;gene;transcript	protein_coding		
+UL48	NC_001806.2	CDS;gene;regulatory	transactivating tegument protein VP16	HHV1gp00p27	alpha gene | transactivates immediate early genes; involved in gene regulation; involved in virion morphogenesis
+UL48	BK012101.1	CDS;gene;mRNA	UL48 | UL48 #1		VP16 | vp16; alpha-tif; tegument protein; virion maturation
+UL48	JN555585.1	CDS;gene;regulatory	transactivating tegument protein VP16		alpha gene | transactivates immediate early genes; involved in gene regulation; involved in virion morphogenesis
+UL48	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL49	NC_001806.2	CDS;gene	tegument protein VP22	HHV1gp00p25	involved in virion morphogenesis; possibly involved in RNA transport to uninfected cells
+UL49	JN555585.1	CDS;gene	tegument protein VP22		involved in virion morphogenesis; possibly involved in RNA transport to uninfected cells
+UL49	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL49-UL50.6	BK012101.1	CDS;gene;mRNA	UL49 | UL49 uORF | UL49.5 | UL49.5 uORF | UL50.5 | UL50.5 sORF 1 | UL50.5 sORF 2 | UL50.6 | UL50.6 sORF		TaSS not determined; shares c-terminal part with ul49.5 uorf 1 | UL49A | ul49a; glycoprotein n | vp22; tegument protein
+UL49.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL49A	NC_001806.2	CDS;gene	envelope glycoprotein N	HHV1gp00p26	core gene | type 1 membrane protein; contains a signal peptide; complexed with envelope glycoprotein M; involved in virion morphogenesis; involved in membrane fusion; not glycosylated
+UL49A	JN555585.1	CDS;gene	envelope glycoprotein N		core gene | type 1 membrane protein; contains a signal peptide; complexed with envelope glycoprotein M; involved in virion morphogenesis; involved in membrane fusion; not glycosylated
+UL5	NC_001806.2	CDS;gene	helicase-primase helicase subunit	HHV1gp00p72	core gene | involved in DNA replication
+UL5	JN555585.1	CDS;gene	helicase-primase helicase subunit		core gene | involved in DNA replication
+UL5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL5.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL5.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL5.7	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL50	NC_001806.2	CDS;gene;regulatory	deoxyuridine triphosphatase	HHV1gp00p24	core gene | involved in nucleotide metabolism; DURP family
+UL50	JN555585.1	CDS;gene;regulatory	deoxyuridine triphosphatase		core gene | involved in nucleotide metabolism; DURP family
+UL50	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL50.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL50.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL51	NC_001806.2	CDS;gene;regulatory	tegument protein UL51	HHV1gp00p23	core gene | involved in virion morphogenesis
+UL51	JN555585.1	CDS;gene;regulatory	tegument protein UL51		core gene | involved in virion morphogenesis
+UL51	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL51-UL54.5	BK012101.1	CDS;gene;mRNA	UL51 | UL51 #1 | UL51 uORF | UL51 uoORF | UL52.4 | UL52.4 sORF | UL52.5 | UL52.5 sORF 1 | UL52.5 sORF 2 | UL53.5 | UL53.5 sORF 1 | UL53.5 sORF 2 | UL54.5		TaSS not determined | may include n-terminal 4aa extension initiating from CTG | orphan | tegument protein
+UL51.5	whisnant2020	CDS;gene	protein_coding		
+UL51.5 sORF 1	BK012101.1	CDS;gene	UL51.5 sORF 1		orphan
+UL51.5 sORF 2	BK012101.1	CDS;gene	UL51.5 sORF 2		orphan
+UL52	NC_001806.2	CDS;gene	helicase-primase primase subunit	HHV1gp00p22	core gene | involved in DNA replication
+UL52	JN555585.1	CDS;gene	helicase-primase primase subunit		core gene | involved in DNA replication
+UL52	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL52-UL53	BK012101.1	CDS;gene;mRNA	UL52 | UL53 | UL53 #1 | UL53 #2 | UL53 iORF RNA #2 | UL53 uORF		DNA helicase/primase complex protein | encodes UL53 iORF | glycoprotein k
+UL52.4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL52.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL53	NC_001806.2	CDS;gene	envelope glycoprotein K	HHV1gp00p21	alpha gene | type 3 membrane protein; contains a signal peptide; 4 transmembrane domains; involved in virion morphogenesis; involved in membrane fusion
+UL53	JN555585.1	CDS;gene	envelope glycoprotein K		alpha gene | type 3 membrane protein; contains a signal peptide; 4 transmembrane domains; involved in virion morphogenesis; involved in membrane fusion
+UL53	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL53.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL54	NC_001806.2	CDS;gene;regulatory	multifunctional expression regulator	HHV1gp00p20	RNA-binding protein; shuttles between nucleus and cytoplasm; inhibits pre-mRNA splicing; exports virus mRNA from nucleus; exerts most effects post-transcriptionally; involved in gene regulation; involved in RNA metabolism and transport; ICP27; MER family | core gene; immediate early gene
+UL54	JN555585.1	CDS;gene;regulatory	multifunctional expression regulator		RNA-binding protein; shuttles between nucleus and cytoplasm; inhibits pre-mRNA splicing; exports virus mRNA from nucleus; exerts most effects post-transcriptionally; involved in gene regulation; involved in RNA metabolism and transport; ICP27; MER family | core gene; immediate early gene
+UL54	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL54-UL55	BK012101.1	CDS;gene;mRNA	UL54 | UL54 *1 | UL54.4 | UL55		PacBio; read-through; orphan | icp27; ie63; transcriptional regulation | includes 38 aa n-terminal extension initiating from acg | virion assembly
+UL54.4	whisnant2020	exon;gene;transcript	protein_coding		
+UL54.5	whisnant2020	exon;gene;transcript	protein_coding		
+UL55	NC_001806.2	CDS;gene;regulatory	nuclear protein UL55	HHV1gp00p19	
+UL55	JN555585.1	CDS;gene;regulatory	nuclear protein UL55		
+UL55	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL56	NC_001806.2	CDS;gene;regulatory	membrane protein UL56	HHV1gp00p18	alpha gene | type 2 membrane protein; possibly involved in vesicular trafficking; UL56 family
+UL56	JN555585.1	CDS;gene;regulatory	membrane protein UL56		alpha gene | type 2 membrane protein; possibly involved in vesicular trafficking; UL56 family
+UL56	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL56-IRL3	BK012101.1	CDS;gene;mRNA	IRL3 | UL56 | UL56 uORF		membrane protein | orphan
+UL6	NC_001806.2	CDS;gene	capsid portal protein	HHV1gp00p70	core gene | dodecamer located at one capsid vertex in place of a penton; involved in DNA encapsidation
+UL6	JN555585.1	CDS;gene	capsid portal protein		core gene | dodecamer located at one capsid vertex in place of a penton; involved in DNA encapsidation
+UL6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL6.4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL6.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL6.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL6.7	whisnant2020	CDS;gene	protein_coding		
+UL6.7 sORF 1	BK012101.1	CDS;gene	UL6.7 sORF 1		orphan
+UL6.7 sORF 2	BK012101.1	CDS;gene	UL6.7 sORF 2		orphan
+UL7	NC_001806.2	CDS;gene	tegument protein UL7	HHV1gp00p69	core gene | involved in virion morphogenesis
+UL7	JN555585.1	CDS;gene	tegument protein UL7		core gene | involved in virion morphogenesis
+UL7	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL7.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL7.5-UL10	BK012101.1	CDS;gene;mRNA	UL10 | UL10 #1 | UL10 uORF | UL7.5 | UL7.5 uORF | UL8.4		TaSS not determined; could also be 23012 or 23039 | glycoprotein m; may include n-terminal extension but TaSS not determined | may include a small truncated isoform of 23aa initiating at 21143 from acg
+UL8	NC_001806.2	CDS;gene	helicase-primase subunit	HHV1gp00p67	core gene | involved in DNA replication
+UL8	JN555585.1	CDS;gene	helicase-primase subunit		core gene | involved in DNA replication
+UL8	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL8-UL9.5	BK012101.1	CDS;gene;mRNA	UL8 | UL8 iORF | UL8 uORF | UL8.5 | UL8.5 *1 | UL9 | UL9.5 | UL9.5 iORF 1 | UL9.5 iORF 2 | UL9.5 uORF | UL9.5 uoORF		ATP binding; replication origin-binding protein | ATP binding; truncated isoform of ul9 | TiSS not observed | helicate-primase complex-associated protein
+UL8.3	BK012101.1	CDS;gene	orphan protein		
+UL8.3	whisnant2020	CDS;gene	protein_coding		
+UL8.4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL8.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL9	NC_001806.2	CDS;gene	DNA replication origin-binding helicase	HHV1gp00p68	core gene | involved in DNA replication
+UL9	JN555585.1	CDS;gene	DNA replication origin-binding helicase		core gene | involved in DNA replication
+UL9	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+UL9.4	BK012101.1	CDS;gene	UL9.4		orphan
+UL9.4	whisnant2020	CDS;gene	protein_coding		
+UL9.4 dORF	BK012101.1	CDS;gene	UL9.4 dORF		orphan
+UL9.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US1	NC_001806.2	CDS;gene;mRNA;regulatory;repeat_region	regulatory protein ICP22	HHV1gp00p14	IRS reiteration set 3 | immediate early gene | required for expression of a subset of late genes; involved in gene regulation; involved in cell cycle regulation
+US1	JN555585.1	CDS;gene;mRNA;regulatory;repeat_region	regulatory protein ICP22		IRS reiteration set 3 | immediate early gene | required for expression of a subset of late genes; involved in gene regulation; involved in cell cycle regulation
+US1	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US1-US1.5	BK012101.1	CDS;gene;mRNA	US1 | US1 *1 | US1.5		Carter & Roizman, JVI 1996 | icp22; ie63; viral replication | includes n-terminal extension initiating from gug, 8 aa, or even from gug, 21 aa | spliced | truncated isoform of us1
+US1.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US10	NC_001806.2	CDS;gene;mRNA;regulatory	virion protein US10	HHV1gp00p02	alpha gene
+US10	JN555585.1	CDS;gene;mRNA;regulatory	virion protein US10		alpha gene
+US10	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US10-US12	BK012101.1	CDS;gene;mRNA	US10 | US11 | US11 *1 | US12		icp47; ie12 | includes 4aa n-terminal extension initiating with GTG | spliced | tegument protein | vmw21; RNA binding protein
+US11	NC_001806.2	CDS;gene;mRNA;regulatory	tegument protein US11	HHV1gp00p03	dsRNA-binding protein; antagonizes PKR; inhibits stress-induced translational arrest; involved in translational regulation
+US11	JN555585.1	CDS;gene;mRNA;regulatory	tegument protein US11		dsRNA-binding protein; antagonizes PKR; inhibits stress-induced translational arrest; involved in translational regulation
+US11	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US11.5	BK012101.1	CDS;gene	US11.5		orphan
+US11.5	whisnant2020	CDS;gene	protein_coding		
+US12	NC_001806.2	CDS;gene;mRNA;regulatory	TAP transporter inhibitor ICP47	HHV1gp00p04	immediate early gene | inhibits antigen presentation; involved in immune regulation
+US12	JN555585.1	CDS;gene;mRNA;regulatory	TAP transporter inhibitor ICP47		immediate early gene | inhibits antigen presentation; involved in immune regulation
+US12	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US2	NC_001806.2	CDS;gene;mRNA;regulatory	virion protein US2	HHV1gp00p13	alpha gene | possibly envelope-associated; interacts with cytokeratin 18
+US2	JN555585.1	CDS;gene;mRNA;regulatory	virion protein US2		alpha gene | possibly envelope-associated; interacts with cytokeratin 18
+US2	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US2-US5.5	BK012101.1	CDS;gene;mRNA	US2 | US3.6 | US5.1 | US5.5 | US5.5 sORF		Jovasevic & Roizman Virol J 2010. not observed in TiSS or PacBio data; orphan | orphan | tegument protein
+US2.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US2.5-US4	BK012101.1	CDS;gene;mRNA	US2.5 | US3 | US3 #1 | US3 #2 | US3 *1 | US3.5 | US4		TaSS not determined | also encodes US3.5 CDS | glycoprotein g | includes 23 aa n-terminal extension initiating from cug | serine/threonine-protein kinase | truncated isoform of us3
+US2.6	BK012101.1	CDS;gene	US2.6		orphan; probable alternative TaSS from first downstream ATG
+US2.6	whisnant2020	CDS;gene	protein_coding		
+US3	NC_001806.2	CDS;gene;mRNA;regulatory	serine/threonine protein kinase US3	HHV1gp00p12	alpha gene | tegument protein; phosphorylates nuclear egress lamina protein; mediates phosphorylation of HDAC1 and HDAC2 and other cellular and viral proteins; involved in protein phosphorylation; involved in apoptosis; involved in nuclear egress; PK family
+US3	JN555585.1	CDS;gene;mRNA;regulatory	serine/threonine protein kinase US3		alpha gene | tegument protein; phosphorylates nuclear egress lamina protein; mediates phosphorylation of HDAC1 and HDAC2 and other cellular and viral proteins; involved in protein phosphorylation; involved in apoptosis; involved in nuclear egress; PK family
+US3	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US3.6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US4	NC_001806.2	CDS;gene;mRNA;regulatory	envelope glycoprotein G	HHV1gp00p11	alpha gene | type 1 membrane protein; contains a signal peptide; involved in cell-to-cell spread; involved in apical spread; gD family
+US4	JN555585.1	CDS;gene;mRNA;regulatory	envelope glycoprotein G		alpha gene | type 1 membrane protein; contains a signal peptide; involved in cell-to-cell spread; involved in apical spread; gD family
+US4	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US4.5	BK012101.1	CDS;gene	US3.6 sORF | US3.6 uORF | US4.5		4aa, initiating from ATG | c-terminal 81aa of us4.5 orf initiating from ATG | orphan, TaSS not determined
+US4.5	whisnant2020	CDS;gene	protein_coding		
+US5	NC_001806.2	CDS;gene;mRNA;regulatory	envelope glycoprotein J	HHV1gp00p10	alpha gene | type 1 membrane protein; contains a signal peptide
+US5	JN555585.1	CDS;gene;mRNA;regulatory	envelope glycoprotein J		alpha gene | type 1 membrane protein; contains a signal peptide
+US5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US5-US7	BK012101.1	CDS;gene;mRNA	US5 | US5 *1 | US5 dORF | US6 | US6 uORF | US7		glycoprotein d | glycoprotein i | glycoprotein j | includes 16 aa n-terminal extension initiating from cug
+US5.1	whisnant2020	exon;gene;transcript	protein_coding		
+US5.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US6	NC_001806.2	CDS;gene;mRNA;regulatory	envelope glycoprotein D	HHV1gp00p09	alpha gene | type 1 membrane protein; contains a signal peptide; binds cell surface receptors; involved in cell attachment; gD family
+US6	JN555585.1	CDS;gene;mRNA;regulatory	envelope glycoprotein D		alpha gene | type 1 membrane protein; contains a signal peptide; binds cell surface receptors; involved in cell attachment; gD family
+US6	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US7	NC_001806.2	CDS;gene;mRNA;regulatory	envelope glycoprotein I	HHV1gp00p08	alpha gene | type 1 membrane protein; contains a signal peptide; complexed with envelope glycoprotein E to form an Fc-receptor; involved in cell-to-cell spread; involved in basolateral spread; gD family
+US7	JN555585.1	CDS;gene;mRNA;regulatory	envelope glycoprotein I		alpha gene | type 1 membrane protein; contains a signal peptide; complexed with envelope glycoprotein E to form an Fc-receptor; involved in cell-to-cell spread; involved in basolateral spread; gD family
+US7	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US8	NC_001806.2	CDS;gene;mRNA;regulatory	envelope glycoprotein E	HHV1gp00p07	alpha gene | type 1 membrane protein; contains a signal peptide; complexed with envelope glycoprotein I to form an Fc-receptor; involved in cell-to-cell spread; involved in basolateral spread; gE family
+US8	JN555585.1	CDS;gene;mRNA;regulatory	envelope glycoprotein E		alpha gene | type 1 membrane protein; contains a signal peptide; complexed with envelope glycoprotein I to form an Fc-receptor; involved in cell-to-cell spread; involved in basolateral spread; gE family
+US8	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US8-US9	BK012101.1	CDS;gene;mRNA	US8 | US8 *1 | US8.5 | US9 | US9 uoORF		encodes US8A | glycoprotein e | includes 7aa n-terminal extension initiating from auc | membrane protein | us8a
+US8.5	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+US8A	NC_001806.2	CDS;gene	membrane protein US8A	HHV1gp00p06	alpha gene | type 2 membrane protein
+US8A	JN555585.1	CDS;gene	membrane protein US8A		alpha gene | type 2 membrane protein
+US9	NC_001806.2	CDS;gene;mRNA;regulatory	membrane protein US9	HHV1gp00p05	type 2 membrane protein; tegument-associated; localizes envelope proteins; involved in axonal transport
+US9	JN555585.1	CDS;gene;mRNA;regulatory	membrane protein US9		type 2 membrane protein; tegument-associated; localizes envelope proteins; involved in axonal transport
+US9	whisnant2020	CDS;exon;gene;transcript	protein_coding		
+pri-miRNA-H2/H7/H8/H3/H4/H5	whisnant2020	exon;gene;transcript	protein_coding		
+pri-miRNA-H7/H8/H3/H4/H5	whisnant2020	exon;gene;transcript	protein_coding		

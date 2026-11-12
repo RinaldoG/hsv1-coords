@@ -1,0 +1,233 @@
+gene	NC_001806.2	BK012101.1	JN555585.1	whisnant2020	n_sources	product_agreement
+AL-RNA	no	yes	no	yes	2	DIFFERS: BK012101.1=AL-RNA // whisnant2020=protein_coding
+IRL1	no	no	no	yes	1	single_or_absent
+IRL1.5	no	no	no	yes	1	single_or_absent
+IRL2	no	no	no	yes	1	single_or_absent
+IRL2-IRL1	no	yes	no	no	1	single_or_absent
+IRL2.5	no	yes	no	yes	2	DIFFERS: BK012101.1=IRL2.5 | IRL2.5 #1 | IRL2.5 *1 | IRL2.5 *2 // whisnant2020=protein_coding
+IRL3	no	no	no	yes	1	single_or_absent
+IRS1	no	yes	no	yes	2	DIFFERS: BK012101.1=IRS1 | IRS1 #1 // whisnant2020=protein_coding
+LAT	yes	no	yes	no	2	single_or_absent
+LAT-ORF-O	no	yes	no	no	1	single_or_absent
+LAT_gene	no	no	no	yes	1	single_or_absent
+ORF-O	no	yes	no	yes	2	DIFFERS: BK012101.1=ORF-O // whisnant2020=protein_coding
+ORF-O/P	no	no	no	yes	1	single_or_absent
+ORF-P	no	yes	no	yes	2	DIFFERS: BK012101.1=ORF-P // whisnant2020=protein_coding
+Ori-S	no	no	no	yes	1	single_or_absent
+Ori-S-TRS1	no	yes	no	no	1	single_or_absent
+RL1	yes	no	yes	no	2	single_or_absent
+RL2	yes	no	yes	no	2	DIFFERS: JN555585.1=ubiquitin E3 ligase ICP0 // NC_001806.2=contains a RING finger; disrupts ND10; proteasome-dependent degradation of several cellular proteins; involved in gene regulation; involved in cellular protein degradation; involved in latency | ubiquitin E3 ligase ICP0
+RS1	yes	no	yes	no	2	single_or_absent
+TRL1	no	no	no	yes	1	single_or_absent
+TRL1-TRL2	no	yes	no	no	1	single_or_absent
+TRL1.5	no	no	no	yes	1	single_or_absent
+TRL2	no	no	no	yes	1	single_or_absent
+TRL2.5	no	yes	no	yes	2	DIFFERS: BK012101.1=TRL2.5 | TRL2.5 #1 | TRL2.5 *1 | TRL2.5 *2 // whisnant2020=protein_coding
+TRL3	no	no	no	yes	1	single_or_absent
+TRL3-UL3	no	yes	no	no	1	single_or_absent
+TRS1	no	no	no	yes	1	single_or_absent
+UL1	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein L // NC_001806.2=envelope glycoprotein L // whisnant2020=protein_coding
+UL10	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein M // NC_001806.2=envelope glycoprotein M // whisnant2020=protein_coding
+UL11	yes	no	yes	yes	3	DIFFERS: JN555585.1=myristylated tegument protein // NC_001806.2=myristylated tegument protein // whisnant2020=protein_coding
+UL11-UL14	no	yes	no	no	1	single_or_absent
+UL11.5	no	no	no	yes	1	single_or_absent
+UL12	yes	no	yes	yes	3	DIFFERS: JN555585.1=deoxyribonuclease // NC_001806.2=deoxyribonuclease // whisnant2020=protein_coding
+UL12.5	no	no	no	yes	1	single_or_absent
+UL13	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument serine/threonine protein kinase // NC_001806.2=tegument serine/threonine protein kinase // whisnant2020=protein_coding
+UL13.5	no	no	no	yes	1	single_or_absent
+UL13.5-UL15	no	yes	no	no	1	single_or_absent
+UL14	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein UL14 // NC_001806.2=tegument protein UL14 // whisnant2020=protein_coding
+UL15	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA packaging terminase subunit 1 // NC_001806.2=DNA packaging terminase subunit 1 // whisnant2020=protein_coding
+UL15.4	no	no	no	yes	1	single_or_absent
+UL15.4 sORF 1	no	yes	no	no	1	single_or_absent
+UL15.4 sORF 2	no	yes	no	no	1	single_or_absent
+UL15.5	no	yes	no	yes	2	DIFFERS: BK012101.1=UL15.5 // whisnant2020=protein_coding
+UL16	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein UL16 // NC_001806.2=tegument protein UL16 // whisnant2020=protein_coding
+UL16-UL17	no	yes	no	no	1	single_or_absent
+UL17	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA packaging tegument protein UL17 // NC_001806.2=DNA packaging tegument protein UL17 // whisnant2020=protein_coding
+UL17.4	no	no	no	yes	1	single_or_absent
+UL17.4 sORF 1	no	yes	no	no	1	single_or_absent
+UL17.4 sORF 2	no	yes	no	no	1	single_or_absent
+UL17.5	no	yes	no	yes	2	DIFFERS: BK012101.1=UL17.5 // whisnant2020=protein_coding
+UL17.5 uoORF	no	yes	no	no	1	single_or_absent
+UL18	yes	no	yes	yes	3	DIFFERS: JN555585.1=capsid triplex subunit 2 // NC_001806.2=capsid triplex subunit 2 // whisnant2020=protein_coding
+UL18-UL20.6	no	yes	no	no	1	single_or_absent
+UL19	yes	no	yes	yes	3	DIFFERS: JN555585.1=major capsid protein // NC_001806.2=major capsid protein // whisnant2020=protein_coding
+UL19.4	no	no	no	yes	1	single_or_absent
+UL19.4 sORF	no	yes	no	no	1	single_or_absent
+UL19.5	no	no	no	yes	1	single_or_absent
+UL19.5-UL21	no	yes	no	no	1	single_or_absent
+UL2	yes	no	yes	yes	3	DIFFERS: JN555585.1=uracil-DNA glycosylase // NC_001806.2=uracil-DNA glycosylase // whisnant2020=protein_coding
+UL20	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope protein UL20 // NC_001806.2=envelope protein UL20 // whisnant2020=protein_coding
+UL20.4	no	no	no	yes	1	single_or_absent
+UL20.5	no	yes	no	yes	2	DIFFERS: BK012101.1=UL20 uORF | UL20.5 // whisnant2020=protein_coding
+UL20.6	no	no	no	yes	1	single_or_absent
+UL21	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein UL21 // NC_001806.2=tegument protein UL21 // whisnant2020=protein_coding
+UL22	yes	yes	yes	yes	4	DIFFERS: BK012101.1=UL22 | UL22 uORF 1 | UL22 uORF 2 // JN555585.1=envelope glycoprotein H // NC_001806.2=envelope glycoprotein H // whisnant2020=protein_coding
+UL22.5	no	no	no	yes	1	single_or_absent
+UL22.5-UL26.5	no	yes	no	no	1	single_or_absent
+UL23	yes	no	yes	yes	3	DIFFERS: JN555585.1=thymidine kinase // NC_001806.2=involved in nucleotide metabolism // whisnant2020=protein_coding
+UL23-UL25.5	no	yes	no	no	1	single_or_absent
+UL23.5	no	no	no	yes	1	single_or_absent
+UL23.6	no	yes	no	yes	2	DIFFERS: BK012101.1=UL23 uORF 1 | UL23 uORF 2 | UL23.6 // whisnant2020=protein_coding
+UL24	yes	no	yes	yes	3	DIFFERS: JN555585.1=nuclear protein UL24 // NC_001806.2=nuclear protein UL24 // whisnant2020=protein_coding
+UL24.5	no	no	no	yes	1	single_or_absent
+UL25	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA packaging tegument protein UL25 // NC_001806.2=DNA packaging tegument protein UL25 // whisnant2020=protein_coding
+UL25.4	no	yes	no	yes	2	DIFFERS: BK012101.1=UL25.4 // whisnant2020=protein_coding
+UL25.5	no	no	no	yes	1	single_or_absent
+UL26	yes	no	yes	yes	3	DIFFERS: JN555585.1=capsid maturation protease // NC_001806.2=capsid maturation protease // whisnant2020=protein_coding
+UL26.5	yes	no	yes	yes	3	DIFFERS: JN555585.1=capsid scaffold protein // NC_001806.2=capsid scaffold protein // whisnant2020=protein_coding
+UL27	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein B // NC_001806.2=envelope glycoprotein B // whisnant2020=protein_coding
+UL27-UL28	no	yes	no	no	1	single_or_absent
+UL27.5	no	no	no	yes	1	single_or_absent
+UL27.5-UL30	no	yes	no	no	1	single_or_absent
+UL27.6	no	no	no	yes	1	single_or_absent
+UL28	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA packaging terminase subunit 2 // NC_001806.2=DNA packaging terminase subunit 2 // whisnant2020=protein_coding
+UL28.4	no	no	no	yes	1	single_or_absent
+UL28.6	no	yes	no	yes	2	DIFFERS: BK012101.1=UL28.6 // whisnant2020=protein_coding
+UL29	yes	no	yes	yes	3	DIFFERS: JN555585.1=single-stranded DNA-binding protein // NC_001806.2=single-stranded DNA-binding protein // whisnant2020=protein_coding
+UL29.5	no	no	no	yes	1	single_or_absent
+UL29.5-UL30.6	no	yes	no	no	1	single_or_absent
+UL3	yes	no	yes	yes	3	DIFFERS: JN555585.1=nuclear protein UL3 // NC_001806.2=nuclear protein UL3 // whisnant2020=protein_coding
+UL30	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA polymerase catalytic subunit // NC_001806.2=DNA polymerase catalytic subunit // whisnant2020=protein_coding
+UL30.5	no	no	no	yes	1	single_or_absent
+UL30.6	no	no	no	yes	1	single_or_absent
+UL31	yes	no	yes	yes	3	DIFFERS: JN555585.1=nuclear egress lamina protein // NC_001806.2=nuclear egress lamina protein // whisnant2020=protein_coding
+UL31-UL32	no	yes	no	no	1	single_or_absent
+UL31.5	no	no	no	yes	1	single_or_absent
+UL31.5-UL35	no	yes	no	no	1	single_or_absent
+UL31.6	no	no	no	yes	1	single_or_absent
+UL32	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA packaging protein UL32 // NC_001806.2=DNA packaging protein UL32 // whisnant2020=protein_coding
+UL32.5	no	no	no	yes	1	single_or_absent
+UL32.6	no	no	no	yes	1	single_or_absent
+UL33	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA packaging protein UL33 // NC_001806.2=DNA packaging protein UL33 // whisnant2020=protein_coding
+UL34	yes	no	yes	yes	3	DIFFERS: JN555585.1=nuclear egress membrane protein // NC_001806.2=nuclear egress membrane protein // whisnant2020=protein_coding
+UL34.5	no	no	no	yes	1	single_or_absent
+UL34.5 sORF 1	no	yes	no	no	1	single_or_absent
+UL34.5 sORF 2	no	yes	no	no	1	single_or_absent
+UL35	yes	no	yes	yes	3	DIFFERS: JN555585.1=small capsid protein // NC_001806.2=small capsid protein // whisnant2020=protein_coding
+UL36	yes	yes	yes	yes	4	DIFFERS: BK012101.1=UL36 | UL36 #1 | UL36 *1 // JN555585.1=large tegument protein // NC_001806.2=large tegument protein // whisnant2020=protein_coding
+UL36.4	no	no	no	yes	1	single_or_absent
+UL36.4-UL38	no	yes	no	no	1	single_or_absent
+UL36.5	no	no	no	yes	1	single_or_absent
+UL36.6	no	no	no	yes	1	single_or_absent
+UL37	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein UL37 // NC_001806.2=tegument protein UL37 // whisnant2020=protein_coding
+UL37-UL39.6	no	yes	no	no	1	single_or_absent
+UL37.3	no	yes	no	yes	2	DIFFERS: BK012101.1=UL37.3 // whisnant2020=protein_coding
+UL37.4	no	yes	no	yes	2	DIFFERS: BK012101.1=UL37.4 // whisnant2020=protein_coding
+UL37.4 uORF	no	yes	no	no	1	single_or_absent
+UL37.5	no	no	no	yes	1	single_or_absent
+UL37.6	no	no	no	yes	1	single_or_absent
+UL38	yes	no	yes	yes	3	DIFFERS: JN555585.1=capsid triplex subunit 1 // NC_001806.2=capsid triplex subunit 1 // whisnant2020=protein_coding
+UL39	yes	no	yes	yes	3	DIFFERS: JN555585.1=ribonucleotide reductase subunit 1 // NC_001806.2=ribonucleotide reductase subunit 1 // whisnant2020=protein_coding
+UL39-UL40	no	yes	no	no	1	single_or_absent
+UL39.4	no	no	no	yes	1	single_or_absent
+UL39.5	no	no	no	yes	1	single_or_absent
+UL39.6	no	no	no	yes	1	single_or_absent
+UL4	yes	no	yes	yes	3	DIFFERS: JN555585.1=nuclear protein UL4 // NC_001806.2=nuclear protein UL4 // whisnant2020=protein_coding
+UL4-UL6.6	no	yes	no	no	1	single_or_absent
+UL4.5	no	no	no	yes	1	single_or_absent
+UL4.5-UL7	no	yes	no	no	1	single_or_absent
+UL4.6	no	no	no	yes	1	single_or_absent
+UL40	yes	no	yes	yes	3	DIFFERS: JN555585.1=ribonucleotide reductase subunit 2 // NC_001806.2=ribonucleotide reductase subunit 2 // whisnant2020=protein_coding
+UL40.5	no	no	no	yes	1	single_or_absent
+UL40.5-UL42	no	yes	no	no	1	single_or_absent
+UL40.6	no	no	no	yes	1	single_or_absent
+UL40.7	no	no	no	yes	1	single_or_absent
+UL41	yes	yes	yes	yes	4	DIFFERS: BK012101.1=UL41 | UL41 #1 | UL41 #2 | UL41 iORF RNA #1 | UL41 uORF 1 | UL41 uORF 2 | UL41 uoORF // JN555585.1=tegument host shutoff protein // NC_001806.2=tegument host shutoff protein // whisnant2020=protein_coding
+UL42	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA polymerase processivity subunit // NC_001806.2=DNA polymerase processivity subunit // whisnant2020=protein_coding
+UL43	yes	yes	yes	yes	4	DIFFERS: BK012101.1=UL43 // JN555585.1=envelope protein UL43 // NC_001806.2=envelope protein UL43 // whisnant2020=protein_coding
+UL43.5	no	yes	no	yes	2	DIFFERS: BK012101.1=UL43.5 // whisnant2020=protein_coding
+UL43.5 iORF	no	yes	no	no	1	single_or_absent
+UL43.5 uORF	no	yes	no	no	1	single_or_absent
+UL43.6	no	yes	no	yes	2	DIFFERS: BK012101.1=UL43.6 // whisnant2020=protein_coding
+UL43.6 uORF	no	yes	no	no	1	single_or_absent
+UL44	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein C // NC_001806.2=envelope glycoprotein C // whisnant2020=protein_coding
+UL44-UL45	no	yes	no	no	1	single_or_absent
+UL44.5	no	yes	no	yes	2	DIFFERS: BK012101.1=UL44.5 // whisnant2020=protein_coding
+UL45	yes	no	yes	yes	3	DIFFERS: JN555585.1=membrane protein UL45 // NC_001806.2=membrane protein UL45 // whisnant2020=protein_coding
+UL46	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein VP11/12 // NC_001806.2=tegument protein VP11/12 // whisnant2020=protein_coding
+UL46-UL47	no	yes	no	no	1	single_or_absent
+UL46.5	no	no	no	yes	1	single_or_absent
+UL46.5-UL50	no	yes	no	no	1	single_or_absent
+UL47	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein VP13/14 // NC_001806.2=tegument protein VP13/14 // whisnant2020=protein_coding
+UL47.5	no	no	no	yes	1	single_or_absent
+UL48	yes	yes	yes	yes	4	DIFFERS: BK012101.1=UL48 | UL48 #1 // JN555585.1=transactivating tegument protein VP16 // NC_001806.2=transactivating tegument protein VP16 // whisnant2020=protein_coding
+UL49	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein VP22 // NC_001806.2=tegument protein VP22 // whisnant2020=protein_coding
+UL49-UL50.6	no	yes	no	no	1	single_or_absent
+UL49.5	no	no	no	yes	1	single_or_absent
+UL49A	yes	no	yes	no	2	single_or_absent
+UL5	yes	no	yes	yes	3	DIFFERS: JN555585.1=helicase-primase helicase subunit // NC_001806.2=helicase-primase helicase subunit // whisnant2020=protein_coding
+UL5.5	no	no	no	yes	1	single_or_absent
+UL5.6	no	no	no	yes	1	single_or_absent
+UL5.7	no	no	no	yes	1	single_or_absent
+UL50	yes	no	yes	yes	3	DIFFERS: JN555585.1=deoxyuridine triphosphatase // NC_001806.2=deoxyuridine triphosphatase // whisnant2020=protein_coding
+UL50.5	no	no	no	yes	1	single_or_absent
+UL50.6	no	no	no	yes	1	single_or_absent
+UL51	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein UL51 // NC_001806.2=tegument protein UL51 // whisnant2020=protein_coding
+UL51-UL54.5	no	yes	no	no	1	single_or_absent
+UL51.5	no	no	no	yes	1	single_or_absent
+UL51.5 sORF 1	no	yes	no	no	1	single_or_absent
+UL51.5 sORF 2	no	yes	no	no	1	single_or_absent
+UL52	yes	no	yes	yes	3	DIFFERS: JN555585.1=helicase-primase primase subunit // NC_001806.2=helicase-primase primase subunit // whisnant2020=protein_coding
+UL52-UL53	no	yes	no	no	1	single_or_absent
+UL52.4	no	no	no	yes	1	single_or_absent
+UL52.5	no	no	no	yes	1	single_or_absent
+UL53	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein K // NC_001806.2=envelope glycoprotein K // whisnant2020=protein_coding
+UL53.5	no	no	no	yes	1	single_or_absent
+UL54	yes	no	yes	yes	3	DIFFERS: JN555585.1=multifunctional expression regulator // NC_001806.2=multifunctional expression regulator // whisnant2020=protein_coding
+UL54-UL55	no	yes	no	no	1	single_or_absent
+UL54.4	no	no	no	yes	1	single_or_absent
+UL54.5	no	no	no	yes	1	single_or_absent
+UL55	yes	no	yes	yes	3	DIFFERS: JN555585.1=nuclear protein UL55 // NC_001806.2=nuclear protein UL55 // whisnant2020=protein_coding
+UL56	yes	no	yes	yes	3	DIFFERS: JN555585.1=membrane protein UL56 // NC_001806.2=membrane protein UL56 // whisnant2020=protein_coding
+UL56-IRL3	no	yes	no	no	1	single_or_absent
+UL6	yes	no	yes	yes	3	DIFFERS: JN555585.1=capsid portal protein // NC_001806.2=capsid portal protein // whisnant2020=protein_coding
+UL6.4	no	no	no	yes	1	single_or_absent
+UL6.5	no	no	no	yes	1	single_or_absent
+UL6.6	no	no	no	yes	1	single_or_absent
+UL6.7	no	no	no	yes	1	single_or_absent
+UL6.7 sORF 1	no	yes	no	no	1	single_or_absent
+UL6.7 sORF 2	no	yes	no	no	1	single_or_absent
+UL7	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein UL7 // NC_001806.2=tegument protein UL7 // whisnant2020=protein_coding
+UL7.5	no	no	no	yes	1	single_or_absent
+UL7.5-UL10	no	yes	no	no	1	single_or_absent
+UL8	yes	no	yes	yes	3	DIFFERS: JN555585.1=helicase-primase subunit // NC_001806.2=helicase-primase subunit // whisnant2020=protein_coding
+UL8-UL9.5	no	yes	no	no	1	single_or_absent
+UL8.3	no	yes	no	yes	2	DIFFERS: BK012101.1=orphan protein // whisnant2020=protein_coding
+UL8.4	no	no	no	yes	1	single_or_absent
+UL8.5	no	no	no	yes	1	single_or_absent
+UL9	yes	no	yes	yes	3	DIFFERS: JN555585.1=DNA replication origin-binding helicase // NC_001806.2=DNA replication origin-binding helicase // whisnant2020=protein_coding
+UL9.4	no	yes	no	yes	2	DIFFERS: BK012101.1=UL9.4 // whisnant2020=protein_coding
+UL9.4 dORF	no	yes	no	no	1	single_or_absent
+UL9.5	no	no	no	yes	1	single_or_absent
+US1	yes	no	yes	yes	3	DIFFERS: JN555585.1=regulatory protein ICP22 // NC_001806.2=regulatory protein ICP22 // whisnant2020=protein_coding
+US1-US1.5	no	yes	no	no	1	single_or_absent
+US1.5	no	no	no	yes	1	single_or_absent
+US10	yes	no	yes	yes	3	DIFFERS: JN555585.1=virion protein US10 // NC_001806.2=virion protein US10 // whisnant2020=protein_coding
+US10-US12	no	yes	no	no	1	single_or_absent
+US11	yes	no	yes	yes	3	DIFFERS: JN555585.1=tegument protein US11 // NC_001806.2=tegument protein US11 // whisnant2020=protein_coding
+US11.5	no	yes	no	yes	2	DIFFERS: BK012101.1=US11.5 // whisnant2020=protein_coding
+US12	yes	no	yes	yes	3	DIFFERS: JN555585.1=TAP transporter inhibitor ICP47 // NC_001806.2=TAP transporter inhibitor ICP47 // whisnant2020=protein_coding
+US2	yes	no	yes	yes	3	DIFFERS: JN555585.1=virion protein US2 // NC_001806.2=virion protein US2 // whisnant2020=protein_coding
+US2-US5.5	no	yes	no	no	1	single_or_absent
+US2.5	no	no	no	yes	1	single_or_absent
+US2.5-US4	no	yes	no	no	1	single_or_absent
+US2.6	no	yes	no	yes	2	DIFFERS: BK012101.1=US2.6 // whisnant2020=protein_coding
+US3	yes	no	yes	yes	3	DIFFERS: JN555585.1=serine/threonine protein kinase US3 // NC_001806.2=serine/threonine protein kinase US3 // whisnant2020=protein_coding
+US3.6	no	no	no	yes	1	single_or_absent
+US4	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein G // NC_001806.2=envelope glycoprotein G // whisnant2020=protein_coding
+US4.5	no	yes	no	yes	2	DIFFERS: BK012101.1=US3.6 sORF | US3.6 uORF | US4.5 // whisnant2020=protein_coding
+US5	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein J // NC_001806.2=envelope glycoprotein J // whisnant2020=protein_coding
+US5-US7	no	yes	no	no	1	single_or_absent
+US5.1	no	no	no	yes	1	single_or_absent
+US5.5	no	no	no	yes	1	single_or_absent
+US6	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein D // NC_001806.2=envelope glycoprotein D // whisnant2020=protein_coding
+US7	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein I // NC_001806.2=envelope glycoprotein I // whisnant2020=protein_coding
+US8	yes	no	yes	yes	3	DIFFERS: JN555585.1=envelope glycoprotein E // NC_001806.2=envelope glycoprotein E // whisnant2020=protein_coding
+US8-US9	no	yes	no	no	1	single_or_absent
+US8.5	no	no	no	yes	1	single_or_absent
+US8A	yes	no	yes	no	2	single_or_absent
+US9	yes	no	yes	yes	3	DIFFERS: JN555585.1=membrane protein US9 // NC_001806.2=membrane protein US9 // whisnant2020=protein_coding
+pri-miRNA-H2/H7/H8/H3/H4/H5	no	no	no	yes	1	single_or_absent
+pri-miRNA-H7/H8/H3/H4/H5	no	no	no	yes	1	single_or_absent
