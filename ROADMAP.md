@@ -61,12 +61,29 @@ annotations are not compared as though they measured the same thing.
   crosswalk (M3), because emitting one merged GFF3 across sources before the crosswalk
   exists would assert equivalences that cannot yet be checked.
 
-## M3: strain coordinate crosswalk and lift-over
+## M3: strain coordinate crosswalk and lift-over - started, inventory built
 
 Pairwise alignments across the complete genomes, chain files, and a lift-over tool, so that
-a coordinate cited against one strain resolves against another. Three deposited genomes of
-one commonly used laboratory strain differ in length by up to 987 bp with no published
-mapping between them.
+a coordinate cited against one strain resolves against another.
+
+**Inventory built** (`make genomes`): 183 complete genomes, 147,898 to 159,092 bp, a spread
+of 11,194 bp. See `data/derived/strain_inventory.md`.
+
+Two things the inventory establishes, both of which the crosswalk has to handle:
+
+- **The laboratory strain KOS is deposited four times at four lengths** (152,011, 151,974,
+  151,794 and 151,024 bp) under **three different label strings** (`KOS`, `isolate KOS`,
+  `isolate KOS 1.1`), from different groups. A coordinate cited against "KOS" is ambiguous
+  across up to 987 bp. Strain label normalisation is therefore part of this milestone, not
+  a separate concern.
+- **Four records under one label differ legitimately**: the isomer-resolved set
+  `ON783214` to `ON783217` spans 3,421 bp because the four records are the genome's four
+  isomers, not four assemblies of one arrangement. The crosswalk must not treat that spread
+  as disagreement, which is exactly the distinction the un-callable mask (M4) formalises.
+
+**Dependency:** `minimap2` (tested against 2.31-r1302). Declared rather than hand-rolled:
+a bespoke aligner is the wrong risk to take in a repository whose purpose is that others
+can check the coordinates.
 
 **Criteria:**
 - Round-trip lift-over returns the original coordinate for at least 99 per cent of positions
