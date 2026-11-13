@@ -20,13 +20,13 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from hsv1coords.facts import derive  # noqa: E402
+from hsv1coords.facts import derive, missing_inputs  # noqa: E402
 
 DOCS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
 
 # The number of derived figures that must stay gated. Raising it is a deliberate edit;
 # a change that silently ungates a figure fails instead of printing a smaller number.
-COVERAGE_FLOOR = 23
+COVERAGE_FLOOR = 25
 NUMBER = r"(?:\d[\d,]*(?:\.\d+)?|" + "|".join(
     w for w in ("one two three four five six seven eight nine ten eleven twelve "
                 "thirteen fourteen fifteen sixteen seventeen eighteen nineteen "
@@ -239,8 +239,13 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                 gated.append(fact.key)
             else:
                 ungated.append(fact.key)
+        absent = missing_inputs()
+        context = (f" WITHOUT {len(absent)} artefacts, so this is a smaller gate than a "
+                   f"full checkout, not a better one: {absent}" if absent else "")
         print(f"\n    {len(gated)} of {len(self.facts)} derived figures are stated in "
-              f"the documents and gated; ungated: {ungated}")
+              f"the documents and gated; ungated: {ungated}{context}")
+        if absent:
+            self.skipTest(f"artefacts missing, so the floor does not apply: {absent}")
         self.assertGreaterEqual(
             len(gated), COVERAGE_FLOOR,
             f"coverage fell to {len(gated)} of {len(self.facts)}, below the recorded "

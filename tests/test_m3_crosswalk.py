@@ -366,8 +366,22 @@ class SequenceAgreement(unittest.TestCase):
         worst.sort(key=lambda r: -r[1])
         print(f"\n    {len(worst)} of {len(self.genomes)} genomes contain ambiguous "
               f"bases; worst: {worst[:3]}")
-        self.assertLess(worst[0][2] if worst else 0, 50.0,
-                        "a genome that is mostly N should not be in the crosswalk")
+        # Round 7: the threshold was 50 per cent against an observed worst of 3.99, so
+        # 182 genomes at 49 per cent N would have passed, and only the single worst
+        # genome was checked at all. Both are fixed: every genome is checked, and the
+        # threshold sits near what the corpus actually contains. The count printed above
+        # is not asserted, because it is a property of the deposited records rather than
+        # of this repository, and a new deposit may legitimately change it.
+        over = [r for r in worst if r[2] >= 10.0]
+        self.assertEqual(over, [],
+                         f"{len(over)} genomes are at least 10 per cent ambiguous, "
+                         f"which is far outside this corpus and suggests a fetch or "
+                         f"parsing fault rather than a deposit: {over}")
+        skipped = sum(n for _, n, _ in worst)
+        self.assertLess(
+            skipped, sum(len(s) for s in self.genomes.values()) * 0.005,
+            f"{skipped:,} ambiguous bases across the corpus, more than 0.5 per cent; "
+            f"the sequence gates skip these, so at this scale they stop being evidence")
 
 
 class ZeroBlockGenomes(unittest.TestCase):

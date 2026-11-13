@@ -26,6 +26,59 @@ class EveryDefinitionIsSourced(unittest.TestCase):
             with self.subTest(convention=c.name):
                 self.assertTrue(c.source.strip(), f"{c.name} names no source")
 
+    def test_every_interval_is_tied_to_its_own_source(self):
+        """Round 7: no test tied any interval to the quote it came from.
+
+        Lassalle's three intervals were anchored nowhere at all, and Szpara's were
+        anchored to Whisnant's, which were anchored to a literal typed into this file.
+        A literal in a test is not a source: it travels with the mistake.
+
+        So each interval is checked against something outside this repository's own
+        prose. Where the quote states coordinates, they are parsed from the quote.
+        Where it does not, the interval must match a repeat_region in the reference
+        record's feature table, which is the primary source for those extents.
+        """
+        import re
+        ref = ROOT / "data" / "raw" / "ref_NC_001806.2.gb"
+        if not ref.exists():
+            self.skipTest("data/raw/ref_NC_001806.2.gb is fetched, not committed; "
+                          "run `make inputs` first")
+        body = ref.read_text()
+        annotated = set()
+        for loc, quals in re.findall(
+                r"^     repeat_region\s+(\S+)\n((?:\s+/.*\n)+)", body, re.M):
+            m = re.match(r"(\d+)\.\.(\d+)$", loc)
+            if m and "inverted repeat flanking" in quals:
+                annotated.add((int(m.group(1)), int(m.group(2))))
+        self.assertTrue(annotated, "no inverted repeats found in the record")
+
+        checked = 0
+        for c in self.cs.verified:
+            if not c.intervals:
+                continue
+            pairs = re.findall(r"(?<![\d,])([\d,]+)\s*-\s*([\d,]+)(?![\d,])",
+                               c.quote)
+            quoted = {(lo, hi) for lo, hi in
+                      ((int(a.replace(",", "")), int(b.replace(",", "")))
+                       for a, b in pairs)
+                      if 0 < lo < hi <= GENOME_BP}
+            for interval in c.intervals:
+                with self.subTest(convention=c.name, interval=interval):
+                    if quoted:
+                        self.assertIn(
+                            interval, quoted,
+                            f"{c.name} states {interval}, which is not among the "
+                            f"intervals its own quote gives ({sorted(quoted)})")
+                    else:
+                        self.assertIn(
+                            interval, annotated,
+                            f"{c.name}'s quote gives no coordinates, so {interval} "
+                            f"must be an annotated inverted repeat in the reference "
+                            f"record, and it is not: {sorted(annotated)}")
+                    checked += 1
+        self.assertGreaterEqual(checked, 5,
+                                f"only {checked} intervals were tied to a source")
+
     def test_every_verified_convention_carries_a_quote(self):
         for c in self.cs.verified:
             with self.subTest(convention=c.name):
@@ -909,6 +962,35 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
                     f"{path.name} defines {orphans} after its `__main__` block, so "
                     f"running the file directly silently skips them")
 
+class VersionNamesAreValidatedBeforeAnswering(unittest.TestCase):
+    """Round 7: `convert` short-circuited on source == target before validating.
+
+    `convert(100, "hg38", "hg38")` returned 100, so an entirely unknown reference was
+    accepted as long as both names matched. Two further mutations survived here: the
+    identity path returning None, and the unknown-pair branch returning None instead of
+    raising, each changing 314 live answers.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from hsv1coords.versions import VersionCrosswalk
+        cls.vc = VersionCrosswalk.load()
+
+    def test_an_unknown_reference_is_refused_even_when_both_names_match(self):
+        with self.assertRaises(ValueError):
+            self.vc.convert(100, "hg38", "hg38")
+        with self.assertRaises(ValueError):
+            self.vc.convert(100, "NC_001806.2", "GRCh38")
+
+    def test_the_identity_case_still_returns_the_position(self):
+        from hsv1coords.versions import NEW, OLD
+        self.assertEqual(self.vc.convert(100, NEW, NEW), 100)
+        self.assertEqual(self.vc.convert(100, OLD, OLD), 100)
+
+    def test_the_two_known_directions_still_work(self):
+        from hsv1coords.versions import NEW, OLD
+        self.assertEqual(self.vc.convert(152261, OLD, NEW), 152222)
+        self.assertEqual(self.vc.convert(152222, NEW, OLD), 152261)
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

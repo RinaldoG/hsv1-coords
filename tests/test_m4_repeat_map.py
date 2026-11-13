@@ -21,6 +21,21 @@ from build_crosswalk import genbank_sequence  # noqa: E402
 INVERTED_PAIRS = RepeatMap.load().inverted_pairs
 
 DERIVED = ROOT / "data" / "derived"
+
+
+def require_reference() -> pathlib.Path:
+    """The reference record is fetched, not committed, so skip without it.
+
+    A fresh clone must skip a test that needs it rather than error: round 7 found one
+    erroring there, which is the same class of fault as a test that cannot fail.
+    """
+    ref = ROOT / "data" / "raw" / "ref_NC_001806.2.gb"
+    if not ref.exists():
+        raise unittest.SkipTest(
+            "data/raw/ref_NC_001806.2.gb is fetched, not committed. "
+            "Run `make inputs` first.")
+    return ref
+
 CROSSWALK = DERIVED / "crosswalk"
 
 
@@ -313,7 +328,7 @@ class CorrectionsFromReview(unittest.TestCase):
         Not against the builder that wrote it, which would be circular, but against
         the reference sequence itself.
         """
-        ref = genbank_sequence(ROOT / "data" / "raw" / "ref_NC_001806.2.gb").upper()
+        ref = genbank_sequence(require_reference()).upper()
         comp = str.maketrans("ACGTN", "TGCAN")
         groups: dict[str, list] = {}
         for r in self.m.regions:
@@ -337,6 +352,68 @@ class CorrectionsFromReview(unittest.TestCase):
                 checked += 1
         self.assertGreaterEqual(checked, 3,
                                 "no multi-copy region was checked, so this is empty")
+
+    def test_the_inverted_repeats_are_reverse_complementary_base_by_base(self):
+        """The premise every counterpart rests on, checked in code at last.
+
+        ROADMAP.md has stated 15,846 of 15,846 reverse-complementary since M4, and the
+        claim is true, but nothing executable re-asserted it: the inversion arithmetic
+        in `repeats.py` is the whole product and its premise lived only in prose. One
+        commit away from being silently wrong.
+        """
+        ref = genbank_sequence(require_reference()).upper()
+        comp = str.maketrans("ACGTN", "TGCAN")
+        total = matched = 0
+        for a, b in INVERTED_PAIRS:
+            ra = next(r for r in self.m.regions
+                      if r.name == a and r.kind == "repeat_region")
+            rb = next(r for r in self.m.regions
+                      if r.name == b and r.kind == "repeat_region")
+            first = ref[ra.start - 1:ra.end]
+            second = ref[rb.start - 1:rb.end].translate(comp)[::-1]
+            self.assertEqual(len(first), len(second),
+                             f"{a} and {b} differ in length")
+            total += len(first)
+            matched += sum(1 for x, y in zip(first, second) if x == y)
+        self.assertEqual(matched, total,
+                         f"only {matched} of {total} bases are "
+                         f"reverse-complementary")
+        self.assertEqual(total, 15846,
+                         f"the two pairs cover {total} bases, not the 15,846 the "
+                         f"documents state")
+
+    def test_a_coordinate_must_be_an_integer(self):
+        """A fractional position produced fractional counterparts.
+
+        `classify(1.5)` reported "could equally be 126372.5", which is not a position.
+        A string reached a comparison deep inside and raised there instead of at the
+        boundary.
+        """
+        for bad in (1.5, "1", None, True, [1]):
+            with self.subTest(value=bad):
+                with self.assertRaises(TypeError):
+                    self.m.classify(bad)
+
+    def test_out_of_range_is_distinguishable_from_ambiguous(self):
+        """Both were `well_defined=False` with the difference only in the prose.
+
+        `LiftResult.well_defined` is fed from this field, so a caller branching on it
+        treated a coordinate that does not exist as an in-range ambiguous one.
+        """
+        missing = self.m.classify(999999)
+        ambiguous = self.m.classify(1)
+        self.assertFalse(missing.in_range)
+        self.assertTrue(ambiguous.in_range)
+        self.assertFalse(missing.well_defined)
+        self.assertFalse(ambiguous.well_defined)
+        self.assertEqual(missing.alternatives, [])
+        self.assertTrue(ambiguous.alternatives)
+        for pos in (1, GENOME_BP, GENOME_BP // 2):
+            with self.subTest(position=pos):
+                self.assertTrue(self.m.classify(pos).in_range)
+        for pos in (0, -1, GENOME_BP + 1):
+            with self.subTest(position=pos):
+                self.assertFalse(self.m.classify(pos).in_range)
 
     def test_out_of_range_positions_are_not_reported_as_well_defined(self):
         for pos in (0, -5, 152223, 1000000):

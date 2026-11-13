@@ -74,6 +74,28 @@ def _rows(path: pathlib.Path) -> list[dict[str, str]]:
         return list(csv.DictReader(fh, delimiter="\t"))
 
 
+def missing_inputs() -> list[str]:
+    """Which artefacts are absent, so a smaller gate cannot look like a bigger one.
+
+    Round 7: a fresh clone printed "17 of 18 derived figures gated" against "19 of 26"
+    with the inputs present, because `derive` drops every fact whose artefact is
+    missing. The ratio improved while the gate shrank, with no notice. The test prints
+    this list so the number is read in the right context.
+    """
+    needed = {
+        "data/raw/MANIFEST.tsv": RAW / "MANIFEST.tsv",
+        "data/raw/ref_NC_001806.2.gb": RAW / "ref_NC_001806.2.gb",
+        "data/raw/ref_NC_001806.1.gb": RAW / "ref_NC_001806.1.gb",
+        "data/derived/annotation_v0.1.0.tsv": DERIVED / "annotation_v0.1.0.tsv",
+        "data/derived/aliases_literature.tsv": DERIVED / "aliases_literature.tsv",
+        "data/derived/repeat_map.tsv": DERIVED / "repeat_map.tsv",
+        "data/derived/diploid_pairs.tsv": DERIVED / "diploid_pairs.tsv",
+        "data/derived/version_crosswalk.tsv": DERIVED / "version_crosswalk.tsv",
+        "data/derived/crosswalk_coverage.tsv": DERIVED / "crosswalk_coverage.tsv",
+    }
+    return sorted(name for name, path in needed.items() if not path.exists())
+
+
 def derive() -> list[Fact]:
     """Every gated figure. Anything unavailable is omitted rather than guessed."""
     facts: list[Fact] = []
@@ -119,6 +141,18 @@ def derive() -> list[Fact]:
         partial = sum(1 for p in pairs
                       if str(p.get("offset_delta", "")).startswith("partial"))
         facts.append(Fact("regions", len(regions), ("regions covering",)))
+        # Round 7's second sweep caught these two as misses that are ours and
+        # derivable, as against the dates, page numbers and DOIs that are not. The
+        # union is computed here rather than read from the report, so the figure and
+        # the prose cannot drift apart.
+        covered: set[int] = set()
+        for r in regions:
+            covered.update(range(int(r["start"]), int(r["end"]) + 1))
+        facts.append(Fact("repeat_covered_bp", len(covered),
+                          ("bp of repeated or ambiguous sequence",)))
+        facts.append(Fact("repeat_covered_percent",
+                          f"{100 * len(covered) / 152222:.1f}",
+                          ("per cent of the genome",)))
         facts.append(Fact("diploid_pairs", len(pairs), ("diploid locus pairs",)))
         facts.append(Fact("partial_pairs", partial,
                           ("of them marked partial",)))

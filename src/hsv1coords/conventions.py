@@ -354,7 +354,6 @@ class ConventionSet:
             return (f"{c.name}: within {c.boundary_uncertainty_bp} bp of a "
                     f"reconstructed interval boundary, so this answer is unreliable")
         return None
-        return self._usable_native(position, c)
 
     def _usable_native(self, position: int, c: Convention) -> tuple[bool, str]:
         limit = VERSION_LENGTHS.get(c.reference_version, GENOME_BP)
@@ -383,6 +382,14 @@ class ConventionSet:
 
         Conventions that only drop data do not move coordinates, so this returns the
         same number and `usable` is what tells you whether it means anything.
+
+        **This says nothing about repeat ambiguity.** A reference position inside an
+        inverted repeat has two or three equally valid counterparts, and this returns
+        the conversion of the position as given, not a judgement about whether that
+        position identifies one locus. `report` attaches that caveat and `lift`
+        declines on it; round 7 recorded the asymmetry rather than papering over it,
+        because converting a coordinate between two printed conventions is a different
+        question from knowing which copy of a locus it names.
         """
         cs, ct = self[source], self[target]
         self._require_verified(cs)
@@ -423,28 +430,13 @@ class ConventionSet:
         return VersionCrosswalk.load().convert(position, c.reference_version,
                                                self.BASE_VERSION)
 
-    def offsets_between(self, a: str, b: str,
-                        step: int = 1) -> list[tuple[int, int, int]]:
-        """Where two conventions disagree, as (reference position, a, b) triples.
-
-        Two collapsed references that remove different blocks do not differ by a
-        constant, so an offset quoted as a single number is wrong somewhere.
-        """
-        ca, cb = self[a], self[b]
-        self._require_verified(ca)
-        self._require_verified(cb)
-        if ca.is_split or cb.is_split:
-            raise ValueError("a multi-record convention has no scalar offset")
-        out = []
-        for pos in range(1, GENOME_BP + 1, step):
-            na = self._to_convention_version(pos, ca)
-            nb = self._to_convention_version(pos, cb)
-            if na is None or nb is None:
-                continue
-            pa, pb = ca.to_convention(na), cb.to_convention(nb)
-            if pa is not None and pb is not None and pa != pb:
-                out.append((pos, pa, pb))
-        return out
+    # `offsets_between` was removed in round 7. It had no caller and no test, and it
+    # could not do what its docstring claimed: it was written to compare two collapsed
+    # references, there is only one collapsed non-split convention in the set, and the
+    # other collapsed one is split, so every pair it existed for raised before
+    # comparing anything. It also reported "no disagreement" for an exclude convention,
+    # because it had no `usable` filter, and dropped the trimmed positions that were
+    # the interesting part. Use `report` for a position, or `convert` for a pair.
 
     def report(self, position: int, repeat_map=None) -> PositionReport:
         """Which conventions retain this position, with caveats from the repeat map.

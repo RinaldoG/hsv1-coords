@@ -79,10 +79,19 @@ class VersionCrosswalk:
         return sorted({b.offset for b in self.blocks})
 
     def convert(self, position: int, source: str, target: str) -> int | None:
+        """Translate between the two versions of the reference accession.
+
+        The version names are validated before the identity case, not after. Round 7:
+        `convert(100, "hg38", "hg38")` returned 100, so any unknown reference was
+        accepted as long as both names matched, which is a confident answer about a
+        coordinate system this does not hold.
+        """
+        known = (OLD, NEW)
+        for name in (source, target):
+            if name not in known:
+                raise ValueError(
+                    f"unknown reference version {name!r}; this maps "
+                    f"{OLD} against {NEW} only")
         if source == target:
             return position
-        if source == OLD and target == NEW:
-            return self.to_new(position)
-        if source == NEW and target == OLD:
-            return self.to_old(position)
-        raise ValueError(f"unknown version pair {source} to {target}")
+        return self.to_new(position) if source == OLD else self.to_old(position)

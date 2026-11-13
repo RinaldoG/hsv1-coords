@@ -92,6 +92,18 @@ class CoordinateStatus:
     alternatives: list[int] = field(default_factory=list)
     loci: list[str] = field(default_factory=list)
     reason: str = ""
+    in_range: bool = True
+    """False only when the position is not in the reference at all.
+
+    Round 7: `well_defined` was False for both "this coordinate does not exist" and
+    "this coordinate is ambiguous", and `LiftResult.well_defined` is fed from it, so a
+    caller branching on it treated a position outside the genome as an in-range
+    ambiguous one. The difference was only in the prose reason.
+
+    It sits last deliberately. Adding it mid-dataclass reassigned every positional
+    argument after it and broke six tests, which is the same mistake made minutes
+    earlier in `facts.Fact` and is now a standing rule in PITFALLS.
+    """
 
     def __str__(self) -> str:
         if self.well_defined:
@@ -240,10 +252,15 @@ class RepeatMap:
         return sorted(set(out))
 
     def classify(self, position: int) -> CoordinateStatus:
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(
+                f"a coordinate must be an int, got {position!r}. A fractional "
+                f"position produced fractional counterparts, which are not positions")
         if not 1 <= position <= GENOME_BP:
             return CoordinateStatus(
                 position, False, [], [], [],
-                f"outside the reference, which is 1 to {GENOME_BP:,}")
+                f"outside the reference, which is 1 to {GENOME_BP:,}",
+                in_range=False)
         hits = [r for r in self.regions if r.contains(position)]
         inverted = [r for r in hits
                     if r.kind == "repeat_region"

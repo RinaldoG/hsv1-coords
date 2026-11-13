@@ -220,6 +220,49 @@ class Criterion4PublishedSynonymy(unittest.TestCase):
             with self.subTest(pair=(a, b)):
                 self.assertNotEqual(normalise(a), normalise(b))
 
+class RepeatPairNamingIsNotGuessed(unittest.TestCase):
+    """Mutation survivors from review round 7, each with the answer it changed.
+
+    `repeat_pair_of` deciding that two different loci are one repeat pair is the single
+    thing `AmbiguousName` exists to prevent, and three mutations to it changed live
+    answers with the whole suite green.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.d = Dictionary.load()
+
+    def test_three_repeat_names_are_not_a_pair(self):
+        """Mutation: `len(parsed) != 2` to `< 2`, which then raises ValueError.
+
+        A caller gets an unpacking error from inside the function instead of None.
+        """
+        self.assertIsNone(repeat_pair_of({"TRL1", "IRL1", "TRS1"}))
+        self.assertIsNone(repeat_pair_of({"TRL1"}))
+        self.assertIsNone(repeat_pair_of(set()))
+
+    def test_two_different_loci_are_never_merged_into_one_pair(self):
+        """Mutation: dropping the suffix and segment test returns 'S1' for TRS1/IRS2.
+
+        That is two distinct loci reported as two copies of one, which is the error
+        this whole repository exists to prevent.
+        """
+        self.assertIsNone(repeat_pair_of({"TRS1", "IRS2"}))
+        self.assertIsNone(repeat_pair_of({"TRL1", "IRS1"}))
+        self.assertIsNone(repeat_pair_of({"TRL1", "TRL1"}))
+        self.assertEqual(repeat_pair_of({"TRL1", "IRL1"}), "L1")
+        self.assertEqual(repeat_pair_of({"IRS1", "TRS1"}), "S1")
+
+    def test_an_unknown_name_raises_rather_than_returning_none(self):
+        """Mutation: `raise KeyError` to `return None` in `resolve`.
+
+        A None that a caller treats as a gene name is worse than an exception, and
+        nothing exercised this path.
+        """
+        with self.assertRaises(KeyError):
+            self.d.resolve("not a gene")
+        with self.assertRaises(KeyError):
+            self.d.resolve("")
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -97,9 +97,13 @@ divergence, costing real alignments.
 through the reference. Median mappable fraction 98.84 per cent, after review found the asm5 preset too strict for this divergence.
 
 **Criteria:**
-- **Met:** round-trip returns the original coordinate for at least 99 per cent of positions,
-  enforced in `tests/test_m3_crosswalk.py` over 10,000 sampled positions with a fixed seed,
-  failures enumerated rather than averaged.
+- **Met, but weakly:** round-trip returns the original coordinate for at least 99 per
+  cent of positions, enforced in `tests/test_m3_crosswalk.py` over 10,000 sampled
+  positions with a fixed seed. The test says of itself that the round trip alone is a
+  mathematical identity and cannot fail, and PITFALLS root cause 3 names it as the first
+  instance of a powerless gate. The criterion that carries real weight is the base
+  agreement below. The sub-clause "failures enumerated rather than averaged" was
+  inaccurate: the test asserts on a rate and prints the first ten failures.
 - **Met:** returns no confident coordinate where it has none. Positions before the first
   block, past the last, and inside insertions relative to the reference all return nothing.
 - **Outstanding:** resolving a published coordinate from at least five papers across at
@@ -107,9 +111,15 @@ through the reference. Median mappable fraction 98.84 per cent, after review fou
 
 **Two things the build established, both recorded in `data/derived/crosswalk_report.md`:**
 
-- **Regions that align in more than one place are dropped**, so the lift-over declines
-  there. These are the inverted repeats, where a position genuinely corresponds to two
-  places. An earlier version kept both and the milestone gate caught it.
+- **Regions a single alignment pass placed twice are dropped.** This is narrower than
+  it sounds, and round 7 found the wider claim false. minimap2 runs with
+  `--secondary=no`, so the aligner discards the second placement before
+  `drop_ambiguous` can see it, and roughly 92 per cent of positions inside the inverted
+  repeats were still receiving one confident answer while this file said the lift-over
+  declined there. Repeat ambiguity is now handled where the knowledge is: `lift`
+  consults the repeat map and declines where a position has more than one valid copy.
+  `Crosswalk.to_reference` still returns the alignment's single answer, which is what
+  `lift_detailed` reports together with the alternatives.
 - **Blocks are chained to be monotonic in both sequences.** Review found a position 900 bp
   into one genome resolving to 151,879, the far copy of the terminal repeat: a genuinely
   wrong coordinate, and exactly the error this layer exists to prevent. The build now
@@ -164,7 +174,8 @@ lift_detailed(118777, "JQ673480.1", "JQ780693.1")
 #     The reference position could equally be 7487
 ```
 
-**Built** (`make repeatmap`): 34 regions covering 32,019 bp, 21.0 per cent of the genome,
+**Built** (`make repeatmap`): 34 regions covering 32,019 bp of repeated or ambiguous
+sequence, 21.0 per cent of the genome,
 and 32 diploid locus pairs derived from the annotation rather than hand-listed, 7 of them
 marked partial where the two copies differ in length.
 
@@ -221,16 +232,28 @@ matters.
 
 - The map covers the reference only. A coordinate in another strain is related to it
   through the crosswalk, not described directly.
-- Two further diploid pairs are missed because the reference annotates them with a 1 bp
-  asymmetry.
+- Four features overlapping a repeat edge are not paired: `US1` and `US12`, each as both
+  a gene and an mRNA feature. These are single-copy unique-short genes straddling the
+  edge of `IRS` and `TRS`, not unpaired copies of a diploid locus, and no near-length
+  candidate exists for any of them. An earlier version of this line said two pairs were
+  missed because of a 1 bp asymmetry in the annotation; round 7 re-derived the pairing
+  and that does not reproduce. The builder's own fallback catches a same-name length
+  mismatch as a partial pair, so a 1 bp asymmetry on a same-named locus could not be
+  missed.
 - Output is TSV only. A specialist would want BED and GFF3, and that is cheap to add.
-- **The highest-value thing this does not yet do**, from the usefulness review: resolve a
-  coordinate between the different conventions the field actually uses for these regions,
-  full-length against Szpara-trimmed against Lassalle-excluded. That, not the repeat
-  intervals, is the real reason an HSV-1 coordinate cannot be trusted, and M3's lift-over
-  is a genuine advantage there rather than a reimplementation of something that exists.
-- `classify` returns no strand, has no interval API, and does not label which repeat each
-  alternative belongs to.
+- Resolving a coordinate between the conventions the field uses was the highest-value
+  gap here when M4 was written. M5 does it now, and `ConventionSet.report` is the entry
+  point.
+- `classify` returns no strand and does not label which repeat each alternative belongs
+  to. `CoordinateStatus.regions` does carry each region's start, end and length, so the
+  earlier claim here that there is no interval API was wrong.
+- At one position, 117,160, `classify` reports well defined while `loci_at` names `RL
+  reiteration set 1`, whose other copy this map declares at 9,033 to 9,213. The cause is
+  that the `IRL` copy of that set is annotated one base before `IRL` begins, and
+  `classify` names alternatives only for the two large inverted repeats. A sweep of all
+  152,222 positions found this is the only such position. The `reason` string does say
+  the map names no alternative copy there, but the machine-readable field disagrees with
+  the table.
 - Tandem reiteration sets are flagged as repeat features but no alternative positions are
   computed for them, because a tandem array has no single counterpart.
 
@@ -386,20 +409,29 @@ Round 6 changed one figure in one document ninety times and five turned the suit
 the phrasings the documents use for it. `tests/test_docs_match_artefacts.py` fails when
 any document states a different value for one of them.
 
-**What it covers, honestly.** 25 figures are derived and 18 are currently stated in the
-documents and therefore gated. The test prints both numbers on every run, so the coverage
-is visible rather than implied.
+**What it covers, measured rather than described.** The suite prints its own coverage on
+every run and asserts it against a floor, so this paragraph deliberately states no
+figure: round 6 wrote the coverage into this file as prose and it was stale by one in
+both numbers within a commit, in the paragraph claiming the coverage was honest. Run
+`make test` and read the three lines it prints.
 
-**What it cannot cover, and why.** A figure is pinned by a distinctive phrase following
-it. Numbers carrying a generic unit, "bp", "bases", "per cent", cannot be pinned this
-way: the documents contain hundreds of them and a phrase match on the unit alone flags
-every other number as a contradiction. A mutation sweep against arbitrary numbers in the
-documents therefore still passes, and that is a real limit, not a solved problem.
+Every derived figure is currently gated, and three separate checks hold that up rather
+than one: no document may state a wrong value for a derived figure; no phrasing may
+match nothing, which was previously printed as "carried for future wording" while five
+of them were holes; and no figure of 1,000 or more may be stated in a document that no
+phrasing reaches, which is per document rather than pooled across the four. The power
+check mutates every figure in every document that states it, through the same function
+the gate calls, and prints how many pairs it caught.
 
-What is gated: every count derived from an artefact, the genome length, the long repeat
-length, the mappable fraction, and each reverse-complemented genome's coverage, which is
-the figure that survived three rounds wrong. What is not: coordinates quoted from papers,
-illustrative values, and figures stated only with a bare unit.
+**What it cannot cover, and why.** A figure is pinned by a distinctive phrase beside it,
+before or after. Numbers carrying only a generic unit, "bp", "bases", "per cent", cannot
+be pinned this way: the documents contain hundreds of them and a match on the unit alone
+flags every other number as a contradiction. Round 7 measured the real catch rate over
+90 single-figure mutations spread across the four documents: 34 were caught, and 34 of
+the 52 that touched a figure `facts.py` derives. The rest are coordinates quoted from
+papers, dates, illustrative values and figures stated with a bare unit. That is a real
+limit, not a solved problem, and the honest way to shrink it is to derive more figures
+rather than to widen the matching.
 
 ## M5b: release
 

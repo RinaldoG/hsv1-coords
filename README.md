@@ -30,8 +30,10 @@ HSV-1 genome means one thing.
 **Status: early, and usable in part.** Seven components are built and gated: the gene
 dictionary, the annotation, the strain crosswalk, the repeat map, the convention
 resolver, the version crosswalk and the documentation gate that keeps the figures in
-this file true. The annotation is still a classed feature table rather than
-GFF3, which is the one acceptance criterion outstanding. See `ROADMAP.md` for the criteria
+this file true. Two acceptance criteria are outstanding: the annotation is still a
+classed feature table rather than GFF3, and no published coordinate has yet been
+resolved from the literature by hand across several papers and strains. See `ROADMAP.md`
+for the criteria
 each component must clear, and `FINDINGS.md` for what building it established, including
 corrections to this repository's own earlier claims.
 
@@ -54,7 +56,11 @@ ConventionSet.load().report(118777)            # the LAT TATA box
 
 So one position in the gene that dominates latent transcription becomes 109,564 in a
 Szpara-trimmed analysis, is excluded from a second, absent from a third, and retained by
-a fourth, while also naming no unique locus in the reference.
+a fourth, while also naming no unique locus in the reference. The 109,564 is computed
+here from the rule Szpara et al. state, not read off their record: that paper prints no
+coordinates for the trimmed genome. The Lassalle intervals come from a figure legend
+rather than Methods and look like gene boundaries rather than the annotated repeat
+extents, which `data/conventions.tsv` records against that row.
 
 The lift-over declines rather than guessing. Between the two deposited genomes labelled
 strain KOS the offset is not constant: measured across the alignment it ranges from -79 to
@@ -103,7 +109,7 @@ boundary, and is split across the two ends of the reference sequence.
 | Repeat map | Which positions are not well defined, and which other positions they could equally be |
 | Convention resolver | Whether a position is usable under each published handling of the repeats, and what it is called there |
 | Version crosswalk | `NC_001806.1` against `.2`, whose offset is not constant |
-| Un-callable mask | The regions where a single linear coordinate is not well defined, enforced in code rather than noted in prose |
+| Documentation gate | Every load-bearing figure in these documents derived from its artefact, so a stale number fails the suite |
 
 Static data validated in continuous integration. No server, no database, no hosted service.
 
@@ -125,9 +131,11 @@ this repository previously made, with the old wording kept rather than quietly r
 
 Not one of those corrections was found by the test suite passing. Several of the tests
 were themselves the defect: a gate that is a mathematical identity returns 100 per cent
-on anything. So the gates here are mutation-tested, each against deliberately broken
-inputs, and any check measured as having no power is recorded as a sanity check rather
-than counted as a gate.
+on anything. So the gates that carry the most weight are mutation-tested against
+deliberately broken inputs: the strain crosswalk, the convention resolver and the
+documentation gate, which reports how many figure-in-document mutations it catches on
+every run. The M1, M2 and M4 gates are not yet mutation-tested, and a check measured as
+having no power is recorded as a sanity check rather than counted as a gate.
 
 ## Credit
 
