@@ -124,9 +124,27 @@ would be wrong everywhere except by accident.
 
 ## M4: the repeat and diploid-locus map - built, with its limits stated
 
-**Scope changed after review.** This was going to be an internal mask. It is now the
-product, because the field's usual response to the repeats is to mask them with Ns, which
-discards the structure rather than describing it.
+**The premise this was built on was wrong, and is corrected here.** An earlier review
+told me the field masks the repeats with Ns and that no machine-readable description
+exists. A later review checked both and neither holds.
+
+- **Masking is one of at least three practices, and the named example does the opposite
+  of what was claimed.** Whisnant et al. 2020 mask the terminal repeats and then
+  explicitly restore the read mappings into the masked regions. Szpara and colleagues
+  (*J Virol* 2014;88:1209-1227) trim to one copy of each inverted repeat and deposit both
+  forms. Lassalle et al. (*Virus Evolution* 2020;6:veaa012) exclude by hard-coded
+  coordinates, which disagree with the reference record at all three blocks.
+- **Machine-readable descriptions do exist**, in at least five places: the RefSeq GFF3 for
+  `GCF_000859985.2`, the BV-BRC API, the UCSC GenArk hub, several GitHub repositories, and
+  the Whisnant GTF sitting in this repository's own `data/raw/`, which names every diploid
+  locus in both copies. The README already credits that file as the best existing
+  annotation, so the original framing contradicted this repository on the same commit.
+
+**What does hold, and is the honest reason to ship this:** Dfam has no viral families,
+RepeatMasker finds only simple repeats here, no purpose-built repeat interval file exists,
+and **nobody publishes the counterpart arithmetic**. Knowing a region is repeated is
+available everywhere. Being told which other position a coordinate could equally be is
+not available anywhere.
 
 What it is: every annotated repeated region of the genome as data, with loci present in
 two copies paired to each other, and an interface answering **"is this position well
@@ -144,7 +162,8 @@ lift_detailed(118777, "JQ673480.1", "JQ780693.1")
 ```
 
 **Built** (`make repeatmap`): 34 regions covering 32,019 bp, 21.0 per cent of the genome,
-and 25 diploid locus pairs derived from the annotation rather than hand-listed.
+and 32 diploid locus pairs derived from the annotation rather than hand-listed, 4 of them
+marked partial where the two copies differ in length.
 
 **Criteria, met:**
 
@@ -174,9 +193,16 @@ across 6,633.
   and so are classed `named_gene` upstream. The region count of 31 matched the reference's
   31 repeat features by coincidence, which hid it.
 - Excluding every `repeat_region` from pairing lost nine genuine pairs.
-- The terminal `'a'` sequence is a **direct** repeat, `1..399` identical to
-  `151824..152222` in the same orientation. Only the inverted relation was modelled, so
-  798 positions had an incomplete list of alternatives.
+- The `'a'` sequence is present **three** times, not twice: `1..399` and
+  `151824..152222` identical and in the same orientation, and `125975..126373` inverted
+  relative to both. Verified base by base. Two successive versions of this map gave those
+  positions an incomplete list of alternatives, first by modelling only inverted repeats
+  and then by modelling only one direct pair.
+- **LAT was not paired at all**, though this roadmap claimed it was. Only its 6 bp TATA
+  boxes were. Containment-based matching could never find the gene, because LAT's
+  long-repeat copy runs 778 bp past the end of `IRL`. Pairing now allows overlap and
+  marks the result partial.
+- The docstring example gave the wrong counterpart for its own worked position.
 - `classify` asserted that a position outside the large repeats is "still unique in the
   genome". That is false for every tandem reiteration set, and the map cannot certify
   uniqueness in any case: it describes annotated repeat structure and now says so.
@@ -191,6 +217,12 @@ across 6,633.
   through the crosswalk, not described directly.
 - Two further diploid pairs are missed because the reference annotates them with a 1 bp
   asymmetry.
+- Output is TSV only. A specialist would want BED and GFF3, and that is cheap to add.
+- **The highest-value thing this does not yet do**, from the usefulness review: resolve a
+  coordinate between the different conventions the field actually uses for these regions,
+  full-length against Szpara-trimmed against Lassalle-excluded. That, not the repeat
+  intervals, is the real reason an HSV-1 coordinate cannot be trusted, and M3's lift-over
+  is a genuine advantage there rather than a reimplementation of something that exists.
 - `classify` returns no strand, has no interval API, and does not label which repeat each
   alternative belongs to.
 - Tandem reiteration sets are flagged as repeat features but no alternative positions are

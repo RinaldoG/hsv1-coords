@@ -106,6 +106,16 @@ def main() -> int:
     def inside(feature_extent: tuple[int, int], rep: dict[str, object]) -> bool:
         return feature_extent[0] >= int(rep["start"]) and feature_extent[1] <= int(rep["end"])
 
+    def overlaps(feature_extent: tuple[int, int], rep: dict[str, object]) -> bool:
+        """Touches the repeat without being contained by it.
+
+        LAT is why this exists. Its copy in the long repeat runs 778 bp past the end of
+        IRL into IRS, so containment never matches it and the locus looked unpaired
+        while the roadmap claimed otherwise.
+        """
+        return (feature_extent[0] <= int(rep["end"])
+                and feature_extent[1] >= int(rep["start"]))
+
     pairs: list[dict[str, object]] = []
     for a, b in REPEAT_PAIRS:
         ra, rb = big[a], big[b]
@@ -119,9 +129,9 @@ def main() -> int:
             if any(r["name"].startswith(x) and r["feature_type"] == "repeat_region"
                    for pair in REPEAT_PAIRS for x in pair):
                 continue
-            if inside(ext, ra):
+            if inside(ext, ra) or overlaps(ext, ra):
                 in_a.append((r["name"], ext, r["feature_type"]))
-            elif inside(ext, rb):
+            if inside(ext, rb) or overlaps(ext, rb):
                 in_b.append((r["name"], ext, r["feature_type"]))
         # Match on equal length and equal feature type. Where several candidates have
         # the same length, match by offset within the repeat, which is what a true
@@ -141,6 +151,32 @@ def main() -> int:
                 delta = abs(off_b - off_a)
                 if best_delta is None or delta < best_delta:
                     best, best_delta = i, delta
+            if best is None:
+                # Same gene name in both copies but different lengths. LAT is the case
+                # that matters: one copy is truncated by the end of the linear record,
+                # so equal-length matching never finds it, and the roadmap claimed LAT
+                # was paired when it was not. Recorded as a partial pair, with the
+                # length difference stated rather than hidden.
+                for i, (name_b, ext_b, type_b) in enumerate(in_b):
+                    if i in used or type_b != type_a or name_b != name_a:
+                        continue
+                    if ext_b == ext_a:
+                        continue      # the same feature seen from both repeats
+                    used.add(i)
+                    pairs.append({
+                        "locus": name_a,
+                        "repeat_pair": f"{a}/{b}",
+                        "copy_1_name": name_a,
+                        "copy_1_start": ext_a[0],
+                        "copy_1_end": ext_a[1],
+                        "copy_2_name": name_b,
+                        "copy_2_start": ext_b[0],
+                        "copy_2_end": ext_b[1],
+                        "feature_type": type_a,
+                        "offset_delta": "partial: lengths differ by "
+                                        f"{abs((ext_b[1] - ext_b[0]) - len_a)} bp",
+                    })
+                    break
             if best is not None:
                 name_b, ext_b, _ = in_b[best]
                 used.add(best)

@@ -62,16 +62,39 @@ class DiploidPairs(unittest.TestCase):
     def test_pairs_exist(self):
         self.assertGreater(len(self.m.pairs), 5, "too few diploid pairs derived")
 
-    def test_both_copies_have_the_same_length(self):
+    def test_exact_pairs_have_equal_length_copies(self):
         for p in self.m.pairs:
+            if not p.exact:
+                continue
             with self.subTest(locus=p.locus):
                 self.assertEqual(p.copy_1[1] - p.copy_1[0], p.copy_2[1] - p.copy_2[0])
+
+    def test_partial_pairs_declare_themselves(self):
+        """A pair whose copies differ in length must say so, not pass as exact."""
+        for p in self.m.pairs:
+            if p.copy_1[1] - p.copy_1[0] != p.copy_2[1] - p.copy_2[0]:
+                with self.subTest(locus=p.locus):
+                    self.assertFalse(p.exact,
+                                     f"{p.locus} copies differ in length but the pair "
+                                     f"is not marked partial")
+                    self.assertIn("partial", p.note)
 
     def test_the_two_copies_do_not_overlap(self):
         for p in self.m.pairs:
             with self.subTest(locus=p.locus):
                 self.assertTrue(p.copy_1[1] < p.copy_2[0] or p.copy_2[1] < p.copy_1[0],
                                 f"{p.locus} copies overlap, so they are not two copies")
+
+    def test_lat_is_paired(self):
+        """The roadmap claimed LAT was paired while only its TATA boxes were.
+
+        Containment-based matching could never find it: LAT's long-repeat copy runs
+        778 bp past the end of IRL.
+        """
+        lat = [p for p in self.m.pairs if p.locus == "LAT"]
+        self.assertTrue(lat, "LAT is not paired")
+        self.assertTrue(any(p.feature_type == "gene" for p in lat),
+                        f"only {[p.feature_type for p in lat]} paired, not the gene")
 
     def test_known_diploid_genes_are_paired(self):
         """RL1 and RL2 lie in the long repeat and must appear in both copies."""
