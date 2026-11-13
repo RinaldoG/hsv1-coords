@@ -213,3 +213,75 @@ class WorkedExample(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
+
+
+class CorrectionsFromReview(unittest.TestCase):
+    """Guards the seven defects the M4 correctness review found."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.m = RepeatMap.load(DERIVED)
+
+    def test_repeats_carrying_a_gene_qualifier_are_not_dropped(self):
+        """Three repeat_region features were skipped because M2 reclassed them."""
+        for start in (988, 2466, 132391):
+            with self.subTest(start=start):
+                self.assertTrue(any(r.start == start for r in self.m.regions),
+                                f"the repeat at {start} is missing from the map")
+
+    def test_the_terminal_a_sequence_is_modelled_as_a_direct_repeat(self):
+        """1..399 is identical to 151,824..152,222 in the SAME orientation.
+
+        Only the inverted relation was modelled, so 798 positions had an incomplete
+        list of alternatives.
+        """
+        s = self.m.classify(200)
+        self.assertFalse(s.well_defined)
+        self.assertIn(152023, s.alternatives,
+                      f"the direct 'a' sequence counterpart is missing from "
+                      f"{s.alternatives}")
+        back = self.m.classify(152023)
+        self.assertIn(200, back.alternatives)
+
+    def test_out_of_range_positions_are_not_reported_as_well_defined(self):
+        for pos in (0, -5, 152223, 1000000):
+            with self.subTest(position=pos):
+                s = self.m.classify(pos)
+                self.assertFalse(s.well_defined)
+                self.assertIn("outside the reference", s.reason)
+
+    def test_no_status_claims_genome_wide_uniqueness(self):
+        """The map describes annotated repeats and cannot certify uniqueness.
+
+        The reason string used to assert "the position is still unique in the genome",
+        which is false for every tandem reiteration set.
+        """
+        for pos in (117160, 117159, 71700, 60000, 1000):
+            with self.subTest(position=pos):
+                self.assertNotIn("unique in the genome",
+                                 self.m.classify(pos).reason)
+
+    def test_pairing_includes_loci_that_are_themselves_repeats(self):
+        """Excluding every repeat_region from pairing lost nine genuine pairs."""
+        self.assertGreaterEqual(len(self.m.pairs), 20,
+                                f"only {len(self.m.pairs)} pairs derived")
+
+    def test_the_lift_over_actually_consults_the_map(self):
+        """A stated M4 criterion that was marked met while being false.
+
+        `liftover.py` did not import RepeatMap at all. `lift_detailed` now reports
+        whether the lifted coordinate identifies a unique locus.
+        """
+        from hsv1coords import lift_detailed
+        accs = Crosswalk.available(CROSSWALK)
+        if "JQ673480.1" not in accs or "JQ780693.1" not in accs:
+            self.skipTest("the KOS pair is not in the pinned genome set")
+        inside = lift_detailed(118777, "JQ673480.1", "JQ780693.1", CROSSWALK)
+        self.assertIsNotNone(inside.position)
+        self.assertFalse(inside.well_defined, "a position in IRL must be flagged")
+        self.assertTrue(inside.alternatives)
+        self.assertIn("NOT well defined", str(inside))
+
+        outside = lift_detailed(60000, "JQ673480.1", "JQ780693.1", CROSSWALK)
+        self.assertTrue(outside.well_defined)
+        self.assertEqual(outside.alternatives, [])

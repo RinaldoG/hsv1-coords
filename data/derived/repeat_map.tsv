@@ -2,6 +2,8 @@ name	kind	start	end	length	notes
 'a' sequence	repeat_region	1	399	399	'a' sequence
 TRL	repeat_region	1	9213	9213	TRL; inverted repeat flanking UL
 'a' sequence reiteration set	repeat_region	98	320	223	'a' sequence reiteration set
+RL1	repeat_region	988	1040	53	RL reiteration set 6
+RL2	repeat_region	2466	2624	159	RL reiteration set 5
 RL reiteration set 4	repeat_region	5732	5878	147	RL reiteration set 4
 RL reiteration set 3	repeat_region	8554	8585	32	RL reiteration set 3
 RL reiteration set 2	repeat_region	8806	8826	21	RL reiteration set 2
@@ -21,6 +23,7 @@ IRS	repeat_region	125975	132607	6633	IRS; inverted repeat flanking US
 RS reiteration set 1	repeat_region	126573	126712	140	RS reiteration set 1
 RS reiteration set 2	repeat_region	126813	127145	333	RS reiteration set 2
 oriS palindrome	stem_loop	131980	132024	45	oriS palindrome
+US1	repeat_region	132391	132516	126	IRS reiteration set 3
 US reiteration set 1	repeat_region	143716	143868	153	US reiteration set 1
 US reiteration set 2	repeat_region	144787	145003	217	US reiteration set 2
 TRS	repeat_region	145590	152222	6633	TRS; inverted repeat flanking US

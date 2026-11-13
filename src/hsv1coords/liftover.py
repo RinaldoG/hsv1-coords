@@ -18,7 +18,7 @@ from __future__ import annotations
 import bisect
 import csv
 import pathlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 DEFAULT_DIR = (pathlib.Path(__file__).resolve().parents[2]
                / "data" / "derived" / "crosswalk")
@@ -91,12 +91,72 @@ class Crosswalk:
                 f"{self.mapped_bases:,} bp mapped)")
 
 
+@dataclass
+class LiftResult:
+    """A lifted coordinate together with what can honestly be said about it."""
+
+    position: int | None
+    source: str
+    target: str
+    reference_position: int | None = None
+    well_defined: bool = True
+    alternatives: list[int] = field(default_factory=list)
+    loci: list[str] = field(default_factory=list)
+    reason: str = ""
+
+    def __bool__(self) -> bool:
+        return self.position is not None
+
+    def __str__(self) -> str:
+        if self.position is None:
+            return f"{self.source}:{self.position} does not lift to {self.target}"
+        if self.well_defined:
+            return f"{self.source} -> {self.target}: {self.position}"
+        alts = ", ".join(str(a) for a in self.alternatives) or "none computable"
+        loci = f" ({', '.join(self.loci)})" if self.loci else ""
+        return (f"{self.source} -> {self.target}: {self.position}, but NOT well "
+                f"defined{loci}: {self.reason}. The reference position could equally "
+                f"be {alts}")
+
+
+def lift_detailed(position: int, source: str, target: str,
+                  directory: pathlib.Path | None = None) -> LiftResult:
+    """Lift a coordinate and consult the repeat map about the result.
+
+    `lift` gives a number. This gives the number plus whether it identifies a unique
+    locus, which it does not when the position falls inside one of the inverted
+    repeats: roughly a fifth of this genome. Reporting such a coordinate as though it
+    were unambiguous is the error the repeat map exists to prevent, so anything acting
+    on a coordinate should use this rather than `lift`.
+    """
+    from .repeats import RepeatMap
+
+    if source == REFERENCE:
+        ref_pos: int | None = position
+    else:
+        ref_pos = Crosswalk.load(source, directory).to_reference(position)
+    if ref_pos is None:
+        return LiftResult(None, source, target, None, True, [], [],
+                          "no reference coordinate for this position")
+
+    out = position if source == target else (
+        ref_pos if target == REFERENCE
+        else Crosswalk.load(target, directory).from_reference(ref_pos))
+
+    status = RepeatMap.load().classify(ref_pos)
+    return LiftResult(out, source, target, ref_pos, status.well_defined,
+                      status.alternatives, status.loci, status.reason)
+
+
 def lift(position: int, source: str, target: str,
          directory: pathlib.Path | None = None) -> int | None:
     """Lift a 1-based position from one genome to another, through the reference.
 
     Returns None if either leg has no coordinate, which is the honest answer rather
     than an approximation.
+
+    This returns a bare number and so cannot tell the caller that the position sits in
+    a repeat and names no unique locus. Use `lift_detailed` where that matters.
     """
     if source == target:
         # Even the identity case must be a real position in a genome we hold, or the

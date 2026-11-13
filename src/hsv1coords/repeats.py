@@ -31,6 +31,14 @@ DIPLOID_PAIRS = DERIVED / "diploid_pairs.tsv"
 # opposite orientation, which is why the counterpart offset is measured from the far end.
 INVERTED_PAIRS = [("TRL", "IRL"), ("IRS", "TRS")]
 
+# The genome is circular, and its terminal 'a' sequence is present at both ends of the
+# linear record in the SAME orientation. That is a direct repeat, not an inverted one,
+# so it needs its own relation: an earlier version modelled only the inverted pairs and
+# gave 798 positions an incomplete list of alternatives.
+DIRECT_PAIRS = [((1, 399), (151824, 152222))]
+
+GENOME_BP = 152222
+
 
 @dataclass(frozen=True)
 class Region:
@@ -58,7 +66,15 @@ class DiploidPair:
 
 @dataclass
 class CoordinateStatus:
-    """What can honestly be said about one reference position."""
+    """What can honestly be said about one reference position.
+
+    `well_defined` is False when the position lies in a region the genome carries more
+    than once, so the coordinate does not identify a unique locus. It being True means
+    only that no annotated large repeat covers the position: this map describes the
+    annotated repeat structure, and it does not and cannot certify that a position is
+    unique everywhere in the sequence. An earlier version said it did, which was false
+    for every tandem reiteration set.
+    """
 
     position: int
     well_defined: bool
@@ -104,6 +120,16 @@ class RepeatMap:
                 return r
         return None
 
+    def _direct_counterparts(self, position: int) -> list[int]:
+        """Equivalent positions in a direct (same orientation) repeat."""
+        out: list[int] = []
+        for (a_start, a_end), (b_start, b_end) in DIRECT_PAIRS:
+            if a_start <= position <= a_end:
+                out.append(b_start + (position - a_start))
+            if b_start <= position <= b_end:
+                out.append(a_start + (position - b_start))
+        return out
+
     def counterparts(self, position: int) -> list[int]:
         """Every equivalent position in another copy of an inverted repeat.
 
@@ -126,7 +152,8 @@ class RepeatMap:
                 out.append(rb.end - (position - ra.start))
             if rb.contains(position):
                 out.append(ra.start + (rb.end - position))
-        return sorted(set(out))
+        out.extend(self._direct_counterparts(position))
+        return sorted(set(out) - {position})
 
     def counterpart(self, position: int) -> int | None:
         """The single counterpart, or None where there is not exactly one."""
@@ -142,17 +169,32 @@ class RepeatMap:
         return sorted(set(out))
 
     def classify(self, position: int) -> CoordinateStatus:
+        if not 1 <= position <= GENOME_BP:
+            return CoordinateStatus(
+                position, False, [], [], [],
+                f"outside the reference, which is 1 to {GENOME_BP:,}")
         hits = [r for r in self.regions if r.contains(position)]
         inverted = [r for r in hits
                     if r.kind == "repeat_region"
                     and any(r.name.startswith(x) for pair in INVERTED_PAIRS for x in pair)]
+        direct = self._direct_counterparts(position)
         if not inverted:
+            if direct:
+                return CoordinateStatus(
+                    position, False, hits, direct, self.loci_at(position),
+                    "inside the terminal 'a' sequence, which is present at both ends "
+                    "of the linear record in the same orientation")
             if hits:
+                kinds = ", ".join(sorted({r.name for r in hits}))
                 return CoordinateStatus(
                     position, True, hits, [], self.loci_at(position),
-                    "inside a repeat feature, but not one of the two large inverted "
-                    "repeats, so the position is still unique in the genome")
-            return CoordinateStatus(position, True, [], [], [], "")
+                    f"inside {kinds}, which is a repeat feature but not one of the two "
+                    f"large inverted repeats, so this map names no alternative copy. "
+                    f"Note that tandem reiteration sets are internally repetitive, so a "
+                    f"short sequence here may still occur elsewhere")
+            return CoordinateStatus(
+                position, True, [], [], [],
+                "no annotated repeat covers this position")
         alts = self.counterparts(position)
         names = ", ".join(sorted({r.name for r in inverted}))
         reason = (f"inside {names}, which is present in two copies"

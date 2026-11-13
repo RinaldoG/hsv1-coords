@@ -68,7 +68,12 @@ def main() -> int:
     # 1. Every repeated or structurally ambiguous region.
     regions: list[dict[str, object]] = []
     for r in rows:
-        if r["feature_class"] not in ("repeat_region", "stem_loop", "rep_origin"):
+        # A repeat that carries a /gene qualifier is classed `named_gene` upstream, so
+        # filtering on class alone silently dropped three of the reference's 31
+        # repeat_region features. Select on the source feature type as well.
+        is_repeat = (r["feature_class"] in ("repeat_region", "stem_loop", "rep_origin")
+                     or r["feature_type"] in ("repeat_region", "stem_loop", "rep_origin"))
+        if not is_repeat:
             continue
         ext = extent(r["location"])
         if not ext:
@@ -76,7 +81,9 @@ def main() -> int:
         name = r["name"].split(";")[0].strip()
         regions.append({
             "name": name,
-            "kind": r["feature_class"],
+            "kind": (r["feature_type"]
+                     if r["feature_type"] in ("repeat_region", "stem_loop", "rep_origin")
+                     else r["feature_class"]),
             "start": ext[0],
             "end": ext[1],
             "length": ext[1] - ext[0] + 1,
@@ -106,7 +113,11 @@ def main() -> int:
         in_b: list[tuple[str, tuple[int, int], str]] = []
         for r in rows:
             ext = extent(r["location"])
-            if not ext or r["feature_class"] in ("repeat_region",):
+            if not ext:
+                continue
+            # The four big repeats are the frame, not loci inside it.
+            if any(r["name"].startswith(x) and r["feature_type"] == "repeat_region"
+                   for pair in REPEAT_PAIRS for x in pair):
                 continue
             if inside(ext, ra):
                 in_a.append((r["name"], ext, r["feature_type"]))

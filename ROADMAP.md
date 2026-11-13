@@ -122,64 +122,79 @@ constant: a position cited against `JQ673480.1` resolves in `JQ780693.1` at -122
 the start, -482 bp at the LAT TATA box, and -626 bp by position 150,000. A fixed correction
 would be wrong everywhere except by accident.
 
-## M4: the repeat and diploid-locus map - built, criteria met
+## M4: the repeat and diploid-locus map - built, with its limits stated
 
-**Scope changed after review.** This was going to be an internal mask that the lift-over
-consults. It is now the product. The field's current practice is to mask the repeats with
-Ns and move on, and no machine-readable description of HSV-1's repeat structure exists, so
-the map is more useful published than hidden.
+**Scope changed after review.** This was going to be an internal mask. It is now the
+product, because the field's usual response to the repeats is to mask them with Ns, which
+discards the structure rather than describing it.
 
-What it is: every repeated and structurally ambiguous region of the genome as data, with
-loci that exist in two copies paired to each other, and an interface that answers the
-question a coordinate user actually has, which is **"is this position well defined, and if
-not, which copies could it be?"**
-
-Contents:
-
-- The four inverted repeats: `TRL` and `IRL` at 9,213 bp each, `IRS` and `TRS` at 6,633 bp
-  each, taken from the reference record's own feature table.
-- All 31 `repeat_region` features, including the reiteration sets nested inside the large
-  repeats, the two `'a'` sequences, and the `oriL` palindrome and `oriS` origins.
-- **Diploid locus pairs**: every feature present in both copies of a repeat, paired. `LAT`
-  and its truncated counterpart, `TRL2.5` with `IRL2.5`, `RL1` and `RL2` with their
-  internal copies, and so on, derived from the annotation rather than hand-listed.
-- Segment boundaries, and which of the four isomers a position's interpretation depends on.
-- GC-extreme stretches, which are where assemblies disagree most.
-
-**Built** (`make repeatmap`): 31 regions covering 32,019 bp, which is 21.0 per cent of the
-genome, and 14 diploid locus pairs derived from the annotation. `hsv1coords.RepeatMap`
-answers the question.
+What it is: every annotated repeated region of the genome as data, with loci present in
+two copies paired to each other, and an interface answering **"is this position well
+defined, and if not, which copies could it be?"**
 
 ```python
+from hsv1coords import RepeatMap, lift_detailed
+
 RepeatMap.load().classify(900)
 # 900: not well defined (inside TRL, which is present in two copies); could equally be 125474
-RepeatMap.load().classify(60000)
-# 60000: well defined
+
+lift_detailed(118777, "JQ673480.1", "JQ780693.1")
+# ... 118295, but NOT well defined: inside IRL, which is present in two copies.
+#     The reference position could equally be 7487
 ```
 
-**Criteria, written before the code, all met** and enforced in `tests/test_m4_repeat_map.py`:
+**Built** (`make repeatmap`): 34 regions covering 32,019 bp, 21.0 per cent of the genome,
+and 25 diploid locus pairs derived from the annotation rather than hand-listed.
 
-- Reproduces all four inverted repeat boundaries from the reference record's own feature
-  table, exactly.
-- Every diploid pair is derived, not asserted, and each pair's two members have the same
-  length.
-- Machine-readable and enforced in code. A downstream tool can ask whether a coordinate is
-  well defined and get a structured answer, not prose.
-- The lift-over consults it: a position inside a diploid locus is reported as such, with
-  both candidate copies named, rather than silently resolving to one.
-- **Direct tests against the three defects review found in M3**, so the mask demonstrably
-  covers the cases that actually went wrong:
-  - the cross-repeat placement, a position 900 bp into `OP297884.1` resolving to 151,879;
-  - the genuine segmental isomer, `ON783215.1`, long segment forward and short reversed;
-  - a cross-strand ambiguity, which the M3 build currently excludes from its ambiguity
-    calculation rather than detecting.
-- A worked example shows a tool declining, and naming the alternatives it declined between.
+**Criteria, met:**
 
-**What building it found.** `IRL` and `IRS` overlap: the long and short repeats abut and
-share bases around 125,975 to 126,373, so a position in that junction belongs to both and
-has a counterpart in each. The first version of `counterpart` returned whichever pair it
-checked first, which silently gave the wrong answer for the junction. The gate caught it,
-and the interface now returns every counterpart rather than one.
+- Reproduces all four inverted repeat boundaries from the reference's own feature table,
+  exactly. Independently verified base by base.
+- Every diploid pair is derived, not asserted, and both members have equal length.
+- Machine-readable and enforced in code: `classify` returns a structured status.
+- The lift-over consults it. `lift_detailed` reports whether a lifted coordinate
+  identifies a unique locus and names the alternatives when it does not. **This was
+  marked met before it was true**: `liftover.py` did not import the map at all, and the
+  review caught it.
+- Direct tests against the three defects review found in M3, including that 151,879, the
+  cross-repeat coordinate that was being returned confidently, is a position the map knows
+  is not well defined.
+- A worked example shows a tool declining and naming the alternatives.
+
+**Independently verified.** The claim that `TRL` and `IRL` are the same sequence inverted,
+and likewise `IRS` and `TRS`, was checked base by base at every position in both pairs:
+**15,846 of 15,846 reverse-complementary, no mismatches.** The alternatives are decisively
+excluded, since a one-base offset or a direct-orientation reading both score 29 to 38 per
+cent. `TRL` and `IRL` are byte-identical across all 9,213 bases, as are `IRS` and `TRS`
+across 6,633.
+
+**What the review corrected:**
+
+- Three `repeat_region` features were being dropped because they carry a `/gene` qualifier
+  and so are classed `named_gene` upstream. The region count of 31 matched the reference's
+  31 repeat features by coincidence, which hid it.
+- Excluding every `repeat_region` from pairing lost nine genuine pairs.
+- The terminal `'a'` sequence is a **direct** repeat, `1..399` identical to
+  `151824..152222` in the same orientation. Only the inverted relation was modelled, so
+  798 positions had an incomplete list of alternatives.
+- `classify` asserted that a position outside the large repeats is "still unique in the
+  genome". That is false for every tandem reiteration set, and the map cannot certify
+  uniqueness in any case: it describes annotated repeat structure and now says so.
+- Out-of-range coordinates were reported as well defined.
+- `IRL` and `IRS` genuinely overlap across `125,975..126,373`, so a position there belongs
+  to both and has a counterpart in each. Found by the gate during the build; verified
+  correct, and no other pair overlaps.
+
+**Known limits, stated rather than fixed:**
+
+- The map covers the reference only. A coordinate in another strain is related to it
+  through the crosswalk, not described directly.
+- Two further diploid pairs are missed because the reference annotates them with a 1 bp
+  asymmetry.
+- `classify` returns no strand, has no interval API, and does not label which repeat each
+  alternative belongs to.
+- Tandem reiteration sets are flagged as repeat features but no alternative positions are
+  computed for them, because a tandem array has no single counterpart.
 
 ## M5: release
 
