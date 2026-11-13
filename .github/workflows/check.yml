@@ -19,6 +19,8 @@ jobs:
         run: make check
       - name: Rebuild derived name tables
         run: make names
+      - name: Rebuild the annotation table
+        run: make annotation
       - name: Rebuild the synonymy test cases from the prose document
         run: make testcases
       - name: Fail if any rebuilt file differs from what is committed

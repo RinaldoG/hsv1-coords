@@ -39,17 +39,27 @@ suite, and so does a listed gap that has quietly started resolving, so the list 
 rot. The largest category is the viral microRNAs, deferred because their reference
 sequences need a sourcing decision of their own (see `FINDINGS.md`).
 
-## M2: canonical versioned annotation
+## M2: canonical versioned annotation - v0.1.0 released, GFF3 generation still to come
 
 One semantically versioned annotation with a changelog and per-feature provenance, stating
 which annotation class each feature belongs to, so that counts from differently scoped
 annotations are not compared as though they measured the same thing.
 
-**Criteria:**
-- Parses with two independent GFF3 parsers, zero warnings.
-- Reproduces its source annotations exactly where it claims to, with every divergence listed
-  and justified in the changelog.
-- Every feature carries a provenance record naming its source.
+**Criteria, two of three met** and enforced by `tests/test_m2_annotation.py`:
+
+- **Met:** every feature carries a provenance record naming its source, plus the class of
+  feature it is, plus its location. 1,723 rows across three sources.
+- **Met, and reworded:** divergences are listed and justified in `CHANGELOG.md`. The
+  criterion anticipated arbitrating between two conflicting annotations, and there is no
+  conflict to arbitrate: one record is the other's successor on the same sequence with a
+  wider scope. So it is met by recording that the difference is one of scope, and by making
+  the class column stop the two counts being compared directly again. 452 of the 2020
+  record's features are transcript units spanning more than one gene, and a further 37 are
+  nested reading frames; the reference annotation describes none of either.
+- **Outstanding:** parses with two independent GFF3 parsers, zero warnings. The current
+  release is a classed feature table, not yet GFF3. GFF3 generation waits on the coordinate
+  crosswalk (M3), because emitting one merged GFF3 across sources before the crosswalk
+  exists would assert equivalences that cannot yet be checked.
 
 ## M3: strain coordinate crosswalk and lift-over
 

@@ -1,12 +1,15 @@
-.PHONY: all inputs names testcases check test clean
+.PHONY: all inputs names annotation testcases check test clean
 
-all: inputs names testcases check test
+all: inputs names annotation testcases check test
 
 inputs:        ## fetch and checksum every input into data/raw
 	python3 -I src/fetch_inputs.py
 
 names:         ## extract and reconcile gene names across the deposited records
 	python3 -I src/extract_names.py
+
+annotation:    ## build the classed, sourced, versioned annotation table
+	python3 -I src/build_annotation.py
 
 testcases:     ## regenerate the machine-readable synonymy test cases from the prose doc
 	python3 -I src/build_testcases.py
