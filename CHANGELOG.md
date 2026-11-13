@@ -52,6 +52,33 @@ class, which is what the class column exists to enforce. See `FINDINGS.md`.
   genome, which checking only for non-empty did not.
 - The inverted repeats and 52 other unnamed features were missing entirely. Fixed above.
 
+## Unreleased - 13 November 2026
+
+Milestones 3 to 6, not yet cut as a version because the acceptance criteria for the
+annotation's GFF3 output are still outstanding.
+
+**Added**
+
+- **Strain crosswalk (M3)**: 183 complete genomes aligned to the reference and reduced to
+  ungapped coordinate blocks, with `lift` resolving a position between any two of them.
+  Median mappable fraction 98.84 per cent.
+- **Repeat and diploid-locus map (M4)**: 34 regions covering 21.0 per cent of the genome,
+  32 diploid locus pairs derived from the annotation, and `RepeatMap.classify`, which
+  answers whether a position is well defined and names the copies it could otherwise be.
+- **Convention resolver (M5)**: five published handlings of the repeat regions, each
+  quoted from its own paper, with `ConventionSet.report`.
+- **Version crosswalk (M6)**: `NC_001806.1` against `NC_001806.2`, nine distinct offsets
+  across 22 blocks.
+
+**Corrected during construction**, with the old wording kept in `FINDINGS.md` rather than
+quietly replaced: the inverted repeats were missing from the annotation entirely; the
+GenBank parser truncated wrapped locations; a lift-over returned a confident coordinate on
+the wrong copy of a terminal repeat; LAT was described as lying wholly inside the long
+repeat when it extends past it; the `'a'` sequence was modelled with two copies when the
+reference carries three; and the Morse convention was encoded in the wrong reference
+version, then with boundaries wrong at three of four edges, before being derived from the
+paper's stated rule.
+
 ## v0.0.0 - 12 November 2026
 
 Inputs and skeleton (M0), gene name dictionary (M1). See `ROADMAP.md`.

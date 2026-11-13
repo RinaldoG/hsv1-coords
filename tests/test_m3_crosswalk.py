@@ -201,33 +201,81 @@ class SequenceAgreement(unittest.TestCase):
             f"only {rate:.2f}% of {total} lifted positions have a matching base; "
             f"a frame offset would show here")
 
-    def test_a_deliberate_offset_is_rejected(self):
-        """Proof the test above has power: shift by one and it must fail the bar."""
-        rng = random.Random(SEED + 8)
-        same = total = 0
-        for acc in Crosswalk.available(CROSSWALK)[:15]:
-            seq = self.genomes.get(acc)
-            if not seq:
-                continue
-            cw = Crosswalk.load(acc, CROSSWALK)
-            if not cw.blocks:
-                continue
-            for _ in range(100):
-                b = rng.choice(cw.blocks)
-                pos = b.query_start + rng.randrange(b.length) + 1
-                ref_pos = cw.to_reference(pos)
-                if ref_pos is None or ref_pos + 1 > len(self.ref):
+    def test_mutated_crosswalks_are_rejected(self):
+        """Real mutation testing, replacing a control that had no power.
+
+        The control this replaces shifted the LOOKUP by one base and checked that
+        agreement collapsed. That measures only that DNA is not self-similar under a
+        shift, which is a property of the sequence: it passes on a completely random
+        crosswalk. FINDINGS.md claimed for a time that it had already been replaced
+        here, while it sat unchanged. Closing a defect in the retraction document
+        instead of in the code is its own failure mode, recorded in PITFALLS.md.
+
+        These mutants perturb the crosswalk itself.
+        """
+        from hsv1coords.liftover import Block, Crosswalk as CW
+        rng = random.Random(SEED + 11)
+        acc = next(a for a in Crosswalk.available(CROSSWALK)
+                   if len(Crosswalk.load(a, CROSSWALK).blocks) > 10
+                   and self.genomes.get(a))
+        real = Crosswalk.load(acc, CROSSWALK)
+        seq = self.genomes[acc]
+
+        def worst_block_identity(cw) -> float:
+            """The weakest block, not the average.
+
+            A genome-wide average hides a single wrong block: shifting one block of
+            one genome moves the overall figure from about 99 to 97.6 per cent, which
+            any sane threshold tolerates. The error is local, so the measurement has
+            to be local too. Blocks too short to measure are skipped rather than
+            allowed to dominate.
+            """
+            worst = 100.0
+            for b in cw.blocks:
+                if b.length < 200:
                     continue
-                a, b_ = seq[pos - 1].upper(), self.ref[ref_pos].upper()
-                if a not in "ACGT" or b_ not in "ACGT":
-                    continue
-                total += 1
-                if a == b_:                                   # deliberate +1 offset
-                    same += 1
-        rate = 100 * same / total
-        self.assertLess(rate, 60.0,
-                        f"a one-base offset still agreed {rate:.2f}% of the time, so "
-                        f"the sequence check cannot detect a frame error")
+                same = total = 0
+                for off in range(0, b.length, max(1, b.length // 40)):
+                    pos = b.query_start + off + 1
+                    ref_pos = cw.to_reference(pos)
+                    if ref_pos is None or ref_pos > len(self.ref):
+                        continue
+                    a, c = seq[pos - 1].upper(), self.ref[ref_pos - 1].upper()
+                    if a not in "ACGT" or c not in "ACGT":
+                        continue
+                    total += 1
+                    same += a == c
+                if total >= 20:
+                    worst = min(worst, 100 * same / total)
+            return worst
+
+        blocks = real.blocks
+        mid = len(blocks) // 2
+        mutants = {
+            "one block shifted by 1": [
+                Block(b.query_start, b.target_start + (1 if i == mid else 0), b.length)
+                for i, b in enumerate(blocks)],
+            "one block shifted by 500": [
+                Block(b.query_start, b.target_start + (500 if i == mid else 0), b.length)
+                for i, b in enumerate(blocks)],
+            "every block shifted by 1": [
+                Block(b.query_start, b.target_start + 1, b.length) for b in blocks],
+            "targets randomised": [
+                Block(b.query_start, rng.randrange(0, 140000), b.length)
+                for b in blocks],
+        }
+        baseline = worst_block_identity(real)
+        self.assertGreaterEqual(
+            baseline, 90.0,
+            f"the real crosswalk's weakest block scores {baseline:.2f}%")
+        survivors = []
+        for name, mb in mutants.items():
+            score = worst_block_identity(CW(acc, mb))
+            if score >= 90.0:
+                survivors.append((name, round(score, 2)))
+        self.assertEqual(survivors, [],
+                         f"these mutated crosswalks passed the identity gate: "
+                         f"{survivors}")
 
     def test_flanking_windows_agree(self):
         rng = random.Random(SEED + 9)

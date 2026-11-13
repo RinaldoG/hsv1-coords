@@ -525,6 +525,29 @@ class VersionCrosswalkGate(unittest.TestCase):
         b2[1] = VersionBlock(blocks[1].old_start - 50, blocks[1].new_start,
                              blocks[1].length)
         m["boundary moved 50 in the query"] = VersionCrosswalk(b2)
+
+        # Two mutants that preserve coverage, bounds and non-overlap, so only a gate
+        # that looks AT the block edges can see them. Without these, the boundary
+        # identity gate could be deleted with the suite still green.
+        pairs = [(i, j) for i in range(len(blocks)) for j in range(i + 1, len(blocks))
+                 if blocks[i].length == blocks[j].length]
+        if pairs:
+            i, j = pairs[0]
+            b2 = list(blocks)
+            b2[i] = VersionBlock(blocks[i].old_start, blocks[j].new_start,
+                                 blocks[i].length)
+            b2[j] = VersionBlock(blocks[j].old_start, blocks[i].new_start,
+                                 blocks[j].length)
+            m["two equal-length blocks swapped"] = VersionCrosswalk(b2)
+        for i in range(len(blocks) - 1):
+            a, b = blocks[i], blocks[i + 1]
+            if a.length > 400 and b.length > 400:
+                b2 = list(blocks)
+                b2[i] = VersionBlock(a.old_start, a.new_start, a.length - 200)
+                b2[i + 1] = VersionBlock(b.old_start - 200, b.new_start - 200,
+                                         b.length + 200)
+                m["boundary moved 200, coverage preserved"] = VersionCrosswalk(b2)
+                break
         return m
 
     def _identity(self, cw, step=29) -> float:
@@ -576,12 +599,35 @@ class VersionCrosswalkGate(unittest.TestCase):
                 return False
         return True
 
-    def _gates(self, cw) -> dict[str, bool]:
+    def _invariants(self, cw) -> dict[str, bool]:
+        """Structural properties the builder must guarantee, whatever the data says.
+
+        These are not gates in the mutation-testing sense, and trying to treat them
+        as such is what made this file claim power it did not have. Overlapping blocks
+        make the lookup itself ill-defined: a bisect would return an arbitrary one of
+        two answers. Out-of-range blocks index past the sequence. Neither is a question
+        about whether the alignment is biologically right, so neither needs a mutant to
+        justify it. They are asserted directly on the real crosswalk instead.
+        """
         return {
-            "identity": self._identity(cw) >= 99.5,
-            "boundary identity": self._boundary_identity(cw) >= 99.0,
             "in bounds": self._in_bounds(cw, len(self.old), len(self.new)),
             "non-overlapping": self._non_overlapping(cw),
+        }
+
+    def _gates(self, cw) -> dict[str, bool]:
+        """The empirical gates: claims about whether the mapping is correct.
+
+        Genome-wide identity is deliberately NOT among them.
+
+        With ungapped blocks, correct edges imply correct interiors, so a genome-wide
+        identity check catches nothing the boundary check misses: measured across
+        every mutant here, its catches are a strict subset. Keeping it as a fifth gate
+        would have meant one gate that could be deleted with the suite still green,
+        which is how review found three of the previous five. It survives below as a
+        documented sanity check, not as a gate.
+        """
+        return {
+            "boundary identity": self._boundary_identity(cw) >= 99.0,
             "exact coverage": sum(b.length for b in cw.blocks) == self.EXPECTED_COVERAGE,
         }
 
@@ -614,16 +660,20 @@ class VersionCrosswalkGate(unittest.TestCase):
         self.assertEqual(failed, [], f"the real crosswalk fails: {failed}")
         self.assertEqual(len(self.v.blocks), self.EXPECTED_BLOCKS)
 
-    def test_no_mutant_survives_every_gate(self):
-        """The control. Each gate exists because one mutant defeats all the others."""
-        survivors = {}
+    def test_the_structural_invariants_hold(self):
+        """Asserted on the real crosswalk, because they are properties of the build."""
+        broken = [k for k, ok in self._invariants(self.v).items() if not ok]
+        self.assertEqual(broken, [], f"the builder produced blocks that are {broken}")
+
+    def test_no_mutant_survives_the_gates_and_invariants_together(self):
+        """The control, over both kinds of check."""
+        survivors = []
         for name, mutant in self._mutants(self.v.blocks).items():
-            gates = self._gates(mutant)
-            if all(gates.values()):
-                survivors[name] = gates
-        self.assertEqual(survivors, {},
-                         f"these broken crosswalks passed every gate: "
-                         f"{list(survivors)}")
+            checks = {**self._gates(mutant), **self._invariants(mutant)}
+            if all(checks.values()):
+                survivors.append(name)
+        self.assertEqual(survivors, [],
+                         f"these broken crosswalks passed everything: {survivors}")
 
     def test_each_gate_is_the_sole_catcher_of_something(self):
         """A gate no mutant needs is a gate that is not pulling its weight.
@@ -637,10 +687,23 @@ class VersionCrosswalkGate(unittest.TestCase):
             caught = [g for g, ok in self._gates(mutant).items() if not ok]
             if len(caught) == 1:
                 sole.setdefault(caught[0], []).append(name)
-        for gate in ("in bounds", "exact coverage"):
-            self.assertIn(gate, sole,
-                          f"no mutant is caught by {gate} alone, so its power is "
-                          f"untested")
+        missing = [g for g in self._gates(self.v) if g not in sole]
+        # Invariants are exempt by design: see `_invariants`.
+        self.assertEqual(missing, [],
+                         f"these gates catch nothing on their own, so each could be "
+                         f"deleted with the suite still green: {missing}. Either add "
+                         f"a mutant only that gate catches, or remove the gate.")
+
+    def test_genome_wide_identity_is_subsumed_and_says_so(self):
+        """Kept as a sanity check, and measured rather than assumed redundant."""
+        self.assertGreaterEqual(self._identity(self.v), 99.5)
+        for name, mutant in self._mutants(self.v.blocks).items():
+            if self._identity(mutant) < 99.5:
+                with self.subTest(mutant=name):
+                    self.assertFalse(
+                        all(self._gates(mutant).values()),
+                        f"{name} is caught by genome-wide identity and by no gate, so "
+                        f"identity is not subsumed after all and should be a gate")
 
     def test_morse_is_now_usable_through_the_crosswalk(self):
         cs = ConventionSet.load()
@@ -652,3 +715,107 @@ class VersionCrosswalkGate(unittest.TestCase):
         self.assertIn("NC_001806.1", why,
                       "the answer must state which version it was evaluated in")
         self.assertIn("offset", why, "and the offset applied at that position")
+
+
+class TheFixesAreReachable(unittest.TestCase):
+    """Tests that fail if a previously fixed defect is reintroduced.
+
+    Round 3 found that reverting `convert`'s version translation, re-breaking
+    `report`'s warning handling, and deleting the Morse `quote` each left the whole
+    suite green. A fix nothing can reach is not covered, however correct the code is.
+    PITFALLS.md root cause: verifying a fix with inputs that cannot exercise it.
+    """
+
+    @staticmethod
+    def _with_other_version_row():
+        """A non-split convention on NC_001806.1, so `convert` must translate.
+
+        The real conventions cannot exercise this: the only NC_001806.1 row is
+        multi-record, and `convert` refuses those, so every other pair is .2 to .2
+        where translation is a no-op.
+        """
+        from hsv1coords.conventions import Convention
+        base = ConventionSet.load()
+        row = Convention(
+            name="synthetic_v1_exclude", kind="exclude",
+            intervals=[(1, 1000)], reference="NC_001806.1", verified=True,
+            source="Synthetic row, used only to exercise version translation",
+            quote="synthetic", reference_version="NC_001806.1",
+            applicable=False, boundary_uncertainty_bp=3)
+        return ConventionSet(base.conventions + [row])
+
+    def test_convert_actually_translates_between_versions(self):
+        """Fails if `convert` stops calling the version crosswalk.
+
+        The expected value is computed here from the crosswalk directly, NOT from
+        `convert`. The first version of this test compared `convert` with itself,
+        which is the tautology pattern in PITFALLS.md root cause 3, written into the
+        fix for a different root cause. Re-breaking `convert` left it green.
+        """
+        from hsv1coords import VersionCrosswalk
+        cs = self._with_other_version_row()
+        v = VersionCrosswalk.load()
+        checked = 0
+        for v1_pos in (60000, 130000, 150000):
+            expected = v.to_new(v1_pos)          # NC_001806.1 position into .2
+            if expected is None or expected == v1_pos:
+                continue                          # no detectable difference here
+            with self.subTest(position=v1_pos, expected=expected):
+                got = cs.convert(v1_pos, "synthetic_v1_exclude", "full_length")
+                self.assertEqual(got, expected,
+                                 f"a NC_001806.1 position {v1_pos} must arrive in "
+                                 f"NC_001806.2 as {expected}, not {got}")
+                checked += 1
+        self.assertGreater(checked, 0,
+                           "no position was checked where the two versions differ, "
+                           "so this test had no power")
+
+    def test_convert_and_usable_agree_on_an_other_version_row(self):
+        cs = self._with_other_version_row()
+        for pos in range(500, 152000, 4999):
+            with self.subTest(position=pos):
+                ok, _ = cs.usable(pos, "synthetic_v1_exclude")
+                got = cs.convert(pos, "full_length", "synthetic_v1_exclude")
+                self.assertEqual(got is not None, ok,
+                                 "usable and convert must not contradict, which is "
+                                 "exactly what they did before round 2")
+
+    def test_report_keeps_a_warning_on_a_usable_answer(self):
+        """Fails if `report` goes back to dropping warnings when the answer is usable.
+
+        That was the original behaviour, and it discarded every warning on precisely
+        the positions a reader would act on.
+        """
+        cs = self._with_other_version_row()
+        found = None
+        for pos in range(1, 4000):
+            rep = cs.report(pos)
+            if any("synthetic_v1_exclude" in c for c in rep.caveats):
+                found = (pos, rep)
+                break
+        self.assertIsNotNone(found, "no position produced a warning to check")
+        pos, rep = found
+        self.assertTrue(any("unreliable" in c.lower() for c in rep.caveats))
+
+    def test_every_convention_row_is_individually_checked(self):
+        """Fails if any row's provenance is deleted, including ones a filter excludes.
+
+        The provenance tests iterate `cs.verified`, which excludes exactly the row
+        that has been wrong three times. A filter that exists to exclude one row means
+        that row needs its own named test.
+        """
+        cs = ConventionSet.load()
+        by_name = {c.name: c for c in cs.conventions}
+        self.assertIn("morse2017_nr", by_name)
+        morse = by_name["morse2017_nr"]
+        self.assertTrue(morse.quote.strip(), "the Morse quote is missing")
+        self.assertIn("NR-reference", morse.quote)
+        self.assertIn("152,261", morse.quote,
+                      "the quote must carry the length that fixes its frame")
+        self.assertIn("Reliable Detection", morse.source,
+                      "the citation title was invented once and must stay checked")
+        self.assertIn("2017", morse.source)
+        for c in cs.conventions:
+            with self.subTest(convention=c.name):
+                self.assertTrue(c.quote.strip())
+                self.assertTrue(c.source.strip())

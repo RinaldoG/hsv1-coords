@@ -173,9 +173,21 @@ and all recorded here rather than quietly corrected.
 | A coordinate cited against KOS is "ambiguous across 987 bp" | That was a length difference, not a coordinate offset. The measured offset between the two plain-KOS records runs from -79 to -887 bp depending on position. Two of the four KOS deposits are a deliberate KOS and KOS1.1 pair with published provenance markers (Colgrove et al., *Virology* 2016;487:215-221) |
 | `asm5` as the alignment preset | Too strict for 0.7 to 1.3 per cent divergence. `asm10` raises the median mappable fraction from 98.08 to 98.84 per cent |
 | A position 900 bp into `OP297884.1` resolved to 151,879 | A cross-repeat placement, and a genuinely wrong coordinate. Blocks are now chained to be monotonic, and that position declines |
-| The round-trip gate could not fail, being a mathematical identity over the same blocks | The gate now checks the base at the lifted position against the reference. **The one-base-offset control this line originally claimed was itself powerless**: it measured that DNA is not self-similar under a shift, which is a property of the sequence and passes on a random crosswalk. Replaced with mutation testing against deliberately broken crosswalks |
+| The round-trip gate could not fail, being a mathematical identity over the same blocks | The gate now checks the base at the lifted position against the reference. **The one-base-offset control this line originally claimed was itself powerless**: it measured that DNA is not self-similar under a shift, which is a property of the sequence and passes on a random crosswalk. Replaced with mutation testing against deliberately broken crosswalks. **This line claimed that replacement before it had happened**: the powerless control sat unchanged in `test_m3_crosswalk.py` for two further rounds while this table said otherwise. Closing a defect in the retraction document instead of in the code is itself a failure mode, now recorded in `PITFALLS.md` |
 | Continuous integration appeared to verify the build and did not: the manifest check was circular, the diff gate saw 6 of 196 derived files, and `minimap2` was never installed | All three closed |
 
 The pattern worth noting: **every one of these was found by someone checking against the
 primary source rather than against this repository's own tests.** The tests passed
 throughout.
+
+## A second reference version, and why it matters
+
+`NC_001806.1` is 152,261 bp; `NC_001806.2` is 152,222 bp. The offset between them is not
+constant: **nine distinct offsets across 22 aligned blocks, from -39 to +5**, verified
+base by base at 99.9573 per cent per-base identity over every mapped position.
+
+So an HSV-1 coordinate can be wrong for a reason that has nothing to do with the repeats:
+two papers citing the same accession at two versions. Morse et al. 2017 states a reference
+length of 152,261 bp, which is `.1`; everything else here is `.2`. Nothing in this
+repository could detect that class of error until M6 built the crosswalk, and nothing in
+the records themselves announces which version a paper used unless the paper says so.

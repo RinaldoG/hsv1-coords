@@ -241,7 +241,8 @@ ConventionSet.load().report(118777)      # the LAT TATA box
 # usable under whisnant2020_masked
 # usable under szpara2014_trimmed
 # NOT usable under lassalle2020_excluded: inside 116,926-132,647, excluded from the analysis
-# NOT usable under morse2017_nr: inside 117,161-126,373
+# NOT usable under morse2017_nr: inside 117,160-125,973, which is not in the
+#     NR-reference (as NC_001806.1 position 118,776, offset -1)
 # caveat: ... not well defined in the reference: inside IRL ... could equally be 7597
 ```
 
@@ -253,7 +254,7 @@ ConventionSet.load().report(118777)      # the LAT TATA box
 | `lassalle2020_excluded` | Excludes `1-9,338`, `116,926-132,647`, `145,582-150,962` from analysis | unchanged |
 | `whisnant2020_masked` | Masks the two terminal repeats, `TRL` and `TRS`, then copies the read mappings back in | unchanged |
 | `szpara2014_trimmed` | Keeps one copy of each inverted repeat, `IRL` and `IRS`, removing `TRL` and `TRS` | **shifted** |
-| `morse2017_nr` | Removes the `IRL` and `TRS` blocks | **shifted**, and defined on `NC_001806.1`, so refused here |
+| `morse2017_nr` | Removes the `IRL` and `TRS` blocks, leaving four records (`RL`, `UL`, `RS`, `US`) | **a record and a position**, like `UL:50787`, and defined on `NC_001806.1`, so translated through the version crosswalk (M6) |
 
 **The worked example.** The LAT TATA box at reference 118,777 is printed as **109,564**
 in a Szpara-trimmed analysis, **excluded** by Lassalle, and **retained** by Whisnant.
@@ -267,13 +268,13 @@ intervals, opposite consequences for a printed number.
 
 **And a second problem, orthogonal to the repeats, which review surfaced.**
 `NC_001806.1` is 152,261 bp and `NC_001806.2` is 152,222 bp, and **the offset between
-them is not constant**: roughly 0 near the start, -1 through `UL` and `IRL`, -3 to -5
-near `IRS`, and +39 through most of `TRS`. Morse's NR-reference is built on `.1`. So a
+them is not constant**: nine distinct offsets across 22 blocks, from -39 to +5. So a
 coordinate can be wrong simply because two papers used two versions of the same
-accession, with no repeat involved at all, and nothing in this repository could detect
-it until now. `morse2017_nr` is therefore recorded with its definition verified and
-**refused for conversion**, because applying it in `.2` space would give confident wrong
-answers.
+accession, with no repeat involved at all. Morse's NR-reference is built on `.1`.
+
+This blocked `morse2017_nr` entirely until M6 built the version crosswalk. It is now
+translated, and every answer about it states the version and the offset applied at that
+position.
 
 **Criteria, written before the code, all met** and enforced in
 `tests/test_m5_conventions.py`:
@@ -285,8 +286,9 @@ answers.
 - A convention that removes sequence shifts coordinates, and the shift is **computed from
   the retained blocks, not assumed constant**. Morse removes an internal block, so a
   single offset cannot describe it, and a test asserts that.
-- Round trip: every retained position converts out and back to itself, in both collapsed
-  references.
+- Round trip: every retained position converts out and back to itself in
+  `szpara2014_trimmed`. `morse2017_nr` is multi-record, so its coordinates are pairs and
+  the equivalent check is that every record and offset recovers its reference position.
 - The resolver states which handlings a position is usable under.
 - A worked example reconciles one locus across the handlings, above.
 
@@ -323,9 +325,8 @@ answers.
 - Five handlings, one of them refused. There are certainly more: review documented five
   further distinct ones, of which reference-fill and synthetic duplication matter most,
   because both produce records that look like complete 152 kb data and are not.
-- **No crosswalk between `NC_001806.1` and `.2` exists here**, which is what blocks
-  Morse. Building one is the obvious next piece and would also let the repo detect a
-  class of error it currently cannot see.
+- The version crosswalk (M6) covers `NC_001806.1` and `.2` only. A paper on any other
+  version or assembly is not handled.
 - `lassalle2020_excluded` is transcribed verbatim, but review found it is one of at
   least three frames in that paper and not the one behind its variant calls. Its numbers
   are gene boundaries. The row is correct as quoted and narrower than its name suggests.

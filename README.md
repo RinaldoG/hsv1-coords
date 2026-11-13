@@ -9,13 +9,25 @@ is not built yet. See `ROADMAP.md` for the acceptance criteria each component mu
 before it is released, and `FINDINGS.md` for what building it has established so far.
 
 ```python
-from hsv1coords import Dictionary, lift
+from hsv1coords import ConventionSet, Dictionary, RepeatMap, lift
 
-d = Dictionary.load()
-d.resolve("VP16")                          # 'UL48'
-d.resolve("alpha-TIF")                     # 'UL48'
-lift(118777, "JQ673480.1", "JQ780693.1")   # 118295, or None where it cannot say
+Dictionary.load().resolve("VP16")              # 'UL48'
+Dictionary.load().resolve("alpha-TIF")         # 'UL48'
+
+lift(118777, "JQ673480.1", "JQ780693.1")       # 118295, or None where it cannot say
+
+RepeatMap.load().classify(118777)
+# not well defined (inside IRL, which is present in two copies); could equally be 7597
+
+ConventionSet.load().report(118777)            # the LAT TATA box
+# usable under full_length, whisnant2020_masked, szpara2014_trimmed
+# NOT usable under lassalle2020_excluded: excluded from the analysis
+# NOT usable under morse2017_nr: not in the NR-reference
 ```
+
+So one position in the gene that dominates latent transcription is printed as 109,564 in
+one published analysis, excluded from a second, absent from a third, and retained by a
+fourth, while also naming no unique locus in the reference.
 
 The lift-over declines rather than guessing. Between the two deposited genomes labelled
 strain KOS the offset is not constant: measured across the alignment it ranges from -79 to
@@ -58,11 +70,33 @@ boundary, and is split across the two ends of the reference sequence.
 | Component | What it is |
 |---|---|
 | Gene dictionary | Every gene with its systematic name, protein name and historical aliases, each alias carrying a citation |
-| Canonical annotation | One semantically versioned annotation with a changelog and per-feature provenance |
-| Strain crosswalk | Coordinate lift-over between complete genomes, so a position in one strain resolves in another |
+| Annotation | 1,779 features, each carrying its class, its source record and that record's provenance |
+| Strain crosswalk | Coordinate lift-over across 183 complete genomes, declining rather than guessing |
+| Repeat map | Which positions are not well defined, and which other positions they could equally be |
+| Convention resolver | Whether a position is usable under each published handling of the repeats, and what it is called there |
+| Version crosswalk | `NC_001806.1` against `.2`, whose offset is not constant |
 | Un-callable mask | The regions where a single linear coordinate is not well defined, enforced in code rather than noted in prose |
 
 Static data validated in continuous integration. No server, no database, no hosted service.
+
+## Getting started
+
+```
+make inputs     # fetch and checksum the deposited records
+make genomes    # fetch the pinned set of 183 complete genomes
+make all        # build every derived file and run the gates
+```
+
+Inputs are fetched rather than committed, so `make test` on a fresh clone skips the two
+test classes that need them and tells you which command to run.
+
+## How this repository treats its own mistakes
+
+`FINDINGS.md` records what building this established, including corrections to claims
+this repository previously made. Forty wrong assumptions have been logged and retracted
+during its construction, each with what caused it. None was caught by the test suite
+passing, which is why the gates here are mutation-tested: a check that cannot fail is
+recorded as such rather than counted.
 
 ## Credit
 
