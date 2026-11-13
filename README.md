@@ -52,9 +52,9 @@ ConventionSet.load().report(118777)            # the LAT TATA box
 # NOT usable under morse2017_nr: not in the NR-reference
 ```
 
-So one position in the gene that dominates latent transcription is printed as 109,564 in
-one published analysis, excluded from a second, absent from a third, and retained by a
-fourth, while also naming no unique locus in the reference.
+So one position in the gene that dominates latent transcription becomes 109,564 in a
+Szpara-trimmed analysis, is excluded from a second, absent from a third, and retained by
+a fourth, while also naming no unique locus in the reference.
 
 The lift-over declines rather than guessing. Between the two deposited genomes labelled
 strain KOS the offset is not constant: measured across the alignment it ranges from -79 to
@@ -66,7 +66,8 @@ The HSV-1 genome is well sequenced and poorly described.
 
 - The RefSeq record `NC_001806.2` is still flagged `PROVISIONAL REFSEQ`, was last modified
   on 13 August 2018, and names `Maq v. 0.7.1` as its assembler.
-- `BK012101.1` annotates the identical 152,222 bases with 300 CDS features against the
+- `BK012101.1` annotates the identical 152,222 bp of sequence with 300 CDS features
+  against the
   reference's 77.
 - Four deposited genomes carry "KOS" in the strain label, under three different label
   strings (`KOS`, `isolate KOS`, `isolate KOS 1.1`), at 152,011, 151,974, 151,794 and
@@ -97,7 +98,7 @@ boundary, and is split across the two ends of the reference sequence.
 | Component | What it is |
 |---|---|
 | Gene dictionary | Every gene with its systematic name, protein name and historical aliases, each alias carrying a citation |
-| Annotation | 1,779 features, each carrying its class, its source record and that record's provenance |
+| Annotation | 1,779 feature rows, each carrying its class, its source record and that record's provenance |
 | Strain crosswalk | Coordinate lift-over across 183 complete genomes, declining rather than guessing |
 | Repeat map | Which positions are not well defined, and which other positions they could equally be |
 | Convention resolver | Whether a position is usable under each published handling of the repeats, and what it is called there |

@@ -9,7 +9,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from hsv1coords import Crosswalk, lift  # noqa: E402
+from hsv1coords import Crosswalk, RepeatMap, lift  # noqa: E402
 from hsv1coords.liftover import REFERENCE  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "src"))
@@ -172,34 +172,76 @@ class SequenceAgreement(unittest.TestCase):
         cls.ref = genbank_sequence(ROOT / "data" / "raw" / "ref_NC_001806.2.gb")
         cls.genomes = read_fasta(ROOT / "data" / "raw" / "genomes.fasta")
 
-    def test_lifted_bases_match_far_more_often_than_chance(self):
-        rng = random.Random(SEED + 7)
+    COMPLEMENT = str.maketrans("ACGTN", "TGCAN")
+
+    def _base_agreement(self, acc: str, step: int,
+                        min_block: int = 200) -> tuple[int, int]:
+        """Matching bases over every `step`-th mapped position of one genome.
+
+        A reverse-complemented genome's bases are complemented as well as reordered,
+        so the deposited base is compared after complementing. Getting this wrong makes
+        a correct crosswalk look like noise, which it did on the first attempt at this
+        check.
+        """
+        seq = self.genomes.get(acc)
+        if not seq:
+            return 0, 0
+        seq = seq.upper()
+        cw = Crosswalk.load(acc, CROSSWALK)
+        rc = cw.orientation == "reverse_complemented"
         same = total = 0
-        for acc in Crosswalk.available(CROSSWALK)[:30]:
-            seq = self.genomes.get(acc)
-            if not seq:
+        for b in cw.blocks:
+            # Blocks shorter than `min_block` are skipped. In the two most divergent
+            # genomes the aligner fragments into hundreds of 3 to 17 bp blocks, where a
+            # single real substitution scores 67 per cent and drags a per-genome rate
+            # below any sensible threshold: 2,187 bp of 143,459 in 159 such blocks for
+            # ON783214.1. A frame error destroys agreement in long blocks too, so
+            # restricting to them keeps the sensitivity and drops the noise.
+            if b.length < min_block:
                 continue
-            cw = Crosswalk.load(acc, CROSSWALK)
-            if not cw.blocks:
-                continue
-            for _ in range(100):
-                b = rng.choice(cw.blocks)
-                pos = b.query_start + rng.randrange(b.length) + 1
-                ref_pos = cw.to_reference(pos)
+            for off in range(0, b.length, step):
+                dep = cw._to_deposited(b.query_start + off + 1)
+                ref_pos = cw.to_reference(dep)
                 if ref_pos is None:
                     continue
-                a, b_ = seq[pos - 1].upper(), self.ref[ref_pos - 1].upper()
+                a = seq[dep - 1]
+                if rc:
+                    a = a.translate(self.COMPLEMENT)
+                b_ = self.ref[ref_pos - 1].upper()
                 if a not in "ACGT" or b_ not in "ACGT":
-                    continue      # ambiguous base in a deposited assembly, not a lift error
+                    continue   # ambiguous base in a deposited assembly, not a lift error
                 total += 1
-                if a == b_:
-                    same += 1
-        self.assertGreater(total, 1000, "too few positions lifted to judge")
-        rate = 100 * same / total
-        self.assertGreaterEqual(
-            rate, 95.0,
-            f"only {rate:.2f}% of {total} lifted positions have a matching base; "
-            f"a frame offset would show here")
+                same += (a == b_)
+        return same, total
+
+    def test_lifted_bases_match_in_every_genome_not_just_the_first_thirty(self):
+        """Per genome, over all 183, and that is how round 7 found the frame bug.
+
+        This gate used to score the alphabetically-first 30 genomes and pool the
+        result. Both halves hid the defect: the three reverse-complemented genomes sort
+        outside the first 30, and pooling 183 genomes means three at 28 per cent cannot
+        pull the total below a 95 per cent threshold. A pooled average cannot locate a
+        broken genome, so this enumerates them.
+        """
+        poor = []
+        checked = grand_total = 0
+        for acc in Crosswalk.available(CROSSWALK):
+            same, total = self._base_agreement(acc, step=37)
+            if total < 300:
+                continue
+            checked += 1
+            grand_total += total
+            rate = 100 * same / total
+            if rate < 97.0:
+                poor.append((acc, round(rate, 2), total))
+        self.assertGreaterEqual(checked, 180,
+                                f"only {checked} genomes were scored; the corpus or "
+                                f"the sampling changed")
+        self.assertEqual(poor, [],
+                         f"{len(poor)} genomes disagree with the reference at more "
+                         f"than 3 per cent of mapped positions: {poor}")
+        print(f"\n    base agreement: {checked} genomes, all at or above 97%, "
+              f"{grand_total:,} positions scored")
 
     def test_mutated_crosswalks_are_rejected(self):
         """Real mutation testing, replacing a control that had no power.
@@ -384,21 +426,66 @@ class GenomeToGenome(unittest.TestCase):
         self.assertGreaterEqual(rate, 99.0,
                                 f"genome-to-genome round-trip agreed {rate:.2f}%")
 
+    @staticmethod
+    def _unique_position(cw):
+        """A deposited position whose reference counterpart names one locus.
+
+        Round 7 made `lift` decline inside the repeats, so a test that wants a number
+        back has to ask for a position outside them. Picking `blocks[0]` no longer does:
+        on most genomes the first block is inside TRL.
+        """
+        rm = RepeatMap.load()
+        for b in cw.blocks:
+            for off in (0, b.length // 2, b.length - 1):
+                dep = cw._to_deposited(b.query_start + off + 1)
+                ref = cw.to_reference(dep)
+                if ref is not None and rm.classify(ref).well_defined:
+                    return dep
+        raise AssertionError(f"no uniquely defined position found in {cw.accession}")
+
     def test_identity_lift_returns_the_position_only_where_it_is_mappable(self):
         """The identity case is still a claim, so it declines where it has no basis."""
         acc = Crosswalk.available(CROSSWALK)[0]
         cw = Crosswalk.load(acc, CROSSWALK)
-        inside = cw.blocks[0].query_start + 1
+        inside = self._unique_position(cw)
         self.assertEqual(lift(inside, acc, acc, CROSSWALK), inside)
-        beyond = max(b.query_start + b.length for b in cw.blocks) + 5000
+        beyond = (cw.deposited_length or
+                  max(b.query_start + b.length for b in cw.blocks)) + 5000
         self.assertIsNone(lift(beyond, acc, acc, CROSSWALK),
                           "identity lift must not confirm an unmappable position")
 
     def test_reference_is_a_valid_endpoint(self):
         acc = Crosswalk.available(CROSSWALK)[0]
         cw = Crosswalk.load(acc, CROSSWALK)
-        pos = cw.blocks[0].query_start + 1
+        pos = self._unique_position(cw)
         self.assertEqual(lift(pos, acc, REFERENCE, CROSSWALK), cw.to_reference(pos))
+
+    def test_lift_declines_inside_a_repeat_while_the_alignment_does_not(self):
+        """The difference between the alignment's answer and an honest one.
+
+        `--secondary=no` means minimap2 reports one placement inside the inverted
+        repeats and the ambiguity filter never sees the other, so `Crosswalk` returns a
+        confident number there. Round 7 measured roughly 92 per cent of repeat
+        positions receiving one. `lift` consults the repeat map and declines, and this
+        is the test that fails if it stops.
+        """
+        rm = RepeatMap.load()
+        declined = alignment_answered = 0
+        for acc in Crosswalk.available(CROSSWALK)[:40]:
+            cw = Crosswalk.load(acc, CROSSWALK)
+            for b in cw.blocks:
+                dep = cw._to_deposited(b.query_start + b.length // 2 + 1)
+                ref = cw.to_reference(dep)
+                if ref is None or rm.classify(ref).well_defined:
+                    continue
+                alignment_answered += 1
+                if lift(dep, acc, REFERENCE, CROSSWALK) is None:
+                    declined += 1
+        self.assertGreater(alignment_answered, 200,
+                           "too few in-repeat positions to judge; the corpus changed")
+        self.assertEqual(declined, alignment_answered,
+                         f"lift answered at {alignment_answered - declined} of "
+                         f"{alignment_answered} positions the repeat map calls ambiguous")
 
 
 if __name__ == "__main__":

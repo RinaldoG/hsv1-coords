@@ -27,6 +27,9 @@ import pathlib
 import re
 import sys
 
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
+from build_crosswalk import genbank_sequence  # noqa: E402
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "raw"
 DERIVED = ROOT / "data" / "derived"
@@ -193,12 +196,46 @@ def main() -> int:
                     "offset_delta": best_delta,
                 })
 
+    # Orientation of each copy of a multi-copy region, measured against the sequence
+    # rather than stated. Round 7: the 'a' sequence copies and their orientations were
+    # a literal list inside `hsv1coords/repeats.py`, in a module whose docstring said
+    # nothing was hand-listed, and two mutations to that list changed a hundred live
+    # answers with the whole suite green. The orientations are derivable, so they are
+    # derived.
+    seq = genbank_sequence(RAW / f"ref_{REFERENCE}.gb").upper()
+    comp = str.maketrans("ACGTN", "TGCAN")
+
+    def piece(a: int, b: int) -> str:
+        return seq[a - 1:b]
+
+    by_name: dict[str, list[dict]] = collections.defaultdict(list)
+    for x in regions:
+        by_name[str(x["name"])].append(x)
+    for name, copies in by_name.items():
+        if len(copies) < 2:
+            for x in copies:
+                x["orientation"] = "single"
+            continue
+        first = piece(int(copies[0]["start"]), int(copies[0]["end"]))
+        for x in copies:
+            here = piece(int(x["start"]), int(x["end"]))
+            if len(here) != len(first):
+                x["orientation"] = "unequal_length"
+                continue
+            rc = here.translate(comp)[::-1]
+            fwd = sum(1 for p, q in zip(here, first) if p == q)
+            rev = sum(1 for p, q in zip(rc, first) if p == q)
+            if fwd == rev:
+                x["orientation"] = "undetermined"
+            else:
+                x["orientation"] = "forward" if fwd > rev else "reverse"
+
     rmap = DERIVED / "repeat_map.tsv"
-    cols = ["name", "kind", "start", "end", "length", "notes"]
+    cols = ["name", "kind", "start", "end", "length", "orientation", "notes"]
     with rmap.open("w") as fh:
         fh.write("\t".join(cols) + "\n")
         for x in regions:
-            fh.write("\t".join(str(x[c]) for c in cols) + "\n")
+            fh.write("\t".join(str(x.get(c, "")) for c in cols) + "\n")
 
     dpairs = DERIVED / "diploid_pairs.tsv"
     pcols = ["locus", "repeat_pair", "feature_type", "copy_1_name", "copy_1_start",

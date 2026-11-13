@@ -39,6 +39,18 @@ class Fact:
     number and failed on correct text.
     """
     note: str = ""
+    prefixes: tuple[str, ...] = ()
+    """Phrases that PRECEDE the figure, e.g. "Median mappable fraction".
+
+    Round 7: five phrasings matched nothing because the documents write the words
+    before the number, and the matcher only looked after it. They were printed as
+    spares carried for future wording while the figure they named was ungated in that
+    document. A prefix must not contain a number, for the same reason a noun must not.
+
+    It sits after `note` deliberately: putting it before shifted every positional
+    `note` argument into this field, and a string iterates character by character, so
+    each fact silently gained a handful of one-character phrasings.
+    """
     words: dict[int, str] = field(default_factory=dict)
 
     @property
@@ -69,30 +81,35 @@ def derive() -> list[Fact]:
     manifest = RAW / "MANIFEST.tsv"
     if manifest.exists():
         facts.append(Fact("inputs", len(_rows(manifest)),
-                          ("inputs fetched and checksummed", "inputs, checksummed",
-                           "inputs and the skeleton"),
+                          ("inputs fetched and checksummed",),
                           "rows in data/raw/MANIFEST.tsv"))
 
     ann = DERIVED / "annotation_v0.1.0.tsv"
     if ann.exists():
         rows = _rows(ann)
         facts.append(Fact("annotation_rows", len(rows),
-                          ("feature rows", "rows across three sources")))
+                          ("feature rows", "rows across three sources",
+                           "rows, up from")))
         spans = sum(1 for r in rows if r["source"] == "BK012101.1"
                     and r["feature_class"] == "transcript_span")
         facts.append(Fact("transcript_spans", spans,
                           ("of its named features are transcript",
-                           "features are multi-gene transcript spans",
-                           "of the 2020 record's features are transcript")))
+                           "of that record's features are transcript")))
 
     aliases = DERIVED / "aliases_literature.tsv"
     if aliases.exists():
         rows = _rows(aliases)
-        facts.append(Fact("alias_rows", len(rows),
-                          ("cited aliases", "cited rows", "alias rows")))
+        facts.append(Fact("alias_rows", len(rows), ("cited alias rows",)))
         facts.append(Fact("alias_genes",
                           len({r["canonical_systematic_name"] for r in rows}),
-                          ("genes, 103 citations", "genes in the dictionary")))
+                          ("genes in the", "genes in the dictionary")))
+        # Identifiers, not citation strings: there are 104 distinct citation strings
+        # and 103 distinct identifiers, and the documents mean the latter. Gating this
+        # is what surfaced the difference.
+        facts.append(Fact("alias_citations",
+                          len({r["citation_identifier"] for r in rows
+                               if r.get("citation_identifier")}),
+                          ("distinct citation identifiers",)))
 
     repeat_map = DERIVED / "repeat_map.tsv"
     pairs_file = DERIVED / "diploid_pairs.tsv"
@@ -101,43 +118,44 @@ def derive() -> list[Fact]:
         pairs = _rows(pairs_file)
         partial = sum(1 for p in pairs
                       if str(p.get("offset_delta", "")).startswith("partial"))
-        facts.append(Fact("regions", len(regions),
-                          ("regions covering", "repeated regions,")))
-        facts.append(Fact("diploid_pairs", len(pairs),
-                          ("diploid locus pairs", "diploid pairs")))
+        facts.append(Fact("regions", len(regions), ("regions covering",)))
+        facts.append(Fact("diploid_pairs", len(pairs), ("diploid locus pairs",)))
         facts.append(Fact("partial_pairs", partial,
-                          ("of them marked partial", "partial pairs",
-                           "of them are marked partial")))
+                          ("of them marked partial",)))
 
     version = DERIVED / "version_crosswalk.tsv"
     if version.exists():
         blocks = _rows(version)
         offsets = {int(b["target_start"]) - int(b["query_start"]) for b in blocks}
         facts.append(Fact("version_blocks", len(blocks),
-                          ("aligned blocks", "blocks, from", "blocks there are")))
+                          ("aligned blocks", "blocks, from")))
         facts.append(Fact("version_offsets", len(offsets), ("distinct offsets",)))
 
     coverage = DERIVED / "crosswalk_coverage.tsv"
     if coverage.exists():
         rows = _rows(coverage)
-        facts.append(Fact("genomes", len(rows),
-                          ("complete genomes", "complete HSV-1 genomes")))
+        facts.append(Fact("genomes", len(rows), ("complete genomes",)))
         facts.append(Fact(
             "median_mappable",
             f"{statistics.median(float(r['mapped_percent']) for r in rows):.2f}",
-            ("per cent, after review", "Median mappable fraction",
-             "median mappable fraction"),
-            "median mappable fraction"))
+            ("per cent, after review",),
+            # The documents write these words BEFORE the number, which is why the two
+            # phrasings that named them matched nothing and were printed as spares.
+            note="median mappable fraction",
+            prefixes=("Median mappable fraction",
+                      "median mappable fraction to")))
         rc = [r for r in rows if r.get("orientation") == "reverse_complemented"]
         facts.append(Fact("reverse_complemented", len(rc),
-                          ("genomes deposited on the opposite strand",
-                           "were previously at 0 per cent")))
+                          ("genomes were previously unmappable",)))
         for r in rc:
-            # A distinctive noun per accession, so a percentage cannot match any
-            # other percentage in the documents.
+            # A distinctive phrasing per accession, so a percentage cannot match any
+            # other percentage in the documents. Round 7: the three were stated as a
+            # bare list ("79.40, 79.67 and 69.87 per cent"), where no phrasing can pin
+            # an individual figure, so the documents now name each accession.
             facts.append(Fact(f"revcomp_{r['accession']}", r["mapped_percent"],
                               (f"per cent for {r['accession']}",),
-                              f"{r['accession']} mappable fraction"))
+                              note=f"{r['accession']} mappable fraction",
+                              prefixes=(f"`{r['accession']}` now maps at",)))
 
     # Structural constants of the genome. These are the most load-bearing numbers in
     # the documents and were previously ungated entirely: a mutation sweep changed one
@@ -150,9 +168,12 @@ def derive() -> list[Fact]:
         seq = "".join(_re.findall(r"[acgtnACGTN]",
                                   body.split("ORIGIN")[1].split("//")[0]
                                   .replace("\n", "")))
+        # One phrasing per place a document states it. Round 7: this figure is the most
+        # load-bearing in the repository, was stated five times, and was reachable at
+        # exactly one of them, because the coverage check pooled the four documents.
         facts.append(Fact("genome_bp", len(seq),
-                          ("bp, and", "bases of DNA", "bp of the reference",
-                           "bp; NC_001806.1", "identical 152,222 bases")))
+                          ("bp, and", "bp of sequence",
+                           "bp. The offset between them")))
         repeats = {}
         for loc, quals in _re.findall(
                 r"^     repeat_region\s+(\S+)\n((?:\s+/.*\n)+)", body, _re.M):
@@ -161,19 +182,17 @@ def derive() -> list[Fact]:
             if note and m and "inverted repeat flanking" in note.group(1):
                 repeats[note.group(1).split(";")[0]] = (int(m.group(1)),
                                                         int(m.group(2)))
-        for name, (a, b) in repeats.items():
-            facts.append(Fact(f"{name}_length", b - a + 1,
-                              (f"bp each for {name}",) if False else (),
-                              f"{name} length"))
+        # The four repeat lengths are two distinct values, each already derived below as
+        # `long_repeat_bp` and `short_repeat_bp`. Round 7: they were carried here as
+        # four more facts with an empty phrasing tuple behind `if False`, which made
+        # them permanently ungateable and inflated the coverage denominator by four.
         if "TRL" in repeats and "IRS" in repeats:
             facts.append(Fact("long_repeat_bp",
                               repeats["TRL"][1] - repeats["TRL"][0] + 1,
-                              ("bp each, identical", "bp copies",
-                               "bp of sequence in two copies",
-                               "bases, as are")))
+                              ("bases, as are",)))
             facts.append(Fact("short_repeat_bp",
                               repeats["IRS"][1] - repeats["IRS"][0] + 1,
-                              ("bp each. A position", "across 6,633")))
+                              ("bp each. They are not identical",)))
 
     v1 = RAW / "ref_NC_001806.1.gb"
     if v1.exists():
@@ -182,9 +201,13 @@ def derive() -> list[Fact]:
         s1 = "".join(_re2.findall(r"[acgtnACGTN]",
                                   b1.split("ORIGIN")[1].split("//")[0]
                                   .replace("\n", "")))
+        # The backticks are part of the text once it is flattened, so a phrasing that
+        # strips them matches nothing. Round 7: all three phrasings here did, which left
+        # the one figure that distinguishes the two reference versions, the whole
+        # subject of root cause 6b, ungated at all four places it is stated.
         facts.append(Fact("genome_v1_bp", len(s1),
-                          ("bp and NC_001806.2", "bp, which is NC_001806.1",
-                           "bp against")))
+                          ("bp and `NC_001806.2` is", "bp; `NC_001806.2` is",
+                           "bp, which is `.1`")))
 
     try:
         from .conventions import ConventionSet

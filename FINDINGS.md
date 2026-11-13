@@ -14,7 +14,7 @@ Checked 13 November 2026.
 
 ## `NC_001806.2` and `JN555585.1` hold the identical sequence
 
-Both are 152,222 bp and the bases are byte-for-byte identical. The Whisnant et al. 2020
+Both are 152,222 bp of sequence and the bases are byte-for-byte identical. The Whisnant et al. 2020
 re-annotation uses `JN555585` as its sequence name while the RefSeq reference is
 `NC_001806.2`, which reads like a coordinate-base mismatch and is not one. **It is an
 accession naming difference, not a coordinate difference.**
@@ -28,7 +28,8 @@ stating plainly in the release.
 ## The 77 against 300 CDS discrepancy is real and is not a length difference
 
 `NC_001806.2` carries 77 CDS features and 79 gene features. `BK012101.1` carries 300 CDS
-features and 83 gene features. Both describe 152,222 bp. So the two records disagree about
+features and 83 gene features. Both describe 152,222 bp of sequence. So the two records
+disagree about
 what is coding on identical sequence, which is a feature-level disagreement, not an
 assembly one. Milestone 2 documents both rather than silently choosing.
 
@@ -177,7 +178,7 @@ and all recorded here rather than quietly corrected.
 | Four records of strain "B" spanning 3,421 bp, described as legitimate isomer variation | Inversion preserves length, so that spread is assembly disagreement. The single label was this repository's regex truncating `B^3x1.1A` |
 | Three genomes "in a different isomer orientation", unmappable | They are opposite-strand deposits with a rotated start. Reverse complemented, they map at 79.40 per cent for ON783216.1, 79.67 per cent for ON783217.1 and 69.87 per cent for PQ569920.1. The one real segmental isomer is `ON783215.1` |
 | A coordinate cited against KOS is "ambiguous across 987 bp" | That was a length difference, not a coordinate offset. The measured offset between the two plain-KOS records runs from -79 to -887 bp depending on position. Two of the four KOS deposits are a deliberate KOS and KOS1.1 pair with published provenance markers (Colgrove et al., *Virology* 2016;487:215-221) |
-| `asm5` as the alignment preset | Too strict for 0.7 to 1.3 per cent divergence. `asm10` raises the median mappable fraction from 98.08 to 98.84 per cent |
+| `asm5` as the alignment preset | Too strict for 0.7 to 1.3 per cent divergence. `asm10` raises the median mappable fraction to 98.84 per cent, up from 98.08 |
 | A position 900 bp into `OP297884.1` resolved to 151,879 | A cross-repeat placement, and a genuinely wrong coordinate. Blocks are now chained to be monotonic, and that position declines |
 | The round-trip gate could not fail, being a mathematical identity over the same blocks | The gate now checks the base at the lifted position against the reference. **The one-base-offset control this line originally claimed was itself powerless**: it measured that DNA is not self-similar under a shift, which is a property of the sequence and passes on a random crosswalk. Replaced with mutation testing against deliberately broken crosswalks. **This line claimed that replacement before it had happened**: the powerless control sat unchanged in `test_m3_crosswalk.py` for two further rounds while this table said otherwise. Closing a defect in the retraction document instead of in the code is itself a failure mode, now recorded in `PITFALLS.md` |
 | Continuous integration appeared to verify the build and did not: the manifest check was circular, the diff gate saw 6 of 196 derived files, and `minimap2` was never installed | All three closed |

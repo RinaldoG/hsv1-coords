@@ -14,38 +14,24 @@ The question this is built to answer is the one a coordinate user actually has:
     >>> status.alternatives
     [125474]
 
-Nothing here is hand-listed. Every region and every pair is derived by
-`src/build_repeat_map.py` from the reference record's own feature table.
+Every region, every pair and every copy's orientation is derived by
+`src/build_repeat_map.py` from the reference record's own feature table and sequence,
+and read from `data/derived/repeat_map.tsv` here. Round 7 found this paragraph was not
+true: the three copies of the 'a' sequence and their orientations were a literal list
+in this module, and the inverted pairs were a literal list of names, so a rebuild that
+moved either would have left them stale and silent. Both are now read from the
+artefact, and `tests/test_m4_repeat_map.py` fails if this module reintroduces either.
 """
 from __future__ import annotations
 
 import csv
 import pathlib
+import re
 from dataclasses import dataclass, field
 
 DERIVED = pathlib.Path(__file__).resolve().parents[2] / "data" / "derived"
 REPEAT_MAP = DERIVED / "repeat_map.tsv"
 DIPLOID_PAIRS = DERIVED / "diploid_pairs.tsv"
-
-# The two inverted repeat pairs. Each is one stretch of sequence present twice, in
-# opposite orientation, which is why the counterpart offset is measured from the far end.
-INVERTED_PAIRS = [("TRL", "IRL"), ("IRS", "TRS")]
-
-# The 'a' sequence is present THREE times in the reference, not twice, and the three are
-# not all in the same orientation. Verified base by base against the sequence:
-#
-#   1..399            direct, terminal
-#   125975..126373    inverted relative to the other two
-#   151824..152222    direct, terminal, identical to 1..399
-#
-# A position in any one of them has two counterparts, not one. An earlier version
-# modelled only the inverted pairs, and then only the first direct pair, so positions
-# here were given an incomplete list of alternatives twice over.
-A_SEQUENCE_COPIES: list[tuple[int, int, str]] = [
-    (1, 399, "forward"),
-    (125975, 126373, "reverse"),
-    (151824, 152222, "forward"),
-]
 
 GENOME_BP = 152222
 
@@ -56,6 +42,8 @@ class Region:
     kind: str
     start: int
     end: int
+    orientation: str = "single"
+    notes: str = ""
 
     def contains(self, position: int) -> bool:
         return self.start <= position <= self.end
@@ -118,13 +106,56 @@ class RepeatMap:
         self.regions = regions
         self.pairs = pairs
         self._by_name = {r.name: r for r in regions}
+        self.inverted_pairs = self._derive_inverted_pairs()
+        self.multi_copy = self._derive_multi_copy()
+
+    def _derive_inverted_pairs(self) -> list[tuple[str, str]]:
+        """The inverted repeat pairs, from what the record says each region flanks.
+
+        The reference annotates each as "inverted repeat flanking UL" or "... US", so
+        the pairing is in the record and does not need naming here. A segment that does
+        not have exactly two flanking repeats is skipped rather than guessed at.
+        """
+        flanking: dict[str, list[str]] = {}
+        for r in self.regions:
+            m = re.search(r"inverted repeat flanking (\w+)", r.notes or "")
+            if m and r.kind == "repeat_region":
+                flanking.setdefault(m.group(1), []).append(r.name)
+        out = []
+        for segment in sorted(flanking):
+            names = sorted(set(flanking[segment]),
+                           key=lambda n: self._by_name[n].start)
+            if len(names) == 2:
+                out.append((names[0], names[1]))
+        return out
+
+    def _derive_multi_copy(self) -> dict[str, list[Region]]:
+        """Regions the record names more than once, keyed by name.
+
+        The 'a' sequence is the live case: three copies, not two, and not all in the
+        same orientation. The orientations come from the artefact's own column, which
+        `src/build_repeat_map.py` measures against the sequence.
+        """
+        groups: dict[str, list[Region]] = {}
+        for r in self.regions:
+            groups.setdefault(r.name, []).append(r)
+        return {n: sorted(c, key=lambda r: r.start)
+                for n, c in groups.items() if len(c) > 1}
 
     @classmethod
     def load(cls, directory: pathlib.Path | None = None) -> "RepeatMap":
         d = pathlib.Path(directory) if directory else DERIVED
         with (d / "repeat_map.tsv").open() as fh:
-            regions = [Region(r["name"], r["kind"], int(r["start"]), int(r["end"]))
-                       for r in csv.DictReader(fh, delimiter="\t")]
+            rows = list(csv.DictReader(fh, delimiter="\t"))
+            if rows and "orientation" not in rows[0]:
+                raise ValueError(
+                    f"{d / 'repeat_map.tsv'} has no orientation column. Each copy's "
+                    f"orientation is measured against the sequence by "
+                    f"`src/build_repeat_map.py`; without it a counterpart cannot be "
+                    f"computed. Rebuild with `make repeatmap`.")
+            regions = [Region(r["name"], r["kind"], int(r["start"]), int(r["end"]),
+                              r.get("orientation", "single"), r.get("notes", ""))
+                       for r in rows]
         pairs: list[DiploidPair] = []
         pp = d / "diploid_pairs.tsv"
         if pp.exists():
@@ -143,19 +174,31 @@ class RepeatMap:
                 return r
         return None
 
-    def _a_sequence_counterparts(self, position: int) -> list[int]:
-        """Every other copy of the 'a' sequence, respecting each copy's orientation."""
-        home = next(((s, e, o) for s, e, o in A_SEQUENCE_COPIES if s <= position <= e),
-                    None)
-        if home is None:
-            return []
-        hs, he, ho = home
-        offset = position - hs if ho == "forward" else he - position
+    def _multi_copy_counterparts(self, position: int) -> list[int]:
+        """Every other copy of a region the record names more than once.
+
+        The live case is the 'a' sequence, which the reference carries three times and
+        not all in the same orientation, so a position in one has two counterparts and
+        the sign of the offset differs between them. Copies of unequal length, or whose
+        orientation could not be measured, are skipped: the honest answer there is no
+        counterpart rather than a computed one.
+        """
         out: list[int] = []
-        for s, e, o in A_SEQUENCE_COPIES:
-            if (s, e) == (hs, he):
+        for copies in self.multi_copy.values():
+            home = next((r for r in copies if r.contains(position)), None)
+            if home is None or home.orientation not in ("forward", "reverse"):
                 continue
-            out.append(s + offset if o == "forward" else e - offset)
+            if len({r.length for r in copies}) != 1:
+                continue
+            offset = (position - home.start if home.orientation == "forward"
+                      else home.end - position)
+            for r in copies:
+                if r is home:
+                    continue
+                if r.orientation not in ("forward", "reverse"):
+                    continue
+                out.append(r.start + offset if r.orientation == "forward"
+                           else r.end - offset)
         return out
 
     def counterparts(self, position: int) -> list[int]:
@@ -172,7 +215,7 @@ class RepeatMap:
         the wrong one for the junction.
         """
         out: list[int] = []
-        for a, b in INVERTED_PAIRS:
+        for a, b in self.inverted_pairs:
             ra, rb = self._repeat(a), self._repeat(b)
             if not ra or not rb:
                 continue
@@ -180,7 +223,7 @@ class RepeatMap:
                 out.append(rb.end - (position - ra.start))
             if rb.contains(position):
                 out.append(ra.start + (rb.end - position))
-        out.extend(self._a_sequence_counterparts(position))
+        out.extend(self._multi_copy_counterparts(position))
         return sorted(set(out) - {position})
 
     def counterpart(self, position: int) -> int | None:
@@ -204,8 +247,9 @@ class RepeatMap:
         hits = [r for r in self.regions if r.contains(position)]
         inverted = [r for r in hits
                     if r.kind == "repeat_region"
-                    and any(r.name.startswith(x) for pair in INVERTED_PAIRS for x in pair)]
-        a_seq = self._a_sequence_counterparts(position)
+                    and any(r.name.startswith(x)
+                            for pair in self.inverted_pairs for x in pair)]
+        a_seq = self._multi_copy_counterparts(position)
         if not inverted:
             if a_seq:
                 return CoordinateStatus(

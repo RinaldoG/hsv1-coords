@@ -3,19 +3,20 @@
 Every genome aligned to `NC_001806.2` with minimap2 (`asm10`, `--cs`, `--secondary=no`), reduced to ungapped blocks by `src/build_crosswalk.py`.
 
 - Genomes mapped: **183**
-- Median mappable fraction: **98.84%**, excluding the isomer-orientation cases below
+- Median mappable fraction: **98.84%**
 - Range: 69.87% to 100.00%
 - Genomes below 95% mappable: **8**
 
-- Genomes with regions that align in more than one place: **24**, median 430 bp dropped where present
+- Genomes with regions this alignment placed in more than one way: **22**, median 205 bp removed where present
+- Genomes with blocks dropped by chaining: **4**, 78,667 bp in total
 
-Those regions are dropped rather than resolved. They are the inverted repeats, where a position genuinely corresponds to two places in the genome, and picking one silently is the error this layer exists to prevent.
+**What this does not do.** minimap2 runs with `--secondary=no`, so a second placement of the same query region is discarded by the aligner before the ambiguity filter sees it. The counts above are therefore about regions a single alignment pass placed twice, and they are not a measure of repeat ambiguity: round 7 measured roughly 92 per cent of positions inside the inverted repeats still receiving one confident block. Repeat ambiguity is handled by `liftover.lift` consulting the repeat map, which declines where a position has more than one valid copy, and not by this build.
 
-A position that falls outside every block has no reference coordinate, and the lift-over returns nothing for it rather than the nearest match. The unmappable fraction is concentrated in the inverted repeats, which is the region milestone 4 marks explicitly.
+A position that falls outside every block has no reference coordinate, and the lift-over returns nothing for it rather than the nearest match.
 
 ## Ten least mappable genomes
 
-Excluding the isomer-orientation cases above.
+Excluding any genome that has alignments but maps at 0 per cent, listed above where such genomes exist.
 
 | Accession | Length | Mapped | Blocks |
 |---|---|---|---|

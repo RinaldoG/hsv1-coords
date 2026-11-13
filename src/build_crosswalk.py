@@ -159,13 +159,40 @@ def subtract(block: tuple[int, int, int], bad_q: list[tuple[int, int]],
     return pieces
 
 
+def union_length(intervals: list[tuple[int, int]]) -> int:
+    """Total length covered by these half-open intervals, counting overlap once.
+
+    Round 7: the dropped figure was `sum(block lengths) - sum(kept lengths)`, which
+    counts a doubly-placed region twice, because both placements are in the input. On
+    the real data 19 of 24 nonzero rows were exactly 2x the genome bases removed. The
+    figure a reader wants is bases of this genome, so overlap is counted once.
+    """
+    total = 0
+    end = None
+    for a, b in sorted(intervals):
+        if end is None or a > end:
+            total += b - a
+            end = b
+        elif b > end:
+            total += b - end
+            end = b
+    return total
+
+
 def drop_ambiguous(blocks: list[tuple[int, int, int]]) -> tuple[list[tuple[int, int, int]], int]:
-    """Remove every region a position could map to in more than one way.
+    """Remove every region this aligner placed in more than one way.
 
     The inverted repeats mean parts of the genome legitimately align in two places. A
     crosswalk that kept both would silently pick one, which is precisely the error this
     repository exists to prevent, so those regions are dropped and the lift-over declines
     there instead. The dropped total is reported, not hidden.
+
+    **This filter sees only what the aligner emits.** `align` runs minimap2 with
+    `--secondary=no`, so a second placement is discarded upstream and never reaches
+    here: round 7 measured roughly 92 per cent of positions inside the inverted repeats
+    still receiving one confident answer. Repeat ambiguity is therefore handled by
+    `liftover.lift` consulting the repeat map, not by this function, and the count below
+    is only about regions a single alignment pass placed twice.
     """
     bad_q = ambiguous_intervals([(q, q + ln) for q, _, ln in blocks])
     bad_t = ambiguous_intervals([(t, t + ln) for _, t, ln in blocks])
@@ -174,7 +201,8 @@ def drop_ambiguous(blocks: list[tuple[int, int, int]]) -> tuple[list[tuple[int, 
     kept: list[tuple[int, int, int]] = []
     for b in blocks:
         kept.extend(subtract(b, bad_q, bad_t))
-    dropped = sum(ln for _, _, ln in blocks) - sum(ln for _, _, ln in kept)
+    dropped = (union_length([(q, q + ln) for q, _, ln in blocks])
+               - union_length([(q, q + ln) for q, _, ln in kept]))
     return sorted(kept), dropped
 
 
@@ -253,6 +281,7 @@ def main() -> int:
     for i, (acc, seq) in enumerate(items, 1):
         q_fa = tmp / "q.fa"
         q_fa.write_text(f">{acc}\n{seq}\n")
+        deposited_length = len(seq)
         rows = align(q_fa, ref_fa)
         orientation = "forward"
         if rows and all(f[4] == "-" for f in rows):
@@ -273,21 +302,28 @@ def main() -> int:
         blocks.sort()
         blocks, dropped = drop_ambiguous(blocks)
         blocks, non_mono = drop_non_monotonic(blocks)
-        dropped += non_mono
         mapped = sum(b[2] for b in blocks)
         out = CROSSWALK / f"{acc}.blocks.tsv"
         with out.open("w") as fh:
+            # The frame these query offsets are in, written beside them. Round 7: the
+            # three reverse-complemented genomes stored offsets into the reverse
+            # complement while the only record of that sat in a different file, which
+            # nothing read, so a lift was wrong by tens of kilobases. A coordinate's
+            # frame now travels with the coordinate.
+            fh.write(f"# orientation={orientation} "
+                     f"deposited_length={deposited_length}\n")
             fh.write("query_start\ttarget_start\tlength\n")
             for qs, ts, ln in blocks:
                 fh.write(f"{qs}\t{ts}\t{ln}\n")
         coverage.append({
             "accession": acc,
-            "length_bp": str(len(seq)),
+            "length_bp": str(deposited_length),
             "blocks": str(len(blocks)),
             "mapped_bp": str(mapped),
-            "mapped_percent": f"{100 * mapped / len(seq):.2f}",
+            "mapped_percent": f"{100 * mapped / deposited_length:.2f}",
             "alignments": str(len(rows)),
             "ambiguous_bp_dropped": str(dropped),
+            "non_monotonic_bp_dropped": str(non_mono),
             "orientation": orientation,
         })
         if i % 25 == 0 or i == len(items):
@@ -295,7 +331,8 @@ def main() -> int:
 
     cov = DERIVED / "crosswalk_coverage.tsv"
     cols = ["accession", "length_bp", "blocks", "mapped_bp", "mapped_percent",
-            "alignments", "ambiguous_bp_dropped", "orientation"]
+            "alignments", "ambiguous_bp_dropped", "non_monotonic_bp_dropped",
+            "orientation"]
     with cov.open("w") as fh:
         fh.write("\t".join(cols) + "\n")
         for r in coverage:
@@ -316,24 +353,31 @@ def main() -> int:
                  f"`src/build_crosswalk.py`.\n\n")
         fh.write(f"- Genomes mapped: **{len(coverage)}**\n")
         fh.write(f"- Median mappable fraction: "
-                 f"**{statistics.median(pcts_mappable):.2f}%**, excluding the "
-                 f"isomer-orientation cases below\n")
+                 f"**{statistics.median(pcts_mappable):.2f}%**\n")
         fh.write(f"- Range: {min(pcts_mappable):.2f}% to {max(pcts_mappable):.2f}%\n")
         fh.write(f"- Genomes below 95% mappable: "
                  f"**{sum(1 for p in pcts if p < 95)}**\n\n")
         amb = [int(r["ambiguous_bp_dropped"]) for r in coverage]
-        fh.write(f"- Genomes with regions that align in more than one place: "
+        mono = [int(r["non_monotonic_bp_dropped"]) for r in coverage]
+        fh.write(f"- Genomes with regions this alignment placed in more than one way: "
                  f"**{sum(1 for a in amb if a)}**, median "
                  f"{statistics.median([a for a in amb if a]) if any(amb) else 0:,.0f} bp "
-                 f"dropped where present\n\n")
-        fh.write("Those regions are dropped rather than resolved. They are the inverted "
-                 "repeats, where a position genuinely corresponds to two places in the "
-                 "genome, and picking one silently is the error this layer exists to "
-                 "prevent.\n\n")
+                 f"removed where present\n")
+        fh.write(f"- Genomes with blocks dropped by chaining: "
+                 f"**{sum(1 for a in mono if a)}**, "
+                 f"{sum(mono):,} bp in total\n\n")
+        fh.write("**What this does not do.** minimap2 runs with `--secondary=no`, so a "
+                 "second placement of the same query region is discarded by the aligner "
+                 "before the ambiguity filter sees it. The counts above are therefore "
+                 "about regions a single alignment pass placed twice, and they are not a "
+                 "measure of repeat ambiguity: round 7 measured roughly 92 per cent of "
+                 "positions inside the inverted repeats still receiving one confident "
+                 "block. Repeat ambiguity is handled by `liftover.lift` consulting the "
+                 "repeat map, which declines where a position has more than one valid "
+                 "copy, and not by this build.\n\n")
         fh.write("A position that falls outside every block has no reference coordinate, "
-                 "and the lift-over returns nothing for it rather than the nearest match. "
-                 "The unmappable fraction is concentrated in the inverted repeats, which "
-                 "is the region milestone 4 marks explicitly.\n\n")
+                 "and the lift-over returns nothing for it rather than the nearest "
+                 "match.\n\n")
         inverted = [r for r in coverage
                     if float(r["mapped_percent"]) == 0 and int(r["alignments"]) > 0]
         if inverted:
@@ -355,7 +399,8 @@ def main() -> int:
             fh.write("\n")
 
         fh.write("## Ten least mappable genomes\n\n")
-        fh.write("Excluding the isomer-orientation cases above.\n\n")
+        fh.write("Excluding any genome that has alignments but maps at 0 per cent, "
+                 "listed above where such genomes exist.\n\n")
         fh.write("| Accession | Length | Mapped | Blocks |\n|---|---|---|---|\n")
         for r in low:
             fh.write(f"| `{r['accession']}` | {int(r['length_bp']):,} | "

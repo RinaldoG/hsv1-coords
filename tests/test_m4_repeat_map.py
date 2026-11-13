@@ -15,7 +15,10 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from hsv1coords import Crosswalk, RepeatMap, lift  # noqa: E402
 from hsv1coords.liftover import REFERENCE  # noqa: E402
-from hsv1coords.repeats import INVERTED_PAIRS  # noqa: E402
+from hsv1coords.repeats import GENOME_BP  # noqa: E402
+from build_crosswalk import genbank_sequence  # noqa: E402
+
+INVERTED_PAIRS = RepeatMap.load().inverted_pairs
 
 DERIVED = ROOT / "data" / "derived"
 CROSSWALK = DERIVED / "crosswalk"
@@ -263,6 +266,77 @@ class CorrectionsFromReview(unittest.TestCase):
                       f"{s.alternatives}")
         back = self.m.classify(152023)
         self.assertIn(200, back.alternatives)
+
+    def test_counterpart_declines_wherever_there_is_more_than_one(self):
+        """The library's central contract, which had no test until round 7.
+
+        Changing `len(alts) == 1` to `len(alts) >= 1` made `counterpart` pick the first
+        of two or three equally valid answers and changed 32 live answers with the whole
+        suite green. Every position with several counterparts must get None.
+        """
+        several = [p for p in range(1, GENOME_BP + 1, 23)
+                   if len(self.m.counterparts(p)) > 1]
+        self.assertGreater(len(several), 50,
+                           "no position has several counterparts, so this proves "
+                           "nothing; the map or the sampling changed")
+        for pos in several:
+            with self.subTest(position=pos):
+                self.assertIsNone(
+                    self.m.counterpart(pos),
+                    f"{pos} has {self.m.counterparts(pos)} and must not be given one")
+        exactly_one = [p for p in range(1, GENOME_BP + 1, 23)
+                       if len(self.m.counterparts(p)) == 1]
+        self.assertGreater(len(exactly_one), 50, "nothing exercises the single case")
+        for pos in exactly_one[:200]:
+            with self.subTest(single=pos):
+                self.assertEqual(self.m.counterpart(pos),
+                                 self.m.counterparts(pos)[0])
+
+    def test_no_repeat_geometry_is_hand_listed_in_the_library(self):
+        """The module's docstring says nothing is hand-listed. Round 7: it was.
+
+        The three 'a' sequence copies with their orientations, and the inverted pair
+        names, were literals in `hsv1coords/repeats.py`. Both are derivable from the
+        artefact, so a literal reappearing there is a defect this catches.
+        """
+        body = (ROOT / "src" / "hsv1coords" / "repeats.py").read_text()
+        for banned in ("A_SEQUENCE_COPIES", "INVERTED_PAIRS", "125975", "151824",
+                       '"TRL", "IRL"', '"IRS", "TRS"'):
+            with self.subTest(literal=banned):
+                self.assertNotIn(banned, body,
+                                 f"{banned} is hand-listed in repeats.py; derive it "
+                                 f"in src/build_repeat_map.py instead")
+
+    def test_the_derived_orientations_match_the_sequence(self):
+        """The orientation column decides every counterpart, so it is checked here.
+
+        Not against the builder that wrote it, which would be circular, but against
+        the reference sequence itself.
+        """
+        ref = genbank_sequence(ROOT / "data" / "raw" / "ref_NC_001806.2.gb").upper()
+        comp = str.maketrans("ACGTN", "TGCAN")
+        groups: dict[str, list] = {}
+        for r in self.m.regions:
+            groups.setdefault(r.name, []).append(r)
+        checked = 0
+        for name, copies in groups.items():
+            if len(copies) < 2 or len({r.length for r in copies}) != 1:
+                continue
+            first = ref[copies[0].start - 1:copies[0].end]
+            for r in copies:
+                here = ref[r.start - 1:r.end]
+                rc = here.translate(comp)[::-1]
+                fwd = sum(1 for a, b in zip(here, first) if a == b)
+                rev = sum(1 for a, b in zip(rc, first) if a == b)
+                with self.subTest(region=name, start=r.start):
+                    expected = "forward" if fwd > rev else "reverse"
+                    self.assertEqual(r.orientation, expected,
+                                     f"{name} at {r.start} is recorded "
+                                     f"{r.orientation} but matches {expected} "
+                                     f"({fwd} forward against {rev} reverse)")
+                checked += 1
+        self.assertGreaterEqual(checked, 3,
+                                "no multi-copy region was checked, so this is empty")
 
     def test_out_of_range_positions_are_not_reported_as_well_defined(self):
         for pos in (0, -5, 152223, 1000000):

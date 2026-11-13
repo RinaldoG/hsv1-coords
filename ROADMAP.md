@@ -29,7 +29,8 @@ distinct gene names across the four sources, five appear in all four.
 - Reproduces the synonymy used in at least three published papers: 13 papers, 154
   assertions, generated from `data/derived/alias_testcases.md` by `make testcases` so the
   prose and the tests cannot drift.
-- No entry carries an uncited alias: 683 rows, 166 genes, 103 citations, zero uncited.
+- No entry carries an uncited alias: 683 cited alias rows, covering 166 genes in the
+  dictionary, drawn from 103 distinct citation identifiers, zero uncited.
 - Where a name has been used for more than one locus, the collision is recorded rather
   than resolved, and `Dictionary.resolve` refuses it instead of guessing.
 
@@ -53,7 +54,7 @@ annotations are not compared as though they measured the same thing.
   criterion anticipated arbitrating between two conflicting annotations, and there is no
   conflict to arbitrate: one record is the other's successor on the same sequence with a
   wider scope. So it is met by recording that the difference is one of scope, and by making
-  the class column stop the two counts being compared directly again. 452 of the 2020
+  the class column stop the two counts being compared directly again. 452 of that
   record's features are transcript units spanning more than one gene, and a further 37 are
   nested reading frames; the reference annotation describes none of either.
 - **Outstanding:** parses with two independent GFF3 parsers, zero warnings. The current
@@ -114,8 +115,10 @@ through the reference. Median mappable fraction 98.84 per cent, after review fou
   wrong coordinate, and exactly the error this layer exists to prevent. The build now
   keeps the largest chain that cannot jump backwards, and that position declines.
 - **Genomes deposited on the opposite strand are reverse complemented** rather than
-  reported as unmappable. Three were previously at 0 per cent and now map at 79.40, 79.67
-  and 69.87 per cent. No genome in the set is unmapped.
+  reported as unmappable, and the frame they are stored in is written into the block
+  file so that a lift reads it. Three genomes were previously unmappable: `ON783216.1` now
+  maps at 79.40 per cent, `ON783217.1` now maps at 79.67 per cent and `PQ569920.1`
+  now maps at 69.87 per cent. No genome in the set is unmapped.
 
 **Worked example.** Between the two deposited genomes of strain KOS, the offset is not
 constant: a position cited against `JQ673480.1` resolves in `JQ780693.1` at -122 bp near
@@ -185,7 +188,8 @@ and likewise `IRS` and `TRS`, was checked base by base at every position in both
 **15,846 of 15,846 reverse-complementary, no mismatches.** The alternatives are decisively
 excluded, since a one-base offset or a direct-orientation reading both score 29 to 38 per
 cent. `TRL` and `IRL` are exact reverse complements across all 9,213 bases, as are `IRS`
-and `TRS` across 6,633. They are not identical read in the same direction: a
+and `TRS` are exact reverse complements across 6,633 bp each. They are not identical
+read in the same direction: a
 direct-orientation comparison scores about 31 per cent, which is why the inversion
 matters.
 
@@ -252,7 +256,7 @@ ConventionSet.load().report(118777)      # the LAT TATA box
 
 | Name | What the source says it does | Coordinates |
 |---|---|---|
-| `full_length` | The deposited record, 152,222 bp | unchanged |
+| `full_length` | The deposited record, 152,222 bp of sequence | unchanged |
 | `lassalle2020_excluded` | Excludes `1-9,338`, `116,926-132,647`, `145,582-150,962` from analysis | unchanged |
 | `whisnant2020_masked` | Masks the two terminal repeats, `TRL` and `TRS`, then copies the read mappings back in | unchanged |
 | `szpara2014_trimmed` | Keeps one copy of each inverted repeat, `IRL` and `IRS`, removing `TRL` and `TRS` | **shifted** |

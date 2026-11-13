@@ -33,10 +33,29 @@ class Block:
 
 
 class Crosswalk:
-    """The ungapped blocks relating one genome to the reference."""
+    """The ungapped blocks relating one genome to the reference.
 
-    def __init__(self, accession: str, blocks: list[Block]) -> None:
+    A genome deposited on the opposite strand from the reference is reverse
+    complemented before alignment, so its block offsets are positions in the reverse
+    complement, not in the deposited record. That frame is declared on the first line
+    of the block file and applied here, at the one boundary where a deposited
+    coordinate enters. Round 7 found it declared in a different file and applied
+    nowhere, which made every lift against those three genomes wrong by a median of 30
+    to 50 kb while looking perfectly ordinary.
+    """
+
+    def __init__(self, accession: str, blocks: list[Block],
+                 orientation: str = "forward", deposited_length: int | None = None
+                 ) -> None:
+        if orientation not in ("forward", "reverse_complemented"):
+            raise ValueError(f"unknown orientation {orientation!r} for {accession}")
+        if orientation == "reverse_complemented" and not deposited_length:
+            raise ValueError(
+                f"{accession} is reverse complemented but its block file states no "
+                f"deposited_length, so a deposited coordinate cannot be placed")
         self.accession = accession
+        self.orientation = orientation
+        self.deposited_length = deposited_length
         self.blocks = sorted(blocks, key=lambda b: b.query_start)
         self._q_starts = [b.query_start for b in self.blocks]
         self._by_target = sorted(blocks, key=lambda b: b.target_start)
@@ -48,11 +67,31 @@ class Crosswalk:
         path = pathlib.Path(directory) / f"{accession}.blocks.tsv"
         if not path.exists():
             raise FileNotFoundError(f"no crosswalk for {accession} at {path}")
+        lines = path.read_text().splitlines(keepends=True)
+        if not lines or not lines[0].startswith("#"):
+            raise ValueError(
+                f"{path} states no frame on its first line. A block file without a "
+                f"frame cannot be read safely: a reverse-complemented genome would be "
+                f"silently treated as forward. Rebuild with `make crosswalk`.")
+        meta = dict(kv.split("=", 1) for kv in lines[0].lstrip("#").split())
         with path.open() as fh:
+            next(fh)
             blocks = [Block(int(r["query_start"]), int(r["target_start"]),
                             int(r["length"]))
                       for r in csv.DictReader(fh, delimiter="\t")]
-        return cls(accession, blocks)
+        length = meta.get("deposited_length")
+        return cls(accession, blocks, meta.get("orientation", ""),
+                   int(length) if length else None)
+
+    def _to_aligned(self, position: int) -> int:
+        """A 1-based deposited position as a 1-based position in the aligned frame."""
+        if self.orientation == "forward":
+            return position
+        return self.deposited_length + 1 - position
+
+    def _to_deposited(self, position: int) -> int:
+        """The inverse. The reverse complement is its own inverse, hence one formula."""
+        return self._to_aligned(position)
 
     @staticmethod
     def available(directory: pathlib.Path | None = None) -> list[str]:
@@ -61,8 +100,14 @@ class Crosswalk:
                       for p in directory.glob("*.blocks.tsv"))
 
     def to_reference(self, position: int) -> int | None:
-        """Lift a 1-based position in this genome to the reference, or None."""
-        p = position - 1
+        """Lift a 1-based deposited position in this genome to the reference, or None."""
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        if position < 1:
+            return None
+        if self.deposited_length and position > self.deposited_length:
+            return None
+        p = self._to_aligned(position) - 1
         i = bisect.bisect_right(self._q_starts, p) - 1
         if i < 0:
             return None
@@ -72,7 +117,11 @@ class Crosswalk:
         return b.target_start + (p - b.query_start) + 1
 
     def from_reference(self, position: int) -> int | None:
-        """Lift a 1-based reference position into this genome, or None."""
+        """Lift a 1-based reference position into this genome's deposited frame."""
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        if position < 1:
+            return None
         p = position - 1
         i = bisect.bisect_right(self._t_starts, p) - 1
         if i < 0:
@@ -80,7 +129,7 @@ class Crosswalk:
         b = self._by_target[i]
         if p >= b.target_start + b.length:
             return None
-        return b.query_start + (p - b.target_start) + 1
+        return self._to_deposited(b.query_start + (p - b.target_start) + 1)
 
     @property
     def mapped_bases(self) -> int:
@@ -152,25 +201,21 @@ def lift(position: int, source: str, target: str,
          directory: pathlib.Path | None = None) -> int | None:
     """Lift a 1-based position from one genome to another, through the reference.
 
-    Returns None if either leg has no coordinate, which is the honest answer rather
-    than an approximation.
+    Returns None where there is no single honest answer. That is three cases: either
+    leg has no coordinate, the position is not in the genome at all, or the reference
+    position sits in a region present in more than one copy, where the alignment's
+    single answer is one of two or three equally valid ones.
 
-    This returns a bare number and so cannot tell the caller that the position sits in
-    a repeat and names no unique locus. Use `lift_detailed` where that matters.
+    The third case is the one round 7 found open. The aligner runs with
+    `--secondary=no`, so it reports one placement inside the inverted repeats and the
+    ambiguity filter never sees the other: roughly 92 per cent of positions in those
+    repeats were receiving a confident answer while the documents said the lift-over
+    declined there. The repeat map already knows the counterparts, so this asks it.
+
+    Use `lift_detailed` to get the number together with its alternatives rather than a
+    refusal.
     """
-    if source == target:
-        # Even the identity case must be a real position in a genome we hold, or the
-        # caller gets a confident answer about a coordinate nobody has checked.
-        if source != REFERENCE:
-            cw = Crosswalk.load(source, directory)
-            return position if cw.to_reference(position) is not None else None
-        return position
-    if source == REFERENCE:
-        ref_pos: int | None = position
-    else:
-        ref_pos = Crosswalk.load(source, directory).to_reference(position)
-    if ref_pos is None:
+    detailed = lift_detailed(position, source, target, directory)
+    if detailed.position is None or not detailed.well_defined:
         return None
-    if target == REFERENCE:
-        return ref_pos
-    return Crosswalk.load(target, directory).from_reference(ref_pos)
+    return detailed.position
