@@ -3,29 +3,39 @@
 A coordinate and annotation layer for herpes simplex virus 1, so that a position in the
 HSV-1 genome means one thing.
 
-> ## Known defects, 13 November 2026
+> ## Review round 7, and what it changed, 13 November 2026
 >
-> An internal review found three faults that make parts of this repository wrong right
-> now. They are listed here before they are fixed, rather than after.
+> An internal review found three faults that made parts of this repository wrong. They
+> were published here before they were fixed, and this note is kept rather than deleted
+> so the record of what was wrong survives the fix.
 >
-> 1. **`lift()` returns wrong coordinates for `ON783216.1`, `ON783217.1` and
->    `PQ569920.1`.** These three genomes are deposited on the opposite strand and their
->    block files store offsets into the reverse complement, not into the deposited record.
->    Nothing in the lift-over reads the `orientation` column that says so. The error is a
->    median of 30 to 50 kb. Do not use a lift against these three accessions.
-> 2. **The lift-over does not decline in the inverted repeats, although this file and
->    `ROADMAP.md` say it does.** The aligner runs with `--secondary=no`, so the second
->    placement is discarded before the ambiguity filter can see it. Measured over the
->    first 25 crosswalks, roughly 92 per cent of positions inside the inverted repeats
->    still receive a single confident answer. Use `RepeatMap.classify()` to check a
->    position before trusting a lift through a repeat.
-> 3. **Several figures and acceptance claims in this file and `ROADMAP.md` are not
->    gated**, including the statement about outstanding criteria in the paragraph below,
->    which `ROADMAP.md` contradicts. The documentation gate's measured catch rate is 34 of
->    90 single-figure mutations, not the fuller coverage implied by its own description.
+> 1. **`lift()` returned wrong coordinates for `ON783216.1`, `ON783217.1` and
+>    `PQ569920.1`**, by a median of 30 to 50 kb. These three genomes are deposited on the
+>    opposite strand, so their block files held offsets into the reverse complement, and
+>    the only record of that sat in a column of a different file which nothing read.
+>    **Fixed:** the frame is now stated on the first line of each block file and applied
+>    where a deposited coordinate enters. Every one of the 183 genomes now agrees with the
+>    reference at 97 per cent or better over 717,688 scored positions; these three were at
+>    28 per cent. Re-introducing the fault fails a named test.
+> 2. **The lift-over did not decline inside the inverted repeats, although this file said
+>    it did.** The aligner runs with `--secondary=no`, so the second placement is
+>    discarded before the ambiguity filter can see it, and roughly 92 per cent of
+>    positions in those repeats still received one confident answer. **Fixed:** `lift`
+>    consults the repeat map, which already held verified counterparts, and declines where
+>    a position has more than one valid copy. `lift_detailed` returns the number together
+>    with its alternatives, and `Crosswalk.to_reference` still gives the alignment's own
+>    answer for anyone who wants it.
+> 3. **The documentation gate was smaller than its own description, and two of the tests
+>    reporting its coverage could not fail.** **Partly fixed, and measured:** the catch
+>    rate over 90 single-figure mutations went from 34 to 45. Every figure this repository
+>    derives is gated and the suite asserts that; the remaining misses are dates, page
+>    numbers, DOIs and counts quoted from other people's records, which this approach
+>    cannot pin. That limit is stated in `ROADMAP.md` rather than closed.
 >
 > The convention resolver, the repeat map, the version crosswalk and the gene dictionary
-> were re-derived from primary sources during the same review and are unaffected.
+> were re-derived from primary sources during the same review and were unaffected.
+> `FINDINGS.md` carries the full list, and the private working log carries the root
+> causes.
 
 **Status: early, and usable in part.** Seven components are built and gated: the gene
 dictionary, the annotation, the strain crosswalk, the repeat map, the convention
