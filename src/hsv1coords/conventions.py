@@ -38,6 +38,11 @@ from dataclasses import dataclass, field
 
 DATA = pathlib.Path(__file__).resolve().parents[2] / "data" / "conventions.tsv"
 GENOME_BP = 152222
+# Each reference version has its own length. A bounds check must use the length of the
+# version the coordinate is actually in. An earlier version of this module used a
+# `GENOME_BP + 100` slack so that NC_001806.1 positions would pass a NC_001806.2 bounds
+# check, which was the visible symptom of coordinates being applied in the wrong frame.
+VERSION_LENGTHS = {"NC_001806.2": 152222, "NC_001806.1": 152261}
 
 
 class UnverifiedConvention(RuntimeError):
@@ -72,6 +77,19 @@ class Convention:
     quote: str
     reference_version: str = "NC_001806.2"
     applicable: bool = True      # False when the definition is known but unusable here
+    boundary_uncertainty_bp: int = 0
+    """How far an interval boundary might be out.
+
+    Non-zero when the boundaries were reconstructed rather than read. An answer for a
+    position within this distance of a boundary is not reliable, and saying so is the
+    difference between a usable record and a confidently wrong one.
+    """
+
+    def near_a_boundary(self, position: int) -> bool:
+        if not self.boundary_uncertainty_bp:
+            return False
+        return any(abs(position - edge) <= self.boundary_uncertainty_bp
+                   for a, b in self.intervals for edge in (a, b))
 
     @property
     def changes_coordinates(self) -> bool:
@@ -82,8 +100,14 @@ class Convention:
     def affected_bases(self) -> int:
         return sum(b - a + 1 for a, b in self.intervals)
 
-    def retained_blocks(self, genome_bp: int = GENOME_BP) -> list[tuple[int, int]]:
+    @property
+    def genome_length(self) -> int:
+        """The length of the reference version THIS convention is defined against."""
+        return VERSION_LENGTHS.get(self.reference_version, GENOME_BP)
+
+    def retained_blocks(self, genome_bp: int | None = None) -> list[tuple[int, int]]:
         """The reference intervals this convention keeps, in order."""
+        genome_bp = genome_bp if genome_bp is not None else self.genome_length
         if not self.changes_coordinates:
             return [(1, genome_bp)]
         blocks: list[tuple[int, int]] = []
@@ -96,12 +120,16 @@ class Convention:
             blocks.append((cursor, genome_bp))
         return blocks
 
-    def length(self, genome_bp: int = GENOME_BP) -> int:
+    def length(self, genome_bp: int | None = None) -> int:
         return sum(b - a + 1 for a, b in self.retained_blocks(genome_bp))
 
     def to_convention(self, reference_position: int,
-                      genome_bp: int = GENOME_BP) -> int | None:
-        """Reference coordinate to this convention's coordinate, or None if removed."""
+                      genome_bp: int | None = None) -> int | None:
+        """A coordinate IN THIS CONVENTION'S OWN REFERENCE VERSION, collapsed.
+
+        The input must already be in `self.reference_version`. Callers holding a
+        base-version coordinate translate it first; `ConventionSet` does this.
+        """
         if not self.changes_coordinates:
             return reference_position
         offset = 0
@@ -111,7 +139,7 @@ class Convention:
             offset += b - a + 1
         return None
 
-    def to_reference(self, position: int, genome_bp: int = GENOME_BP) -> int | None:
+    def to_reference(self, position: int, genome_bp: int | None = None) -> int | None:
         """This convention's coordinate back to the reference, or None if out of range."""
         if not self.changes_coordinates:
             return position
@@ -193,6 +221,7 @@ class ConventionSet:
                 quote=r["quote"],
                 reference_version=(r.get("reference_version") or "NC_001806.2").strip(),
                 applicable=flag == "yes",
+                boundary_uncertainty_bp=int(r.get("boundary_uncertainty_bp") or 0),
             ))
         return cls(out)
 
@@ -255,13 +284,18 @@ class ConventionSet:
                 return False, (f"has no coordinate in {c.reference_version}, which is "
                                f"the version this convention is defined against")
             ok, why = self._usable_native(native, c)
-            return ok, (f"{why} (as {c.reference_version} position {native:,}, "
-                        f"offset {native - position:+d})")
+            answer = (f"{why} (as {c.reference_version} position {native:,}, "
+                      f"offset {native - position:+d})")
+            if c.near_a_boundary(native):
+                answer += (f" -- UNRELIABLE: within {c.boundary_uncertainty_bp} bp of "
+                           f"an interval boundary that was reconstructed, not read")
+            return ok, answer
         return self._usable_native(position, c)
 
     def _usable_native(self, position: int, c: Convention) -> tuple[bool, str]:
-        if not 1 <= position <= GENOME_BP + 100:
-            return False, f"outside the reference, which is 1 to {GENOME_BP:,}"
+        limit = VERSION_LENGTHS.get(c.reference_version, GENOME_BP)
+        if not 1 <= position <= limit:
+            return False, (f"outside {c.reference_version}, which is 1 to {limit:,}")
         for a, b in c.intervals:
             if a <= position <= b:
                 if c.kind == "exclude":

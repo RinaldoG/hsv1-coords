@@ -276,10 +276,16 @@ class CollapsedReferences(unittest.TestCase):
         self.assertEqual(failures, [], f"{len(failures)} round trips failed")
 
     def test_the_collapsed_length_is_the_retained_length(self):
+        """Measured against the length of the version each convention declares."""
         for name in ("szpara2014_trimmed", "morse2017_nr"):
             c = self.cs[name]
             with self.subTest(convention=name):
-                self.assertEqual(c.length(), GENOME_BP - c.affected_bases)
+                self.assertEqual(c.length(), c.genome_length - c.affected_bases)
+
+    def test_each_convention_uses_its_own_versions_length(self):
+        """Guards the frame error: the row declared .1 and was measured against .2."""
+        self.assertEqual(self.cs["morse2017_nr"].genome_length, 152261)
+        self.assertEqual(self.cs["szpara2014_trimmed"].genome_length, 152222)
 
     def test_the_offset_is_not_constant(self):
         """The whole reason this needs computing rather than quoting one number."""
@@ -315,14 +321,15 @@ class CollapsedReferences(unittest.TestCase):
                            "if the version offset were constant, the earlier figures "
                            "would have been merely imprecise rather than wrong")
 
-    def test_morses_own_stated_length_is_not_reproducible_here(self):
-        """Morse states 136,770 bp. Applying their intervals in .2 gives a different
-        number, which is the symptom of the version mismatch, recorded rather than
-        reconciled."""
-        mo = self.cs["morse2017_nr"]
-        self.assertNotEqual(mo.length(), 136770,
-                            "if this ever matches, a version crosswalk has appeared "
-                            "and this row should be made applicable")
+    def test_morses_stated_length_is_now_reproduced(self):
+        """136,770 bp, reproduced once the intervals were put in the right frame.
+
+        It did not reproduce while the row stored NC_001806.2 coordinates under a
+        declared NC_001806.1 frame, and the 5 bp shortfall was exactly the version gap.
+        Matching the stated length is what the reconstructed boundaries were chosen to
+        do, so it is a consistency check and not independent evidence.
+        """
+        self.assertEqual(self.cs["morse2017_nr"].length(), 136770)
 
     def test_convert_between_two_collapsed_references(self):
         cs = self.cs
@@ -374,7 +381,9 @@ class FourAnswersForOneLocus(unittest.TestCase):
         cs = ConventionSet.load()
         ok, why = cs.usable(118777, "morse2017_nr")
         self.assertFalse(ok)
-        self.assertIn("117,161-125,974", why)
+        self.assertIn("117,159-125,974", why,
+                      "the interval must be quoted in NC_001806.1, the frame the row "
+                      "declares")
         self.assertIn("NC_001806.1", why)
 
 
@@ -407,6 +416,54 @@ class VersionCrosswalkGate(unittest.TestCase):
         self.assertGreater(len(self.v.distinct_offsets), 1,
                            "a single offset would make the crosswalk unnecessary")
 
+    # --- the gates, and the mutants that prove they can fail -------------------
+    #
+    # PITFALLS.md root cause 3 records two gates in this repository that could not
+    # fail. Review found this file contained a third: a round trip through the same
+    # blocks is exact whatever the blocks say, and the "control" measured only that DNA
+    # is not self-similar under a one-base shift, which is a property of the sequence
+    # and passes on a random crosswalk. Deleting a whole block passed every gate.
+    #
+    # The gates below are therefore tested against deliberately broken crosswalks. A
+    # gate that passes on a mutant is not a gate.
+
+    @staticmethod
+    def _mutants(blocks):
+        """Broken crosswalks, each a realistic failure mode."""
+        import random
+        from hsv1coords.versions import VersionBlock, VersionCrosswalk
+        rng = random.Random(4242)
+        out = {}
+        shifted = list(blocks)
+        i = len(shifted) // 2
+        b = shifted[i]
+        shifted[i] = VersionBlock(b.old_start, b.new_start + 1, b.length)
+        out["one block shifted by one base"] = VersionCrosswalk(shifted)
+        dropped = [b for j, b in enumerate(blocks) if j != 14 % len(blocks)]
+        out["one block deleted"] = VersionCrosswalk(dropped)
+        whole = [VersionBlock(b.old_start, b.new_start + 1, b.length) for b in blocks]
+        out["every block shifted by one base"] = VersionCrosswalk(whole)
+        scrambled = [VersionBlock(b.old_start, rng.randrange(0, 150000), b.length)
+                     for b in blocks]
+        out["targets randomised"] = VersionCrosswalk(scrambled)
+        return out
+
+    def _identity_rate(self, cw) -> float:
+        same = total = 0
+        for pos in range(1, len(self.old), 29):
+            there = cw.to_new(pos)
+            if there is None or there > len(self.new):
+                continue
+            a, b = self.old[pos - 1], self.new[there - 1]
+            if a not in "ACGT" or b not in "ACGT":
+                continue
+            total += 1
+            same += a == b
+        return 100 * same / total if total else 0.0
+
+    def _coverage(self, cw) -> int:
+        return sum(b.length for b in cw.blocks)
+
     def test_round_trip(self):
         failures = []
         for pos in range(1, len(self.old), 97):
@@ -417,39 +474,72 @@ class VersionCrosswalkGate(unittest.TestCase):
                 failures.append((pos, there, self.v.to_old(there)))
         self.assertEqual(failures, [], f"{len(failures)} round trips failed")
 
-    def test_mapped_bases_agree_in_sequence(self):
-        """A coordinate map is only right if the bases match."""
-        same = total = 0
-        for pos in range(1, len(self.old), 29):
-            there = self.v.to_new(pos)
-            if there is None:
-                continue
-            a, b = self.old[pos - 1], self.new[there - 1]
-            if a not in "ACGT" or b not in "ACGT":
-                continue
-            total += 1
-            same += a == b
-        self.assertGreater(total, 3000)
-        rate = 100 * same / total
-        self.assertGreaterEqual(rate, 99.0,
-                                f"only {rate:.2f}% of {total} mapped bases agree")
+    def test_the_round_trip_gate_is_nearly_powerless(self):
+        """Measured rather than asserted, which corrects a claim made while fixing this.
 
-    def test_a_deliberate_offset_fails_the_same_check(self):
-        """The control. Shift by one and agreement must collapse."""
-        same = total = 0
-        for pos in range(1, len(self.old), 29):
-            there = self.v.to_new(pos)
-            if there is None or there >= len(self.new):
+        The round trip catches only mutants that make blocks overlap in the target
+        coordinate, because that breaks the bisect. It does not catch a shift, which
+        preserves the structure exactly. So it is a structural invariant, not a test of
+        whether the mapping is right, and the sequence and coverage gates are what do
+        that work.
+        """
+        caught, missed = [], []
+        for name, mutant in self._mutants(self.v.blocks).items():
+            ok = all(mutant.to_old(mutant.to_new(p)) == p
+                     for p in range(1, len(self.old), 997)
+                     if mutant.to_new(p) is not None)
+            (missed if ok else caught).append(name)
+        self.assertIn("one block shifted by one base", missed,
+                      "a shift preserves structure, so the round trip cannot see it")
+        self.assertIn("every block shifted by one base", missed)
+        self.assertIn("one block deleted", missed)
+
+    def test_mapped_bases_agree_in_sequence(self):
+        rate = self._identity_rate(self.v)
+        self.assertGreaterEqual(
+            rate, 99.5,
+            f"only {rate:.4f}% of mapped bases agree; the true figure is about 99.96, "
+            f"and a threshold loose enough to tolerate a wrong block is not a gate")
+
+    def test_no_mutant_survives_the_gates_together(self):
+        """The real control: perturb the crosswalk, not the lookup.
+
+        Neither gate catches everything, and saying which catches what is the point.
+        The sequence gate cannot see a deleted block, because removed positions return
+        nothing and are never scored: the deleted-block mutant scores 99.92 per cent,
+        above any sane identity threshold. The coverage gate catches exactly that, and
+        nothing about frame. Each gate alone leaves a hole the other covers.
+        """
+        expected_cov = self._coverage(self.v)
+        survivors, caught_by = [], {}
+        for name, mutant in self._mutants(self.v.blocks).items():
+            by = []
+            if self._identity_rate(mutant) < 99.5:
+                by.append("sequence")
+            if self._coverage(mutant) < expected_cov - 500:
+                by.append("coverage")
+            caught_by[name] = by
+            if not by:
+                survivors.append(name)
+        self.assertEqual(survivors, [],
+                         f"these broken crosswalks passed every gate: {survivors}")
+        self.assertEqual(caught_by["one block deleted"], ["coverage"],
+                         "a deletion is invisible to the sequence gate by construction")
+        self.assertIn("sequence", caught_by["one block shifted by one base"],
+                      "a shift must be caught by sequence, not by coverage")
+
+    def test_coverage_is_gated_so_a_deleted_block_is_caught(self):
+        """A deleted block barely moves per-base identity, so identity alone misses it."""
+        expected = self._coverage(self.v)
+        self.assertGreaterEqual(expected, 152000,
+                                f"only {expected:,} bases mapped")
+        for name, mutant in self._mutants(self.v.blocks).items():
+            if name != "one block deleted":
                 continue
-            a, b = self.old[pos - 1], self.new[there]       # deliberate +1
-            if a not in "ACGT" or b not in "ACGT":
-                continue
-            total += 1
-            same += a == b
-        rate = 100 * same / total
-        self.assertLess(rate, 60.0,
-                        f"a one-base offset still agreed {rate:.2f}% of the time, so "
-                        f"the sequence check cannot detect a frame error")
+            self.assertLess(self._coverage(mutant), expected - 500,
+                            "the deleted-block mutant should lose real coverage")
+            self.assertLess(self._coverage(mutant), 152000,
+                            "and must therefore fail the coverage gate above")
 
     def test_morse_is_now_usable_through_the_crosswalk(self):
         cs = ConventionSet.load()
