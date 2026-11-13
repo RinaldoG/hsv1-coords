@@ -224,8 +224,6 @@ class WorkedExample(unittest.TestCase):
         self.assertIn("NOT usable under lassalle2020_excluded", text)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 class CollapsedReferences(unittest.TestCase):
@@ -797,6 +795,61 @@ class TheFixesAreReachable(unittest.TestCase):
         pos, rep = found
         self.assertTrue(any("unreliable" in c.lower() for c in rep.caveats))
 
+    def test_morse_records_are_pinned_to_the_feature_table_not_to_a_sum(self):
+        """Derives the four records from NC_001806.1's own annotation and compares.
+
+        The length check alone cannot hold these boundaries: moving the RS/US edge
+        5,000 bp with the total preserved leaves the whole suite green and makes
+        `coordinate_in` return a position past the end of a record, which is the error
+        this row was corrected for in round 2. PITFALLS.md says a sum cannot locate a
+        boundary; that lesson was applied to the derivation and not to the test that
+        pins it.
+
+        The paper's rule: cut at the RL-UL and RS-US junctions.
+        """
+        import re as _re
+        gb = ROOT / "data" / "raw" / "ref_NC_001806.1.gb"
+        if not gb.exists():
+            self.skipTest("ref_NC_001806.1.gb is fetched, not committed: "
+                          "run `make inputs` first.")
+        feats = {}
+        for loc, quals in _re.findall(r"^     repeat_region\s+(\S+)\n((?:\s+/.*\n)+)",
+                                      gb.read_text(), _re.M):
+            note = _re.search(r'/note="([^"]+)"', quals)
+            if not note or "reiteration" in note.group(1):
+                continue
+            m = _re.match(r"(\d+)\.\.(\d+)$", loc)
+            if m and "inverted repeat flanking" in note.group(1):
+                feats[note.group(1).split(";")[0]] = (int(m.group(1)), int(m.group(2)))
+        for need in ("TRL", "IRL", "IRS", "TRS"):
+            self.assertIn(need, feats, f"{need} not found in the .1 feature table")
+
+        expected = {
+            "RL": (feats["TRL"][0], feats["TRL"][1]),
+            "UL": (feats["TRL"][1] + 1, feats["IRL"][0] - 1),
+            "RS": (feats["IRS"][0], feats["IRS"][1]),
+            "US": (feats["IRS"][1] + 1, feats["TRS"][0] - 1),
+        }
+        stored = {n: (a, b) for n, a, b in ConventionSet.load()["morse2017_nr"].records}
+        self.assertEqual(stored, expected,
+                         "the stored records do not match the paper's rule applied to "
+                         "the .1 feature table")
+
+    def test_a_coordinate_never_runs_past_the_end_of_its_record(self):
+        """The symptom a sum-only check misses."""
+        cs = ConventionSet.load()
+        mo = cs["morse2017_nr"]
+        lengths = {n: b - a + 1 for n, a, b in mo.records}
+        for pos in range(1, 152222, 503):
+            coord = cs.coordinate_in(pos, "morse2017_nr")
+            if coord is None:
+                continue
+            rec, off = coord.split(":")
+            with self.subTest(position=pos, coordinate=coord):
+                self.assertLessEqual(int(off), lengths[rec],
+                                     f"{coord} is past the end of {rec}, which is "
+                                     f"{lengths[rec]:,} bp")
+
     def test_every_convention_row_is_individually_checked(self):
         """Fails if any row's provenance is deleted, including ones a filter excludes.
 
@@ -815,7 +868,47 @@ class TheFixesAreReachable(unittest.TestCase):
         self.assertIn("Reliable Detection", morse.source,
                       "the citation title was invented once and must stay checked")
         self.assertIn("2017", morse.source)
+        self.assertIn("PMC5580483", morse.source)
+        self.assertIn("November 2026", morse.source,
+                      "every verified row records when its source was read")
+        for c in cs.conventions:
+            with self.subTest(convention=c.name):
+                self.assertIn("2026", c.source,
+                              f"{c.name} does not say when its source was read")
         for c in cs.conventions:
             with self.subTest(convention=c.name):
                 self.assertTrue(c.quote.strip())
                 self.assertTrue(c.source.strip())
+
+
+class EveryTestFileRunsAllOfItself(unittest.TestCase):
+    """Fails if a `__main__` block sits anywhere but the end of its file.
+
+    In this file it sat at line 227 of 500, so running it directly executed 20 of its
+    53 tests and printed OK. The 33 it hid were every Morse test, the whole
+    version-gate apparatus and the class holding two previously closed blockers.
+    `make test` uses discovery and saw them all, which is why nothing ever failed.
+
+    Checked statically rather than by running the file, because a guard that invokes
+    its own file recurses forever.
+    """
+
+    def test_no_test_class_is_defined_after_the_main_block(self):
+        import re as _re
+        for path in sorted((ROOT / "tests").glob("test_*.py")):
+            text = path.read_text()
+            m = _re.search(r'^if __name__ == "__main__":', text, _re.M)
+            if not m:
+                continue
+            after = text[m.end():]
+            orphans = _re.findall(r"^class (\w+)\(", after, _re.M)
+            orphans += _re.findall(r"^    def (test_\w+)", after, _re.M)
+            with self.subTest(file=path.name):
+                self.assertEqual(
+                    orphans, [],
+                    f"{path.name} defines {orphans} after its `__main__` block, so "
+                    f"running the file directly silently skips them")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

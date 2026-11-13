@@ -114,8 +114,8 @@ through the reference. Median mappable fraction 98.84 per cent, after review fou
   wrong coordinate, and exactly the error this layer exists to prevent. The build now
   keeps the largest chain that cannot jump backwards, and that position declines.
 - **Genomes deposited on the opposite strand are reverse complemented** rather than
-  reported as unmappable. Three were previously at 0 per cent and are now at 85.8, 94.7
-  and 99.4 per cent. No genome in the set is unmapped.
+  reported as unmappable. Three were previously at 0 per cent and now map at 79.40, 79.67
+  and 69.87 per cent. No genome in the set is unmapped.
 
 **Worked example.** Between the two deposited genomes of strain KOS, the offset is not
 constant: a position cited against `JQ673480.1` resolves in `JQ780693.1` at -122 bp near
@@ -162,7 +162,7 @@ lift_detailed(118777, "JQ673480.1", "JQ780693.1")
 ```
 
 **Built** (`make repeatmap`): 34 regions covering 32,019 bp, 21.0 per cent of the genome,
-and 32 diploid locus pairs derived from the annotation rather than hand-listed, 4 of them
+and 32 diploid locus pairs derived from the annotation rather than hand-listed, 7 of them
 marked partial where the two copies differ in length.
 
 **Criteria, met:**
@@ -322,7 +322,7 @@ position.
 
 **Known limits:**
 
-- Five handlings, one of them refused. There are certainly more: review documented five
+- Five handlings, all now verified from their own sources. There are certainly more: review documented five
   further distinct ones, of which reference-fill and synthetic duplication matter most,
   because both produce records that look like complete 152 kb data and are not.
 - The version crosswalk (M6) covers `NC_001806.1` and `.2` only. A paper on any other
@@ -351,16 +351,20 @@ VersionCrosswalk.load().to_old(150000)   # 150039, offset +39
 now translated, and every answer about it states the version and the offset applied:
 
 ```
-NOT usable under morse2017_nr: inside 117,161-125,974
+NOT usable under morse2017_nr: inside 117,160-125,973
   (as NC_001806.1 position 118,776, offset -1)
 ```
 
 **Criteria, met** and enforced in `tests/test_m5_conventions.py`:
 
 - Round trip returns the original coordinate for every mapped position.
-- **Mapped bases agree in sequence**, over 3,000 sampled positions, and **a deliberate
-  one-base offset must fail the same check**. That control is there because
-  `PITFALLS.md` records three gates in this repository that could not fail.
+- **Mapped bases agree in sequence**, and the check is **mutation-tested**: ten
+  deliberately broken crosswalks, with an assertion that none survives the gates and the
+  structural invariants together, and another that every remaining gate is the sole
+  catcher of at least one mutant. Genome-wide identity was measured as strictly subsumed
+  by a boundary-local check and is kept as a documented sanity check rather than counted
+  as a gate. The one-base-offset "control" this line once described had no power: it
+  measured a property of DNA, not of the gate.
 - The offset is demonstrated non-constant, which is the justification for the component
   existing at all.
 

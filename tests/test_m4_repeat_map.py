@@ -234,8 +234,6 @@ class WorkedExample(unittest.TestCase):
         self.assertIn("RL1", declined)
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
 
 
 class CorrectionsFromReview(unittest.TestCase):
@@ -308,3 +306,7 @@ class CorrectionsFromReview(unittest.TestCase):
         outside = lift_detailed(60000, "JQ673480.1", "JQ780693.1", CROSSWALK)
         self.assertTrue(outside.well_defined)
         self.assertEqual(outside.alternatives, [])
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

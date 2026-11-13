@@ -1,6 +1,6 @@
 # Coordinate crosswalk: coverage
 
-Every genome aligned to `NC_001806.2` with minimap2 (`asm5`, `--cs`, `--secondary=no`), reduced to ungapped blocks by `src/build_crosswalk.py`.
+Every genome aligned to `NC_001806.2` with minimap2 (`asm10`, `--cs`, `--secondary=no`), reduced to ungapped blocks by `src/build_crosswalk.py`.
 
 - Genomes mapped: **183**
 - Median mappable fraction: **98.84%**, excluding the isomer-orientation cases below

@@ -3,10 +3,12 @@
 A coordinate and annotation layer for herpes simplex virus 1, so that a position in the
 HSV-1 genome means one thing.
 
-**Status: early, and usable in part.** The gene dictionary and the coordinate lift-over
-work. The annotation is a classed feature table rather than GFF3, and the un-callable mask
-is not built yet. See `ROADMAP.md` for the acceptance criteria each component must clear
-before it is released, and `FINDINGS.md` for what building it has established so far.
+**Status: early, and usable in part.** Six components are built and gated: the gene
+dictionary, the annotation, the strain crosswalk, the repeat map, the convention resolver
+and the version crosswalk. The annotation is still a classed feature table rather than
+GFF3, which is the one acceptance criterion outstanding. See `ROADMAP.md` for the criteria
+each component must clear, and `FINDINGS.md` for what building it established, including
+corrections to this repository's own earlier claims.
 
 ```python
 from hsv1coords import ConventionSet, Dictionary, RepeatMap, lift

@@ -310,8 +310,8 @@ def main() -> int:
     report = DERIVED / "crosswalk_report.md"
     with report.open("w") as fh:
         fh.write("# Coordinate crosswalk: coverage\n\n")
-        fh.write(f"Every genome aligned to `{REFERENCE}` with minimap2 (`asm5`, `--cs`, "
-                 f"`--secondary=no`), reduced to ungapped blocks by "
+        fh.write(f"Every genome aligned to `{REFERENCE}` with minimap2 (`{PRESET}`, "
+                 f"`--cs`, `--secondary=no`), reduced to ungapped blocks by "
                  f"`src/build_crosswalk.py`.\n\n")
         fh.write(f"- Genomes mapped: **{len(coverage)}**\n")
         fh.write(f"- Median mappable fraction: "
