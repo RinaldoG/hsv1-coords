@@ -9,10 +9,10 @@ PZ169681.1	A_d7_eye_culture	150698	8	68.07	PZ169681.1 Human alphaherpesvirus 1 s
 PZ169683.1	A_d7_plasma	149922	8	67.98	PZ169683.1 Human alphaherpesvirus 1 strain A_d7_plasma, complete genome
 ON152715.1	astronaunt_in_orbit_rash_HSV_1	151508	6	68.13	ON152715.1 Human alphaherpesvirus 1 strain astronaunt_in_orbit_rash_HSV_1, complete genome
 ON152716.1	astronaunt_post_orbit_saliva_HSV_1	151060	8	68.10	ON152716.1 Human alphaherpesvirus 1 strain astronaunt_post_orbit_saliva_HSV_1, complete genome
-ON783214.1	B	152108	0	67.77	ON783214.1 UNVERIFIED: Human alphaherpesvirus 1 strain B^3x1.1A, complete genome
-ON783215.1	B	153542	0	67.63	ON783215.1 UNVERIFIED: Human alphaherpesvirus 1 strain B^3x1.1B, complete genome
-ON783216.1	B	151352	0	67.56	ON783216.1 UNVERIFIED: Human alphaherpesvirus 1 strain B^3x1.1C, complete genome
-ON783217.1	B	154773	0	67.87	ON783217.1 UNVERIFIED: Human alphaherpesvirus 1 strain B^3x1.1D, complete genome
+ON783214.1	B^3x1.1A	152108	0	67.77	ON783214.1 UNVERIFIED: Human alphaherpesvirus 1 strain B^3x1.1A, complete genome
+ON783215.1	B^3x1.1B	153542	0	67.63	ON783215.1 UNVERIFIED: Human alphaherpesvirus 1 strain B^3x1.1B, complete genome
+ON783216.1	B^3x1.1C	151352	0	67.56	ON783216.1 UNVERIFIED: Human alphaherpesvirus 1 strain B^3x1.1C, complete genome
+ON783217.1	B^3x1.1D	154773	0	67.87	ON783217.1 UNVERIFIED: Human alphaherpesvirus 1 strain B^3x1.1D, complete genome
 PZ169696.1	B_d8_plasma	151056	3	68.09	PZ169696.1 Human alphaherpesvirus 1 strain B_d8_plasma, complete genome
 PZ169695.1	B_d8_plasma_culture	150431	11	68.07	PZ169695.1 Human alphaherpesvirus 1 strain B_d8_plasma_culture, complete genome
 PZ169698.1	B_d9_pharynx	150642	4	68.08	PZ169698.1 Human alphaherpesvirus 1 strain B_d9_pharynx, complete genome
@@ -51,8 +51,9 @@ PZ169710.1	D_d12_skin	150681	6	68.09	PZ169710.1 Human alphaherpesvirus 1 strain 
 PZ169709.1	D_d12_skin_culture	150287	3	68.07	PZ169709.1 Human alphaherpesvirus 1 strain D_d12_skin_culture, complete genome
 GU734771.1	F	152151	0	68.27	GU734771.1 Human herpesvirus 1 strain F, complete genome
 PZ169711.1	F_d10_plasma_culture	150403	8	68.04	PZ169711.1 Human alphaherpesvirus 1 strain F_d10_plasma_culture, complete genome
-PV146403.1	GZ291	150609	0	68.16	PV146403.1 Human alphaherpesvirus 1 strain GZ291/2015, complete genome
+PV146403.1	GZ291/2015	150609	0	68.16	PV146403.1 Human alphaherpesvirus 1 strain GZ291/2015, complete genome
 GU734772.1	H129	152066	0	68.28	GU734772.1 Human herpesvirus 1 strain H129, complete genome
+AB618031.1	Herpes simplex virus (type 1 /strain RH2) DNA, nearly complete genome	149643	2932	65.84	AB618031.1 Herpes simplex virus (type 1 /strain RH2) DNA, nearly complete genome
 MH999842.1	HSV-H12113	152599	4	68.13	MH999842.1 Human alphaherpesvirus 1 strain HSV-H12113, complete genome
 MH999844.1	HSV-H12114	151678	4	68.08	MH999844.1 Human alphaherpesvirus 1 strain HSV-H12114, complete genome
 MH999845.1	HSV-H12117	156077	58	68.10	MH999845.1 Human alphaherpesvirus 1 strain HSV-H12117, complete genome
@@ -155,9 +156,8 @@ PX969520.1	Mutant  clone McKrae-dsncRNA2	152247	230	68.13	PX969520.1 Mutant Huma
 OR405519.1	Mutant  clone recombinant UL34(CL13) SUP7	157769	0	67.26	OR405519.1 Mutant Human alphaherpesvirus 1 clone recombinant UL34(CL13) SUP7, complete genome
 OR723971.1	Mutant  isolate dsncRNA12	152106	0	68.21	OR723971.1 Mutant Human alphaherpesvirus 1 isolate dsncRNA12, complete genome
 MH319852.1	NIV1613762	147898	0	67.98	MH319852.1 Human alphaherpesvirus 1 strain NIV1613762, complete genome
-AB618031.1	RH2	149643	2932	65.84	AB618031.1 Herpes simplex virus (type 1 /strain RH2) DNA, nearly complete genome
 MN925871.1	Sample4_DOCK8	150853	61	68.08	MN925871.1 UNVERIFIED: Human alphaherpesvirus 1 strain Sample4_DOCK8, complete genome
-PV146402.1	SJZ196	150552	0	68.18	PV146402.1 Human alphaherpesvirus 1 strain SJZ196/2019, complete genome
+PV146402.1	SJZ196/2019	150552	0	68.18	PV146402.1 Human alphaherpesvirus 1 strain SJZ196/2019, complete genome
 MH999841.1	Ty148	153234	1	68.20	MH999841.1 Human alphaherpesvirus 1 strain Ty148, complete genome
 MH999840.1	Ty25	151249	0	68.10	MH999840.1 Human alphaherpesvirus 1 strain Ty25, complete genome
 ON007132.1	v40_unk_gen	150395	4	68.10	ON007132.1 Human alphaherpesvirus 1 strain v40_unk_gen, complete genome

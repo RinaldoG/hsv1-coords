@@ -1,8 +1,8 @@
 name	feature_class	feature_type	location	source	product	notes	provenance
 AL-RNA	transcript_span	gene	complement(117999..118959)	BK012101.1			Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 AL-RNA	transcript_span	mRNA	complement(117999..118959)	BK012101.1	AL-RNA	Perng et al., JVI 2002, not observed	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
-IRL2-IRL1	transcript_span	CDS	complement(join(120884..122484,122624..123290,	BK012101.1	IRL2 iso2	NAGNAG	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
-IRL2-IRL1	transcript_span	CDS	complement(join(120884..122487,122624..123290,	BK012101.1	IRL2	ICP0; IE110	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
+IRL2-IRL1	transcript_span	CDS	complement(join(120884..122484,122624..123290,124056..124112))	BK012101.1	IRL2 iso2	NAGNAG	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
+IRL2-IRL1	transcript_span	CDS	complement(join(120884..122487,122624..123290,124056..124112))	BK012101.1	IRL2	ICP0; IE110	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 IRL2-IRL1	transcript_span	CDS	complement(join(122918..123290,124056..124228))	BK012101.1	IRL2A		Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 IRL2-IRL1	transcript_span	CDS	complement(123604..123732)	BK012101.1	IRL2 dORF RNA iso1	orphan, located within intron 1	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 IRL2-IRL1	transcript_span	CDS	complement(123894..124112)	BK012101.1	IRL2 iso1	rl2 cds with different c-terminus due to intron retention of intron 1	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
@@ -10,10 +10,10 @@ IRL2-IRL1	transcript_span	CDS	complement(124283..124603)	BK012101.1	IRL1.5		Whis
 IRL2-IRL1	transcript_span	CDS	complement(125115..125861)	BK012101.1	IRL1	icp34.5	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 IRL2-IRL1	transcript_span	CDS	complement(125626..125907)	BK012101.1	IRL1A sORF	uoorf of rl1; 93aa initiating from ATG	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 IRL2-IRL1	transcript_span	gene	complement(120657..125965)	BK012101.1			Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
-IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122487,122624..123290,	BK012101.1	IRL1	spliced	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
-IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122487,122624..123290,	BK012101.1	IRL1.5		Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
-IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122484,122624..123290,	BK012101.1	IRL2 iso2	NAGNAG, spliced	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
-IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122487,122624..123290,	BK012101.1	IRL2	spliced	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
+IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122487,122624..123290,124056..125965))	BK012101.1	IRL1	spliced	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
+IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122487,122624..123290,124056..124623))	BK012101.1	IRL1.5		Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
+IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122484,122624..123290,124056..124256))	BK012101.1	IRL2 iso2	NAGNAG, spliced	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
+IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122487,122624..123290,124056..124256))	BK012101.1	IRL2	spliced	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 IRL2-IRL1	transcript_span	mRNA	complement(join(120657..122487,122624..124256))	BK012101.1	IRL2 iso1	with retained intron 1	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 IRL2.5	novel_orf_2020	CDS	<118254..118622	BK012101.1	IRL2.5 *2	TaSS not determined due to repeat regions upstream	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 IRL2.5	novel_orf_2020	CDS	<118254..118622	BK012101.1	IRL2.5 *1	TaSS not determined due to repeat regions upstream	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
@@ -585,12 +585,31 @@ US8-US9	transcript_span	gene	141172..143695	BK012101.1			Whisnant et al. 2020 re
 US8-US9	transcript_span	mRNA	141172..143695	BK012101.1	US8		Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 US8-US9	transcript_span	mRNA	142630..143695	BK012101.1	US8.5	encodes US8A	Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
 US8-US9	transcript_span	mRNA	143252..143695	BK012101.1	US9		Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
+'a' sequence	repeat_region	repeat_region	1..399	NC_001806.2		'a' sequence	RefSeq reference annotation, provisional, last modified 13 August 2018
+'a' sequence	repeat_region	repeat_region	125975..126373	NC_001806.2		'a' sequence	RefSeq reference annotation, provisional, last modified 13 August 2018
+'a' sequence	repeat_region	repeat_region	151824..152222	NC_001806.2		'a' sequence	RefSeq reference annotation, provisional, last modified 13 August 2018
+'a' sequence reiteration set	repeat_region	repeat_region	98..320	NC_001806.2		'a' sequence reiteration set	RefSeq reference annotation, provisional, last modified 13 August 2018
+'a' sequence reiteration set	repeat_region	repeat_region	126054..126276	NC_001806.2		'a' sequence reiteration set	RefSeq reference annotation, provisional, last modified 13 August 2018
+'a' sequence reiteration set	repeat_region	repeat_region	151921..152143	NC_001806.2		'a' sequence reiteration set	RefSeq reference annotation, provisional, last modified 13 August 2018
+IRL	repeat_region	repeat_region	117161..126373	NC_001806.2		IRL; inverted repeat flanking UL	RefSeq reference annotation, provisional, last modified 13 August 2018
+IRS	repeat_region	repeat_region	125975..132607	NC_001806.2		IRS; inverted repeat flanking US	RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	other	gene	complement(<1..7569)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	other	gene	118777..127151	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	other	ncRNA	complement(join(<1..4953,6910..7569))	NC_001806.2	LAT		RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	other	ncRNA	join(118805..119464,121421..127151)	NC_001806.2	LAT		RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	other	regulatory	118777..118782	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	other	regulatory	127146..127151	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
+LAT	regulatory	regulatory	complement(151046..151051)	NC_001806.2		LAT	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 1	repeat_region	repeat_region	9033..9213	NC_001806.2		RL reiteration set 1	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 1	repeat_region	repeat_region	117160..117341	NC_001806.2		RL reiteration set 1	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 2	repeat_region	repeat_region	8806..8826	NC_001806.2		RL reiteration set 2	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 2	repeat_region	repeat_region	117548..117568	NC_001806.2		RL reiteration set 2	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 3	repeat_region	repeat_region	8554..8585	NC_001806.2		RL reiteration set 3	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 3	repeat_region	repeat_region	117789..117820	NC_001806.2		RL reiteration set 3	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 4	repeat_region	repeat_region	5732..5878	NC_001806.2		RL reiteration set 4	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 4	repeat_region	repeat_region	120496..120642	NC_001806.2		RL reiteration set 4	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 5	repeat_region	repeat_region	123750..123908	NC_001806.2		RL reiteration set 5	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 6	repeat_region	repeat_region	125334..125386	NC_001806.2		RL reiteration set 6	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL1	named_gene	CDS	513..1259	NC_001806.2	neurovirulence protein ICP34.5	virion protein; inhibits stress-induced translational arrest; related to eIF2 phosphatase regulatory subunit GADD34; binds protein phosphatase 1 to form a holoenzyme capable of dephosphorylating eIF2-alpha; involved in translational regulation	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL1	named_gene	CDS	complement(125115..125861)	NC_001806.2	neurovirulence protein ICP34.5	virion protein; inhibits stress-induced translational arrest; related to eIF2 phosphatase regulatory subunit GADD34; binds protein phosphatase 1 to form a holoenzyme capable of dephosphorylating eIF2-alpha; involved in translational regulation	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL1	named_gene	gene	513..1540	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -599,16 +618,21 @@ RL1	named_gene	regulatory	1535..1540	NC_001806.2			RefSeq reference annotation, 
 RL1	named_gene	regulatory	complement(124834..124839)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 RL1	named_gene	repeat_region	988..1040	NC_001806.2		RL reiteration set 6	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	CDS	join(2262..2318,3084..3750,3887..5490)	NC_001806.2	ubiquitin E3 ligase ICP0	contains a RING finger; disrupts ND10; proteasome-dependent degradation of several cellular proteins; involved in gene regulation; involved in cellular protein degradation; involved in latency	RefSeq reference annotation, provisional, last modified 13 August 2018
-RL2	named_gene	CDS	complement(join(120884..122487,122624..123290,	NC_001806.2	contains a RING finger; disrupts ND10; proteasome-dependent degradation of several cellular proteins; involved in gene regulation; involved in cellular protein degradation; involved in latency	ubiquitin E3 ligase ICP0	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL2	named_gene	CDS	complement(join(120884..122487,122624..123290,124056..124112))	NC_001806.2	contains a RING finger; disrupts ND10; proteasome-dependent degradation of several cellular proteins; involved in gene regulation; involved in cellular protein degradation; involved in latency	ubiquitin E3 ligase ICP0	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	gene	2087..5699	NC_001806.2		immediate early gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	gene	complement(120675..124287)	NC_001806.2		immediate early gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	mRNA	join(2114..2318,3084..3750,3887..5699)	NC_001806.2	ubiquitin E3 ligase ICP0		RefSeq reference annotation, provisional, last modified 13 August 2018
-RL2	named_gene	mRNA	complement(join(120675..122487,122624..123290,	NC_001806.2	ubiquitin E3 ligase ICP0		RefSeq reference annotation, provisional, last modified 13 August 2018
+RL2	named_gene	mRNA	complement(join(120675..122487,122624..123290,124056..124287))	NC_001806.2	ubiquitin E3 ligase ICP0		RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	regulatory	2087..2092	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	regulatory	5677..5682	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	regulatory	complement(120692..120697)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	regulatory	complement(124282..124287)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 RL2	named_gene	repeat_region	2466..2624	NC_001806.2		RL reiteration set 5	RefSeq reference annotation, provisional, last modified 13 August 2018
+RS reiteration set 1	repeat_region	repeat_region	126573..126712	NC_001806.2		RS reiteration set 1	RefSeq reference annotation, provisional, last modified 13 August 2018
+RS reiteration set 1	repeat_region	repeat_region	151486..151624	NC_001806.2		RS reiteration set 1	RefSeq reference annotation, provisional, last modified 13 August 2018
+RS reiteration set 2	repeat_region	repeat_region	126813..127145	NC_001806.2		RS reiteration set 2	RefSeq reference annotation, provisional, last modified 13 August 2018
+RS reiteration set 2	repeat_region	repeat_region	151052..151384	NC_001806.2		RS reiteration set 2	RefSeq reference annotation, provisional, last modified 13 August 2018
+RS reiteration set 3	repeat_region	repeat_region	145681..145806	NC_001806.2		RS reiteration set 3	RefSeq reference annotation, provisional, last modified 13 August 2018
 RS1	named_gene	CDS	complement(127235..131131)	NC_001806.2	transcriptional regulator ICP4	involved in gene regulation	RefSeq reference annotation, provisional, last modified 13 August 2018
 RS1	named_gene	CDS	147066..150962	NC_001806.2	transcriptional regulator ICP4	involved in gene regulation; immediate early protein; transcriptional regulator	RefSeq reference annotation, provisional, last modified 13 August 2018
 RS1	named_gene	gene	complement(127173..131460)	NC_001806.2		alpha gene; immediate early gene	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -619,13 +643,19 @@ RS1	named_gene	regulatory	complement(127187..127192)	NC_001806.2			RefSeq refere
 RS1	named_gene	regulatory	complement(131455..131460)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 RS1	named_gene	regulatory	146737..146742	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 RS1	named_gene	regulatory	151005..151010	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
+TRL	repeat_region	repeat_region	1..9213	NC_001806.2		TRL; inverted repeat flanking UL	RefSeq reference annotation, provisional, last modified 13 August 2018
+TRS	repeat_region	repeat_region	145590..152222	NC_001806.2		TRS; inverted repeat flanking US	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL	misc_feature	misc_feature	9214..117160	NC_001806.2		UL; long unique region	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL reiteration set 1	repeat_region	repeat_region	71604..71814	NC_001806.2		UL reiteration set 1	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL1	named_gene	CDS	9338..10012	NC_001806.2	envelope glycoprotein L	contains a signal peptide; complexed with envelope glycoprotein H; involved in cell entry; involved in cell-to-cell spread	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL1	named_gene	gene	9338..10949	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL1, UL2	regulatory	regulatory	10944..10949	NC_001806.2		UL1, UL2	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL10	named_gene	CDS	23205..24626	NC_001806.2	envelope glycoprotein M	type 3 membrane protein; 8 transmembrane domains; complexed with envelope glycoprotein N; involved in virion morphogenesis; involved in membrane fusion	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL10	named_gene	gene	23205..24649	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL10	named_gene	regulatory	24644..24649	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL11	named_gene	CDS	complement(24802..25092)	NC_001806.2	myristylated tegument protein	envelope-associated; involved in virion morphogenesis	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL11	named_gene	gene	complement(24801..25092)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL11, UL12, UL13, UL14	regulatory	regulatory	complement(24801..24806)	NC_001806.2		UL11, UL12, UL13, UL14	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL12	named_gene	CDS	complement(25008..26888)	NC_001806.2	deoxyribonuclease	involved in DNA processing	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL12	named_gene	gene	complement(24801..26888)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL13	named_gene	CDS	complement(26947..28503)	NC_001806.2	tegument serine/threonine protein kinase	involved in protein phosphorylation; PK family	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -637,10 +667,13 @@ UL15	named_gene	gene	29021..34826	NC_001806.2		core gene	RefSeq reference annota
 UL15	named_gene	regulatory	34821..34826	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL16	named_gene	CDS	complement(30175..31296)	NC_001806.2	tegument protein UL16	possibly involved in virion morphogenesis	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL16	named_gene	gene	complement(30174..31296)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL16, UL17	regulatory	regulatory	complement(30174..30179)	NC_001806.2		UL16, UL17	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL17	named_gene	CDS	complement(31387..33498)	NC_001806.2	DNA packaging tegument protein UL17	capsid-associated; involved in DNA encapsidation; involved in capsid transport	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL17	named_gene	gene	complement(30174..33498)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL18	named_gene	CDS	complement(35096..36052)	NC_001806.2	capsid triplex subunit 2	complexed 2:1 with capsid triplex subunit 1 to connect capsid hexons and pentons; involved in capsid morphogenesis; VP23	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL18	named_gene	gene	complement(35024..36052)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL18, UL19, UL20	regulatory	regulatory	complement(35024..35029)	NC_001806.2		UL18, UL19, UL20	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL18, UL19, UL20	regulatory	regulatory	complement(35028..35033)	NC_001806.2		UL18, UL19, UL20	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL19	named_gene	CDS	complement(36405..40529)	NC_001806.2	major capsid protein	6 copies form hexons, 5 copies form pentons; involved in capsid morphogenesis; VP5	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL19	named_gene	gene	complement(35024..40529)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL2	named_gene	CDS	9885..10889	NC_001806.2	uracil-DNA glycosylase	involved in DNA repair	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -659,6 +692,7 @@ UL23	named_gene	regulatory	complement(46609..46614)	NC_001806.2			RefSeq referen
 UL23	named_gene	regulatory	complement(46622..46627)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL24	named_gene	CDS	47738..48547	NC_001806.2	nuclear protein UL24		RefSeq reference annotation, provisional, last modified 13 August 2018
 UL24	named_gene	gene	47738..52772	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL24, UL25, UL26, UL26.5	regulatory	regulatory	52767..52772	NC_001806.2		UL24, UL25, UL26, UL26.5	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL25	named_gene	CDS	48814..50556	NC_001806.2	DNA packaging tegument protein UL25	located on capsid near vertices; possibly stabilizes the capsid and retains the genome; involved in DNA encapsidation	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL25	named_gene	gene	48814..52772	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL26	named_gene	CDS	50810..52717	NC_001806.2	capsid maturation protease	serine protease (N-terminal region); minor scaffold protein (remainder of protein, clipped near C terminus); involved in capsid morphogenesis; VP24; VP21	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -667,6 +701,7 @@ UL26.5	novel_orf_2020	CDS	51728..52717	NC_001806.2	capsid scaffold protein	clipp
 UL26.5	novel_orf_2020	gene	51728..52772	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL27	named_gene	CDS	complement(53081..55795)	NC_001806.2	envelope glycoprotein B	type 1 membrane protein; contains a signal peptide; possible membrane fusogen; binds cell surface heparan sulphate; involved in cell entry; involved in cell-to-cell spread	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL27	named_gene	gene	complement(53059..55795)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL27, UL28	regulatory	regulatory	complement(53059..53064)	NC_001806.2		UL27, UL28	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL28	named_gene	CDS	complement(55803..58160)	NC_001806.2	DNA packaging terminase subunit 2	involved in DNA encapsidation; transiently associated with maturing capsids	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL28	named_gene	gene	complement(53059..58160)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL29	named_gene	CDS	complement(58464..62054)	NC_001806.2	single-stranded DNA-binding protein	contains a zinc-finger; involved in DNA replication; possibly involved in gene regulation; ICP8	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -680,10 +715,12 @@ UL30	named_gene	gene	62807..66553	NC_001806.2		core gene	RefSeq reference annota
 UL30	named_gene	regulatory	66548..66553	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL31	named_gene	CDS	complement(66459..67379)	NC_001806.2	nuclear egress lamina protein	interacts with nuclear egress membrane protein; involved in nuclear egress	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL31	named_gene	gene	complement(66377..67379)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL31, UL32	regulatory	regulatory	complement(66377..66382)	NC_001806.2		UL31, UL32	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL32	named_gene	CDS	complement(67372..69162)	NC_001806.2	DNA packaging protein UL32	involved in DNA encapsidation; possibly involved in capsid transport	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL32	named_gene	gene	complement(66377..69162)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL33	named_gene	CDS	69161..69553	NC_001806.2	DNA packaging protein UL33	interacts with DNA packaging terminase subunit 2; involved in DNA encapsidation	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL33	named_gene	gene	69161..70943	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL33, UL34, UL35	regulatory	regulatory	70938..70943	NC_001806.2		UL33, UL34, UL35	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL34	named_gene	CDS	69633..70460	NC_001806.2	nuclear egress membrane protein	type 2 membrane protein; interacts with nuclear egress lamina protein; involved in nuclear egress	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL34	named_gene	gene	69633..70943	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL35	named_gene	CDS	70566..70904	NC_001806.2	small capsid protein	located externally on capsid hexons; involved in capsid morphogenesis; possibly involved in capsid transport; VP26; interacts with dynein	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -699,8 +736,10 @@ UL38	named_gene	gene	84531..86021	NC_001806.2		core gene	RefSeq reference annota
 UL38	named_gene	regulatory	86016..86021	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL39	named_gene	CDS	86443..89856	NC_001806.2	ribonucleotide reductase subunit 1	involved in nucleotide metabolism; translation initiation factor-associated protein (N-terminal region)	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL39	named_gene	gene	86443..90987	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL39, UL40	regulatory	regulatory	90982..90987	NC_001806.2		UL39, UL40	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL4	named_gene	CDS	complement(11824..12423)	NC_001806.2	nuclear protein UL4	colocalizes with regulatory protein ICP22 and nuclear protein UL3 in small, dense nuclear bodies	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL4	named_gene	gene	complement(11754..12423)	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL4, UL5	regulatory	regulatory	complement(11754..11759)	NC_001806.2		UL4, UL5	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL40	named_gene	CDS	89925..90947	NC_001806.2	ribonucleotide reductase subunit 2	involved in nucleotide metabolism	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL40	named_gene	gene	89925..90987	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL41	named_gene	CDS	complement(91167..92636)	NC_001806.2	tegument host shutoff protein	mRNA-specific RNase; involved in cellular mRNA degradation	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -714,10 +753,12 @@ UL43	named_gene	gene	94799..96068	NC_001806.2		core gene	RefSeq reference annota
 UL43	named_gene	regulatory	96063..96068	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL44	named_gene	CDS	96312..97847	NC_001806.2	envelope glycoprotein C	type 1 membrane protein; contains a signal peptide; binds cell surface heparan sulphate; binds complement C3b to block neutralization; involved in cell attachment	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL44	named_gene	gene	96312..98669	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL44, UL45	regulatory	regulatory	98664..98669	NC_001806.2		UL44, UL45	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL45	named_gene	CDS	98033..98551	NC_001806.2	membrane protein UL45	type 2 membrane protein; tegument-associated; possibly involved in membrane fusion	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL45	named_gene	gene	98033..98669	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL46	named_gene	CDS	complement(98797..100953)	NC_001806.2	tegument protein VP11/12	modulates transactivating tegument protein VP16; possibly involved in gene regulation	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL46	named_gene	gene	complement(98727..100953)	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL46, UL47	regulatory	regulatory	complement(98727..98732)	NC_001806.2		UL46, UL47	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL47	named_gene	CDS	complement(101036..103117)	NC_001806.2	tegument protein VP13/14	modulates transactivating tegument protein VP16; RNA-binding protein; possibly involved in gene regulation	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL47	named_gene	gene	complement(98727..103117)	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL48	named_gene	CDS	complement(103608..105080)	NC_001806.2	transactivating tegument protein VP16	transactivates immediate early genes; involved in gene regulation; involved in virion morphogenesis	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -725,6 +766,7 @@ UL48	named_gene	gene	complement(103538..105080)	NC_001806.2		alpha gene	RefSeq r
 UL48	named_gene	regulatory	complement(103538..103543)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL49	named_gene	CDS	complement(105487..106392)	NC_001806.2	tegument protein VP22	involved in virion morphogenesis; possibly involved in RNA transport to uninfected cells	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL49	named_gene	gene	complement(105463..106392)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
+UL49, UL49A	regulatory	regulatory	complement(105463..105468)	NC_001806.2		UL49, UL49A	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL49A	other	CDS	complement(106719..106994)	NC_001806.2	envelope glycoprotein N	type 1 membrane protein; contains a signal peptide; complexed with envelope glycoprotein M; involved in virion morphogenesis; involved in membrane fusion; not glycosylated	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL49A	other	gene	complement(105463..106994)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL5	named_gene	CDS	complement(12484..15132)	NC_001806.2	helicase-primase helicase subunit	involved in DNA replication	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -737,6 +779,7 @@ UL51	named_gene	gene	complement(108277..109012)	NC_001806.2		core gene	RefSeq re
 UL51	named_gene	regulatory	complement(108277..108282)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL52	named_gene	CDS	109049..112225	NC_001806.2	helicase-primase primase subunit	involved in DNA replication	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL52	named_gene	gene	109049..113449	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL52, UL53	regulatory	regulatory	113444..113449	NC_001806.2		UL52, UL53	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL53	named_gene	CDS	112180..113196	NC_001806.2	envelope glycoprotein K	type 3 membrane protein; contains a signal peptide; 4 transmembrane domains; involved in virion morphogenesis; involved in membrane fusion	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL53	named_gene	gene	112180..113449	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL54	named_gene	CDS	113735..115273	NC_001806.2	multifunctional expression regulator	RNA-binding protein; shuttles between nucleus and cytoplasm; inhibits pre-mRNA splicing; exports virus mRNA from nucleus; exerts most effects post-transcriptionally; involved in gene regulation; involved in RNA metabolism and transport; ICP27; MER family	RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -751,12 +794,17 @@ UL56	named_gene	regulatory	complement(116197..116202)	NC_001806.2			RefSeq refer
 UL56	named_gene	regulatory	complement(116201..116206)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 UL6	named_gene	CDS	15131..17161	NC_001806.2	capsid portal protein	dodecamer located at one capsid vertex in place of a penton; involved in DNA encapsidation	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL6	named_gene	gene	15131..18041	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL6, UL7	regulatory	regulatory	18036..18041	NC_001806.2		UL6, UL7	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL7	named_gene	CDS	17136..18026	NC_001806.2	tegument protein UL7	involved in virion morphogenesis	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL7	named_gene	gene	17136..18041	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL8	named_gene	CDS	complement(18225..20477)	NC_001806.2	helicase-primase subunit	involved in DNA replication	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL8	named_gene	gene	complement(18211..20477)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+UL8, UL9	regulatory	regulatory	complement(18211..18216)	NC_001806.2		UL8, UL9	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL9	named_gene	CDS	complement(20705..23260)	NC_001806.2	DNA replication origin-binding helicase	involved in DNA replication	RefSeq reference annotation, provisional, last modified 13 August 2018
 UL9	named_gene	gene	complement(18211..23260)	NC_001806.2		core gene	RefSeq reference annotation, provisional, last modified 13 August 2018
+US	misc_feature	misc_feature	132608..145589	NC_001806.2		US; short unique region	RefSeq reference annotation, provisional, last modified 13 August 2018
+US reiteration set 1	repeat_region	repeat_region	143716..143868	NC_001806.2		US reiteration set 1	RefSeq reference annotation, provisional, last modified 13 August 2018
+US reiteration set 2	repeat_region	repeat_region	144787..145003	NC_001806.2		US reiteration set 2	RefSeq reference annotation, provisional, last modified 13 August 2018
 US1	named_gene	CDS	132647..133909	NC_001806.2	regulatory protein ICP22	required for expression of a subset of late genes; involved in gene regulation; involved in cell cycle regulation	RefSeq reference annotation, provisional, last modified 13 August 2018
 US1	named_gene	gene	132101..133963	NC_001806.2		immediate early gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 US1	named_gene	mRNA	join(132129..132375,132544..133960)	NC_001806.2	regulatory protein ICP22		RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -767,6 +815,7 @@ US10	named_gene	CDS	complement(144162..145100)	NC_001806.2	virion protein US10		
 US10	named_gene	gene	complement(144124..145198)	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 US10	named_gene	mRNA	complement(144124..145171)	NC_001806.2	virion protein US10		RefSeq reference annotation, provisional, last modified 13 August 2018
 US10	named_gene	regulatory	complement(145193..145198)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
+US10, US11, US12	regulatory	regulatory	complement(144140..144145)	NC_001806.2		US10, US11, US12	RefSeq reference annotation, provisional, last modified 13 August 2018
 US11	named_gene	CDS	complement(144766..145251)	NC_001806.2	tegument protein US11	dsRNA-binding protein; antagonizes PKR; inhibits stress-induced translational arrest; involved in translational regulation	RefSeq reference annotation, provisional, last modified 13 August 2018
 US11	named_gene	gene	complement(144124..145495)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 US11	named_gene	mRNA	complement(144124..145469)	NC_001806.2	tegument protein US11		RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -786,6 +835,7 @@ US3	named_gene	mRNA	134967..137534	NC_001806.2	serine/threonine protein kinase U
 US3	named_gene	mRNA	135192..137534	NC_001806.2	serine/threonine protein kinase US3		RefSeq reference annotation, provisional, last modified 13 August 2018
 US3	named_gene	regulatory	134937..134942	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 US3	named_gene	regulatory	135166..135171	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
+US3, US4	regulatory	regulatory	137511..137516	NC_001806.2		US3, US4	RefSeq reference annotation, provisional, last modified 13 August 2018
 US4	named_gene	CDS	136747..137463	NC_001806.2	envelope glycoprotein G	type 1 membrane protein; contains a signal peptide; involved in cell-to-cell spread; involved in apical spread; gD family	RefSeq reference annotation, provisional, last modified 13 August 2018
 US4	named_gene	gene	136705..137534	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 US4	named_gene	mRNA	136732..137534	NC_001806.2	envelope glycoprotein G		RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -794,6 +844,7 @@ US5	named_gene	CDS	137734..138012	NC_001806.2	envelope glycoprotein J	type 1 mem
 US5	named_gene	gene	137599..141052	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 US5	named_gene	mRNA	137621..141052	NC_001806.2	envelope glycoprotein J		RefSeq reference annotation, provisional, last modified 13 August 2018
 US5	named_gene	regulatory	137599..137604	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
+US5, US6, US7	regulatory	regulatory	141017..141022	NC_001806.2		US5, US6, US7	RefSeq reference annotation, provisional, last modified 13 August 2018
 US6	named_gene	CDS	138423..139607	NC_001806.2	envelope glycoprotein D	type 1 membrane protein; contains a signal peptide; binds cell surface receptors; involved in cell attachment; gD family	RefSeq reference annotation, provisional, last modified 13 August 2018
 US6	named_gene	gene	138313..141052	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 US6	named_gene	mRNA	138337..141052	NC_001806.2	envelope glycoprotein D		RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -806,12 +857,17 @@ US8	named_gene	CDS	141247..142899	NC_001806.2	envelope glycoprotein E	type 1 mem
 US8	named_gene	gene	141143..143697	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 US8	named_gene	mRNA	141175..143697	NC_001806.2	envelope glycoprotein E		RefSeq reference annotation, provisional, last modified 13 August 2018
 US8	named_gene	regulatory	141143..141148	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
+US8, US8A, US9	regulatory	regulatory	143672..143677	NC_001806.2		US8, US8A, US9	RefSeq reference annotation, provisional, last modified 13 August 2018
 US8A	other	CDS	142748..143227	NC_001806.2	membrane protein US8A	type 2 membrane protein	RefSeq reference annotation, provisional, last modified 13 August 2018
 US8A	other	gene	142748..143697	NC_001806.2		alpha gene	RefSeq reference annotation, provisional, last modified 13 August 2018
 US9	named_gene	CDS	143317..143589	NC_001806.2	membrane protein US9	type 2 membrane protein; tegument-associated; localizes envelope proteins; involved in axonal transport	RefSeq reference annotation, provisional, last modified 13 August 2018
 US9	named_gene	gene	143223..143697	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 US9	named_gene	mRNA	143250..143697	NC_001806.2	membrane protein US9		RefSeq reference annotation, provisional, last modified 13 August 2018
 US9	named_gene	regulatory	143223..143228	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
+oriL palindrome	stem_loop	stem_loop	62404..62547	NC_001806.2		oriL palindrome	RefSeq reference annotation, provisional, last modified 13 August 2018
+oriS palindrome	stem_loop	stem_loop	131980..132024	NC_001806.2		oriS palindrome	RefSeq reference annotation, provisional, last modified 13 August 2018
+oriS palindrome	stem_loop	stem_loop	146173..146217	NC_001806.2		oriS palindrome	RefSeq reference annotation, provisional, last modified 13 August 2018
+regulatory@complement(7592..7597)	regulatory	regulatory	complement(7592..7597)	NC_001806.2			RefSeq reference annotation, provisional, last modified 13 August 2018
 AL-RNA	transcript_span	exon	117999..118959	whisnant2020-gtf	protein_coding		Whisnant et al. 2020 annotation as distributed on Zenodo, 10.5281/zenodo.3724023
 AL-RNA	transcript_span	gene	117999..118959	whisnant2020-gtf	protein_coding		Whisnant et al. 2020 annotation as distributed on Zenodo, 10.5281/zenodo.3724023
 AL-RNA	transcript_span	transcript	117999..118959	whisnant2020-gtf	protein_coding		Whisnant et al. 2020 annotation as distributed on Zenodo, 10.5281/zenodo.3724023

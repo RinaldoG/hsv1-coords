@@ -58,7 +58,11 @@ def parse_genbank(path: pathlib.Path) -> list[dict]:
             if current:
                 features.append(current)
             current = {"_type": m.group(1), "_location": m.group(2)}
-            key = None
+            # A location can wrap onto the next line, and GenBank wraps it with no
+            # space. Setting the continuation key here is what stops those lines being
+            # dropped; leaving it None silently truncated every wrapped location,
+            # including RL2 (ICP0) and the IRL2-IRL1 span.
+            key = "_location"
             continue
         if current is None:
             continue
@@ -69,9 +73,10 @@ def parse_genbank(path: pathlib.Path) -> list[dict]:
             val = q.group(2).strip().strip('"')
             current[key] = val
         elif key is not None and line.startswith(" " * 21):
-            # A qualifier wrapped onto the next line. GenBank wraps mid-word, so the
-            # pieces are joined with a single space and squeezed afterwards.
-            current[key] = (current[key] + " " + line.strip().strip('"')).strip()
+            # A wrapped continuation line. Locations wrap with no separator; qualifier
+            # text wraps at a space, so the two are joined differently.
+            joiner = "" if key == "_location" else " "
+            current[key] = (current[key] + joiner + line.strip().strip('"')).strip()
 
     if current:
         features.append(current)

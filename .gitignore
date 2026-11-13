@@ -1,8 +1,6 @@
 data/raw/*
 !data/raw/.gitkeep
 !data/raw/MANIFEST.tsv
-data/derived/*
-!data/derived/.gitkeep
 __pycache__/
 *.pyc
 .venv/

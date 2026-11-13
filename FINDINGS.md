@@ -32,14 +32,23 @@ In `NC_001806.2`:
 
 - First copy: `gene complement(<1..7569)`, with
   `ncRNA complement(join(<1..4953,6910..7569))`. The `<` is the record's own flag that the
-  feature runs off the start of the sequence.
+  feature is incomplete at that end. **Corrected 13 November 2026:** an earlier version of
+  this file said the feature was clipped by "where the linear record happens to begin".
+  That is the wrong reason. Position 1 is the L terminus, and the missing portion is
+  present in the same record inside `TRS` at the other end, because the genome is
+  circular. The truncation is a consequence of linearising a circle, not of an arbitrary
+  start point.
 - Second copy: `gene 118777..127151`, 8,375 bp, with a TATA box at `118777..118782` and
   `ncRNA join(118805..119464,121421..127151)`.
 
 So the full-length annotation of the gene that dominates latent transcription exists only
-in the second copy. The first is clipped by where the linear record happens to begin. Any
-analysis using the first copy's coordinates is working with a truncated feature, and
-nothing in the file stops it.
+in the second copy. Any analysis using the first copy's coordinates is working with a
+truncated feature, and nothing in the file stops it.
+
+**Also corrected:** LAT does not lie wholly inside the long inverted repeat. Copy 2 ends
+at 127,151 while `IRL` ends at 126,373, so it extends 778 bp into `IRS`. Earlier versions
+of this file and the README asserted otherwise. The overhang is the reason the `TRL` copy
+is flagged incomplete, so the two facts are the same fact.
 
 ## `TRL` is annotated at `1..9213`
 
@@ -143,3 +152,30 @@ axis from whether the alias collides across genes. Flattening every `IE63` row w
 thrown away the fact that one of the two assignments is far better supported than the
 other. The test now requires the collision to be documented in at least one row, with an
 explanation, which is what the data already did.
+
+
+## Corrections from the review of 13 November 2026
+
+Three reviewers were run over this repository before the next component was built: one on
+whether the lift-over is actually correct, one on the engineering, one on whether a
+specialist would accept the claims. Between them they found the following, all now fixed,
+and all recorded here rather than quietly corrected.
+
+| What was wrong | What is true |
+|---|---|
+| The annotation dropped every feature without a `/gene` qualifier, omitting all four inverted repeats, both `'a'` sequences and the `oriL` palindrome, while the changelog said nothing was dropped | They are carried, with their own feature classes. 1,779 rows, up from 1,723 |
+| The GenBank parser dropped wrapped location lines, shipping 8 truncated coordinates including `RL2` (ICP0) | Fixed, and the gate now checks brackets balance and coordinates parse |
+| "LAT lies wholly inside the inverted repeats" | It extends 778 bp past `IRL` into `IRS`, which is why the other copy is truncated |
+| The truncated copy is clipped "by where the linear record happens to begin" | It is clipped by linearising a circular genome; the remainder is in `TRS` at the other end |
+| "No machine-readable dictionary says `UL48`, `VP16` and `alpha-TIF` are one gene" | UniProt `P06492` does, and this repository's own alias table cites it |
+| Four records of strain "B" spanning 3,421 bp, described as legitimate isomer variation | Inversion preserves length, so that spread is assembly disagreement. The single label was this repository's regex truncating `B^3x1.1A` |
+| Three genomes "in a different isomer orientation", unmappable | They are opposite-strand deposits with a rotated start. Reverse complemented, they map at 85.8, 94.7 and 99.4 per cent. The one real segmental isomer is `ON783215.1` |
+| A coordinate cited against KOS is "ambiguous across 987 bp" | That was a length difference, not a coordinate offset. The measured offset between the two plain-KOS records runs from -79 to -887 bp depending on position. Two of the four KOS deposits are a deliberate KOS and KOS1.1 pair with published provenance markers (Colgrove et al., *Virology* 2016;487:215-221) |
+| `asm5` as the alignment preset | Too strict for 0.7 to 1.3 per cent divergence. `asm10` raises the median mappable fraction from 98.08 to 98.84 per cent |
+| A position 900 bp into `OP297884.1` resolved to 151,879 | A cross-repeat placement, and a genuinely wrong coordinate. Blocks are now chained to be monotonic, and that position declines |
+| The round-trip gate could not fail, being a mathematical identity over the same blocks | The gate now checks the base at the lifted position against the reference, with a deliberate one-base offset as a control proving the check has power |
+| Continuous integration appeared to verify the build and did not: the manifest check was circular, the diff gate saw 6 of 196 derived files, and `minimap2` was never installed | All three closed |
+
+The pattern worth noting: **every one of these was found by someone checking against the
+primary source rather than against this repository's own tests.** The tests passed
+throughout.

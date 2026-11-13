@@ -3,7 +3,7 @@ on:
   push:
   pull_request:
   schedule:
-    # Weekly, so an input moving upstream is caught without anyone watching.
+    # Weekly, so an upstream record changing under us is caught without anyone watching.
     - cron: "0 19 * * 1"
 jobs:
   check:
@@ -13,17 +13,53 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+
+      - name: Install minimap2
+        # A declared dependency of the crosswalk. Without it `make crosswalk` never runs
+        # and the largest artefact in the repository goes unverified.
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y minimap2
+          minimap2 --version
+
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
       - name: Fetch inputs
         run: make inputs
-      - name: Verify inputs and assumptions
+
+      - name: Fail if any input changed upstream
+        # `make inputs` rewrites MANIFEST.tsv, so checking files against the manifest it
+        # has just written proves nothing: that gate cannot fail. Diffing the regenerated
+        # manifest against the committed one is what actually detects an upstream record
+        # changing, which is the whole point of the weekly run.
+        run: git diff --exit-code -- data/raw/MANIFEST.tsv
+
+      - name: Verify the stated assumptions still hold
         run: make check
-      - name: Rebuild derived name tables
-        run: make names
-      - name: Rebuild the annotation table
-        run: make annotation
-      - name: Rebuild the synonymy test cases from the prose document
-        run: make testcases
+
+      - name: Fetch the pinned genome set
+        run: make genomes
+
+      - name: Rebuild every derived artefact
+        run: |
+          make names
+          make aliases
+          make annotation
+          make crosswalk
+          make testcases
+
       - name: Fail if any rebuilt file differs from what is committed
-        run: git diff --exit-code -- data/derived tests/testcases_synonymy.tsv
+        # Covers the whole directory rather than a handful of named files, and
+        # `git status --porcelain` catches a NEW or untracked file, which `git diff`
+        # alone cannot see.
+        run: |
+          git diff --exit-code -- data/derived tests/testcases_synonymy.tsv data/accessions.txt
+          if [ -n "$(git status --porcelain -- data/derived tests data/accessions.txt)" ]; then
+            echo "Untracked or modified files after rebuild:"
+            git status --porcelain -- data/derived tests data/accessions.txt
+            exit 1
+          fi
+
       - name: Milestone gates
         run: make test

@@ -7,24 +7,15 @@ Fetched 2026-11-13 by `src/fetch_genomes.py`, NCBI nuccore query:
 ```
 
 - Records: **183**
-- Distinct strain labels: **177**
-- Strain labels deposited more than once: **3**
-- Of those, labels whose records **disagree on length**: **2**
+- Distinct strain labels: **180**
+- Strain labels deposited more than once: **2**
+- Of those, labels whose records **disagree on length**: **1**
 
 - Length range: 147,898 to 159,092 bp, a spread of 11,194 bp
 
 ## Same strain label, different length
 
 These are the records a coordinate crosswalk has to reconcile. A position cited against one of them does not mean the same position in another.
-
-### `B` - 4 records, spread 3,421 bp
-
-| Accession | Length | Ambiguous bases |
-|---|---|---|
-| `ON783217.1` | 154,773 | 0 |
-| `ON783215.1` | 153,542 | 0 |
-| `ON783214.1` | 152,108 | 0 |
-| `ON783216.1` | 151,352 | 0 |
 
 ### `KOS` - 2 records, spread 987 bp
 

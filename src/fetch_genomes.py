@@ -37,6 +37,11 @@ UA = "hsv1-coords/0.1 (data fetch script)"
 QUERY = ('"Human alphaherpesvirus 1"[Organism] AND complete genome[Title] '
          'AND 140000:160000[SLEN]')
 BATCH = 25
+# The accession list is pinned and committed. A live NCBI query returns a different set
+# as new genomes are deposited, which would make every downstream artefact
+# irreproducible and would silently change the crosswalk. `--refresh` re-queries and
+# rewrites the list, which is a deliberate act that shows up as a diff.
+ACCESSION_LIST = pathlib.Path(__file__).resolve().parents[1] / "data" / "accessions.txt"
 
 
 def get(url: str, tries: int = 3) -> bytes:
@@ -90,7 +95,9 @@ def parse_fasta(path: pathlib.Path) -> list[tuple[str, str]]:
     return out
 
 
-STRAIN = re.compile(r"\bstrain\s+([A-Za-z0-9._\-]+)", re.I)
+# Strain labels contain characters a plain word class drops: `B^3x1.1A` became `B`,
+# which then looked like four records of one strain disagreeing on length.
+STRAIN = re.compile(r"\bstrain\s+(\S+?)(?:,|\s+complete\b|$)", re.I)
 
 
 def strain_of(header: str) -> str:
@@ -106,17 +113,29 @@ def strain_of(header: str) -> str:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--force", action="store_true")
+    ap.add_argument("--force", action="store_true",
+                    help="re-download even if the FASTA is present")
+    ap.add_argument("--refresh", action="store_true",
+                    help="re-query NCBI and rewrite the pinned accession list")
     args = ap.parse_args()
 
     RAW.mkdir(parents=True, exist_ok=True)
     DERIVED.mkdir(parents=True, exist_ok=True)
     fasta = RAW / "genomes.fasta"
 
-    if fasta.exists() and not args.force:
+    if args.refresh or not ACCESSION_LIST.exists():
+        ids = accessions()
+        ACCESSION_LIST.parent.mkdir(parents=True, exist_ok=True)
+        ACCESSION_LIST.write_text("\n".join(ids) + "\n")
+        print(f"  pinned {len(ids)} accessions to {ACCESSION_LIST.name}")
+    else:
+        ids = [x.strip() for x in ACCESSION_LIST.read_text().split() if x.strip()]
+        print(f"  using {len(ids)} pinned accessions from {ACCESSION_LIST.name}")
+
+    if fasta.exists() and not args.force and not args.refresh:
         print(f"  have {fasta.name}")
     else:
-        fetch_fasta(accessions(), fasta)
+        fetch_fasta(ids, fasta)
 
     records = parse_fasta(fasta)
     print(f"\n  {len(records)} sequences parsed")

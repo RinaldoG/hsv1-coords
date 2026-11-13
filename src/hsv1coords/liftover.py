@@ -99,6 +99,11 @@ def lift(position: int, source: str, target: str,
     than an approximation.
     """
     if source == target:
+        # Even the identity case must be a real position in a genome we hold, or the
+        # caller gets a confident answer about a coordinate nobody has checked.
+        if source != REFERENCE:
+            cw = Crosswalk.load(source, directory)
+            return position if cw.to_reference(position) is not None else None
         return position
     if source == REFERENCE:
         ref_pos: int | None = position

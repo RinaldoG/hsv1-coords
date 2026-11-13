@@ -3,9 +3,23 @@
 A coordinate and annotation layer for herpes simplex virus 1, so that a position in the
 HSV-1 genome means one thing.
 
-**Status: early. Nothing here is usable yet.** Milestone 0 of the plan: inputs and
-skeleton only. See `ROADMAP.md` for what is being built and the acceptance threshold each
-component must clear before it is released.
+**Status: early, and usable in part.** The gene dictionary and the coordinate lift-over
+work. The annotation is a classed feature table rather than GFF3, and the un-callable mask
+is not built yet. See `ROADMAP.md` for the acceptance criteria each component must clear
+before it is released, and `FINDINGS.md` for what building it has established so far.
+
+```python
+from hsv1coords import Dictionary, lift
+
+d = Dictionary.load()
+d.resolve("VP16")                          # 'UL48'
+d.resolve("alpha-TIF")                     # 'UL48'
+lift(118777, "JQ673480.1", "JQ780693.1")   # 118295, or None where it cannot say
+```
+
+The lift-over declines rather than guessing. Between the two deposited genomes labelled
+strain KOS the offset is not constant: measured across the alignment it ranges from -79 to
+-887 bp depending on position, so a fixed correction would be wrong almost everywhere.
 
 ## The problem this addresses
 
@@ -15,20 +29,29 @@ The HSV-1 genome is well sequenced and poorly described.
   on 13 August 2018, and names `Maq v. 0.7.1` as its assembler.
 - `BK012101.1` annotates the identical 152,222 bases with 300 CDS features against the
   reference's 77.
-- Three deposited "strain KOS" complete genomes measure 152,011, 151,024 and 151,974 bp,
-  from three different groups using three different assemblers, and none links to its raw
-  reads. A coordinate cited in a KOS paper is ambiguous across roughly 987 bp.
-- `UL48`, `VP16` and `alpha-TIF` are one gene, and no machine-readable dictionary says so.
+- Four deposited genomes carry "KOS" in the strain label, under three different label
+  strings (`KOS`, `isolate KOS`, `isolate KOS 1.1`), at 152,011, 151,974, 151,794 and
+  151,024 bp. Two of those are a deliberate pair: Colgrove et al., *Virology* 2016;
+  487:215-221 sequenced KOS and KOS1.1 and published provenance markers distinguishing
+  them. The problem is not that they differ, it is that nothing maps between them. Across
+  the two records both labelled plainly `KOS`, the coordinate offset measured here ranges
+  from -79 to -887 bp depending on where in the genome you are, so a position cited
+  against "KOS" cannot be transferred by a constant correction.
+- `UL48`, `VP16` and `alpha-TIF` are one gene. UniProt records that synonymy per protein
+  (`P06492`), but there is no genome-wide, cited, machine-readable mapping that covers the
+  systematic, protein, functional and molecular-weight conventions together with the names
+  introduced by the 2020 re-annotation.
 - Both published HSV-1 assembly pipelines are unmaintained (VirAmp last pushed 8 April
   2015, VirGA 25 July 2018), and VirGA is still cited as the assembly method in later
   GenBank deposits.
 
 This matters most exactly where it is least convenient. LAT, which dominates latent
-transcription, lies wholly inside the inverted repeats: two indistinguishable 9,213 bp
-copies, GC-rich, straddling a segment boundary that differs across the genome's four
-isomers, with one annotated copy running off the start of the reference sequence (the
-record itself flags this as `complement(<1..7569)`). The CTRL2 insulator sits inside the
-repeat too. So the least reliable region of the sequence is the region latency happens in.
+transcription, sits in the long inverted repeat and extends past it: the reference
+annotates one copy at `118777..127151`, which runs 778 bp beyond the end of `IRL`
+(`117161..126373`) into `IRS`, and the other at `complement(<1..7569)`, truncated because
+the genome is circular and the remainder lies in `TRS` at the other end of the linear
+record. So the gene that dominates latent transcription is duplicated, spans a segment
+boundary, and is split across the two ends of the reference sequence.
 
 ## What this provides
 

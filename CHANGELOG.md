@@ -19,9 +19,17 @@ that a GFF3 will be generated from.
 - **Nothing is merged across sources.** Each source's features are carried separately.
   Merging requires the coordinate crosswalk (M3), which does not exist yet. A merged
   annotation released before the crosswalk would be asserting equivalences it cannot check.
-- **No feature is dropped**, including the 10 to 14 per source that no class rule matched.
-  Those are labelled `other` and keep their original notes, so they are visible rather
-  than quietly lost.
+- **Features without a gene name are kept, from v0.1.0 as corrected.** The first build of
+  this release kept only features carrying a `/gene` qualifier, which silently dropped all
+  four inverted repeats (`TRL`, `IRL`, `IRS`, `TRS`), both `'a'` sequences, the `oriL`
+  palindrome and 50 other features, while this changelog claimed nothing was dropped. That
+  was the worst defect in the release: the inverted repeats are the reason the coordinate
+  problem exists. Repeats, stem-loops, origins, regulatory elements and untyped features
+  are now carried with their own classes, named from their notes where they have one.
+  Only the whole-genome `source` record is excluded, deliberately. 1,779 rows, up from
+  1,723.
+- Features that no class rule matched are labelled `other` and keep their original notes,
+  so they are visible rather than quietly lost.
 - **Feature classes are derived from names and qualifiers by stated rules**, in
   `src/build_annotation.py`, not assigned by hand. The rules are in the source and in the
   summary table, so a disputed classification can be traced to the rule that made it.
@@ -35,6 +43,14 @@ sequence, and 452 of its named features are transcript units spanning more than 
 with a further 37 being nested reading frames (small, upstream, internal and downstream).
 The RefSeq annotation does not attempt those classes. A count is only comparable within a
 class, which is what the class column exists to enforce. See `FINDINGS.md`.
+
+**Corrections applied to this release after review, 13 November 2026**
+
+- The GenBank parser dropped wrapped location lines, so 8 features shipped with truncated
+  coordinates, including `RL2` (ICP0) and the `IRL2-IRL1` span. Fixed, and the M2 gate now
+  checks that every location has balanced brackets and parses to coordinates inside the
+  genome, which checking only for non-empty did not.
+- The inverted repeats and 52 other unnamed features were missing entirely. Fixed above.
 
 ## v0.0.0 - 12 November 2026
 

@@ -8,11 +8,15 @@ Produced by `src/build_annotation.py`. Every feature carries the class of thing 
 |---|---|---|---|---|
 | `dORF` | 0 | 2 | 0 | A downstream open reading frame, 3-prime of a main coding sequence |
 | `iORF` | 0 | 2 | 0 | An internal open reading frame, inside another coding sequence |
+| `misc_feature` | 2 | 0 | 0 | A feature the source record did not type further |
 | `named_gene` | 215 | 30 | 479 | A classically named gene in the systematic positional scheme |
 | `novel_orf_2020` | 2 | 53 | 403 | An open reading frame resolved by the 2020 re-annotation and numbered by position, with no independent name in the literature |
 | `other` | 10 | 14 | 11 | Not matched by any class rule; see the notes column |
 | `primary_mirna` | 0 | 0 | 6 | A primary microRNA transcript |
+| `regulatory` | 23 | 0 | 0 | A regulatory element, such as a TATA box |
+| `repeat_region` | 28 | 0 | 0 | A repeat, including the inverted repeats and the reiteration sets nested inside them |
 | `sORF` | 0 | 25 | 0 | A small open reading frame named by the 2020 re-annotation |
+| `stem_loop` | 3 | 0 | 0 | A stem-loop structure, such as an origin palindrome |
 | `transcript_span` | 0 | 452 | 11 | A transcript unit spanning more than one named gene, so not a gene itself |
 | `uORF` | 0 | 6 | 0 | An upstream open reading frame, 5-prime of a main coding sequence |
 | `uoORF` | 0 | 2 | 0 | An upstream open reading frame overlapping the main coding sequence |

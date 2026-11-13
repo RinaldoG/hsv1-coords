@@ -1431,8 +1431,10 @@ def main():
         for cell in row:
             if "\t" in cell or "\n" in cell:
                 sys.exit("tab or newline in cell: %r" % cell)
+            # Em dash and en dash, written as escapes so that a global dash sweep over
+            # this file cannot turn the check into one that rejects ordinary hyphens.
             if "—" in cell or "–" in cell:
-                sys.exit("dash character not allowed: %r" % cell)
+                sys.exit("em dash or en dash not allowed: %r" % cell)
         out.append(row)
 
     out.sort(key=lambda r: (r[0], r[1], r[4]))

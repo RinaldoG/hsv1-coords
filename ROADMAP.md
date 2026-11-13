@@ -76,14 +76,20 @@ Two things the inventory establishes, both of which the crosswalk has to handle:
   `isolate KOS 1.1`), from different groups. A coordinate cited against "KOS" is ambiguous
   across up to 987 bp. Strain label normalisation is therefore part of this milestone, not
   a separate concern.
-- **Four records under one label differ legitimately**: the isomer-resolved set
-  `ON783214` to `ON783217` spans 3,421 bp because the four records are the genome's four
-  isomers, not four assemblies of one arrangement. The crosswalk must not treat that spread
-  as disagreement, which is exactly the distinction the un-callable mask (M4) formalises.
+- **Corrected after review:** an earlier version of this file said the `ON783214` to
+  `ON783217` set spans 3,421 bp "legitimately, because they are the four isomers". That
+  was wrong twice over. Segment inversion preserves length, so a length spread is
+  assembly disagreement and not isomerism. And the four records appeared under one strain
+  label only because this repository's own regex truncated `B^3x1.1A` to `B`, which is
+  now fixed. Three of those genomes turned out to be deposited on the opposite strand
+  with a rotated start, which the build now detects and reverse complements; the one
+  genuine segmental isomer in the set is `ON783215.1`, with its long segment forward and
+  its short segment reversed.
 
-**Dependency:** `minimap2` (tested against 2.31-r1302). Declared rather than hand-rolled:
-a bespoke aligner is the wrong risk to take in a repository whose purpose is that others
-can check the coordinates.
+**Dependency:** `minimap2` (tested against 2.31-r1302), preset `asm10`. Declared rather
+than hand-rolled: a bespoke aligner is the wrong risk to take in a repository whose purpose
+is that others can check the coordinates. `asm5` was used first and was too strict for this
+divergence, costing real alignments.
 
 **Built.** 183 genomes aligned to the reference and reduced to ungapped coordinate blocks
 (`make crosswalk`), with `hsv1coords.lift` resolving a position between any two of them
@@ -100,17 +106,16 @@ through the reference. Median mappable fraction 98.08 per cent.
 
 **Two things the build established, both recorded in `data/derived/crosswalk_report.md`:**
 
-- **36 genomes contain regions that align in more than one place**, a median of 312 bp
-  where present. These are the inverted repeats, where a position genuinely corresponds to
-  two places. They are dropped rather than resolved, so the lift-over declines there. An
-  earlier version kept both and the milestone gate caught it: overlapping blocks would have
-  let one position map to two places silently, which is the exact error this layer exists
-  to prevent.
-- **Three genomes map at 0 per cent while having 43, 51 and 5 alignments.** They are
-  deposited in a different isomer orientation, so their alignments are on the reverse
-  strand. Handling them needs per-segment orientation and belongs with the isomer-aware
-  mask in M4. Until then the crosswalk declines for them entirely, which is correct but
-  incomplete.
+- **Regions that align in more than one place are dropped**, so the lift-over declines
+  there. These are the inverted repeats, where a position genuinely corresponds to two
+  places. An earlier version kept both and the milestone gate caught it.
+- **Blocks are chained to be monotonic in both sequences.** Review found a position 900 bp
+  into one genome resolving to 151,879, the far copy of the terminal repeat: a genuinely
+  wrong coordinate, and exactly the error this layer exists to prevent. The build now
+  keeps the largest chain that cannot jump backwards, and that position declines.
+- **Genomes deposited on the opposite strand are reverse complemented** rather than
+  reported as unmappable. Three were previously at 0 per cent and are now at 85.8, 94.7
+  and 99.4 per cent. No genome in the set is unmapped.
 
 **Worked example.** Between the two deposited genomes of strain KOS, the offset is not
 constant: a position cited against `JQ673480.1` resolves in `JQ780693.1` at -122 bp near
@@ -124,9 +129,12 @@ The regions where a single linear coordinate is not well defined: the inverted r
 sets inside them, the GC-extreme stretches, and the segment boundaries that differ between
 the genome's four isomers.
 
-This matters most where it is least convenient. LAT lies wholly inside the inverted repeats,
-in two copies, and in the reference record one of those copies is truncated by the start of
-the sequence.
+This matters most where it is least convenient. LAT sits in the long inverted repeat and
+extends 778 bp past it into `IRS`, exists in two copies, and in the reference record one of
+those copies is truncated because the genome is circular and its remainder lies in `TRS` at
+the other end of the linear sequence. So the mask has to express three different things
+about one gene: duplicated, spanning a segment boundary, and split across the two ends of
+the record.
 
 **Criteria:**
 - Reproduces the repeat boundaries from the reference record's own feature table.

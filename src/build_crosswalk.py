@@ -43,6 +43,12 @@ RAW = ROOT / "data" / "raw"
 DERIVED = ROOT / "data" / "derived"
 CROSSWALK = DERIVED / "crosswalk"
 REFERENCE = "NC_001806.2"
+# asm5 is documented for about 0.1 per cent divergence. HSV-1 strains differ by 0.7 to
+# 1.3 per cent in substitutions and more with indels, so asm5 was too strict and lost
+# real alignments: measured on this corpus, moving to asm10 raises the median mappable
+# fraction from 98.08 to 98.86 per cent and takes the genomes below 95 per cent from 13
+# to 8.
+PRESET = "asm10"
 
 
 def read_fasta(path: pathlib.Path) -> dict[str, str]:
@@ -70,7 +76,17 @@ CS_TOKEN = re.compile(r"([:*+-])([A-Za-z0-9]+)")
 
 
 def blocks_from_cs(q_start: int, t_start: int, cs: str) -> list[tuple[int, int, int]]:
-    """Reduce a cs tag to ungapped (query_start, target_start, length) blocks, 0-based."""
+    """Reduce a cs tag to ungapped (query_start, target_start, length) blocks, 0-based.
+
+    Only the short form is understood. `--cs=long` uses `=` and `~`, which this parser
+    would silently skip, producing a crosswalk that looks fine and is wrong everywhere,
+    so anything not fully consumed raises instead.
+    """
+    consumed = sum(len(op) + len(val) for op, val in CS_TOKEN.findall(cs))
+    if consumed != len(cs):
+        raise ValueError(
+            f"cs tag not fully understood ({consumed} of {len(cs)} characters); "
+            f"this parser handles the short form only, not --cs=long")
     q, t = q_start, t_start
     blocks: list[tuple[int, int, int]] = []
     for op, val in CS_TOKEN.findall(cs):
@@ -161,9 +177,46 @@ def drop_ambiguous(blocks: list[tuple[int, int, int]]) -> tuple[list[tuple[int, 
     return sorted(kept), dropped
 
 
+def drop_non_monotonic(blocks: list[tuple[int, int, int]]) -> tuple[list[tuple[int, int, int]], int]:
+    """Keep the largest chain of blocks that is monotonic in both sequences.
+
+    Within one strand the mapping must not jump backwards. A block whose target order
+    contradicts its query order has been placed on the other copy of a repeat: review
+    found a position 900 bp into one genome resolving to 151,879, the far copy of the
+    terminal repeat, which is the error this layer exists to prevent.
+
+    A greedy sweep is not enough, because replacing one block can create a fresh
+    backwards jump against the block before it. This is the standard chaining problem,
+    solved exactly here by a longest-increasing-subsequence weighted by block length.
+    The genomes have a few hundred blocks each, so the quadratic solution is fine and
+    is worth the certainty.
+    """
+    if not blocks:
+        return blocks, 0
+    ordered = sorted(blocks)
+    n = len(ordered)
+    best = [b[2] for b in ordered]          # best total length of a chain ending here
+    prev = [-1] * n
+    for i in range(n):
+        qs_i, ts_i, len_i = ordered[i]
+        for j in range(i):
+            qs_j, ts_j, len_j = ordered[j]
+            if qs_j + len_j <= qs_i and ts_j + len_j <= ts_i and best[j] + len_i > best[i]:
+                best[i] = best[j] + len_i
+                prev[i] = j
+    end = max(range(n), key=lambda i: best[i])
+    chain: list[tuple[int, int, int]] = []
+    while end != -1:
+        chain.append(ordered[end])
+        end = prev[end]
+    chain.reverse()
+    dropped = sum(b[2] for b in ordered) - sum(b[2] for b in chain)
+    return chain, dropped
+
+
 def align(query_fa: pathlib.Path, ref_fa: pathlib.Path) -> list[list[str]]:
     proc = subprocess.run(
-        ["minimap2", "-cx", "asm5", "--cs", "-t", "4", "--secondary=no",
+        ["minimap2", "-cx", PRESET, "--cs", "-t", "4", "--secondary=no",
          str(ref_fa), str(query_fa)],
         capture_output=True, text=True, check=False)
     if proc.returncode != 0:
@@ -200,6 +253,14 @@ def main() -> int:
         q_fa = tmp / "q.fa"
         q_fa.write_text(f">{acc}\n{seq}\n")
         rows = align(q_fa, ref_fa)
+        orientation = "forward"
+        if rows and all(f[4] == "-" for f in rows):
+            # Deposited on the opposite strand. Reverse complement and realign, rather
+            # than reporting zero coverage as though the assembly were unusable.
+            seq = seq.upper().translate(str.maketrans("ACGTN", "TGCAN"))[::-1]
+            q_fa.write_text(f">{acc}\n{seq}\n")
+            rows = align(q_fa, ref_fa)
+            orientation = "reverse_complemented"
         blocks: list[tuple[int, int, int]] = []
         for f in rows:
             if f[4] != "+":          # reverse-strand hits are repeat artefacts here
@@ -210,6 +271,8 @@ def main() -> int:
             blocks.extend(blocks_from_cs(int(f[2]), int(f[7]), cs))
         blocks.sort()
         blocks, dropped = drop_ambiguous(blocks)
+        blocks, non_mono = drop_non_monotonic(blocks)
+        dropped += non_mono
         mapped = sum(b[2] for b in blocks)
         out = CROSSWALK / f"{acc}.blocks.tsv"
         with out.open("w") as fh:
@@ -224,13 +287,14 @@ def main() -> int:
             "mapped_percent": f"{100 * mapped / len(seq):.2f}",
             "alignments": str(len(rows)),
             "ambiguous_bp_dropped": str(dropped),
+            "orientation": orientation,
         })
         if i % 25 == 0 or i == len(items):
             print(f"    {i}/{len(items)}")
 
     cov = DERIVED / "crosswalk_coverage.tsv"
     cols = ["accession", "length_bp", "blocks", "mapped_bp", "mapped_percent",
-            "alignments", "ambiguous_bp_dropped"]
+            "alignments", "ambiguous_bp_dropped", "orientation"]
     with cov.open("w") as fh:
         fh.write("\t".join(cols) + "\n")
         for r in coverage:

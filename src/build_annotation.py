@@ -44,6 +44,21 @@ SOURCES = [
 
 # How a feature's name and qualifiers decide what CLASS of thing it is. Order matters:
 # the first match wins, so the more specific patterns come first.
+# Features that carry no /gene qualifier but must not be dropped. The inverted repeats
+# are the reason this repository exists, and the first version of this build silently
+# omitted all four of them because it only kept features with a gene name.
+UNNAMED_CLASSES = {
+    "repeat_region": ("repeat_region",
+                      "A repeat, including the inverted repeats and the reiteration "
+                      "sets nested inside them"),
+    "stem_loop": ("stem_loop", "A stem-loop structure, such as an origin palindrome"),
+    "rep_origin": ("rep_origin", "An origin of replication"),
+    "misc_feature": ("misc_feature", "A feature the source record did not type further"),
+    "regulatory": ("regulatory", "A regulatory element, such as a TATA box"),
+    "misc_RNA": ("misc_RNA", "An RNA the source record did not type further"),
+    "source": (None, None),          # the whole-genome record, deliberately not a feature
+}
+
 CLASS_RULES: list[tuple[str, str, str]] = [
     ("sORF", r"\bsORF\b",
      "A small open reading frame named by the 2020 re-annotation"),
@@ -88,6 +103,23 @@ def main() -> int:
         for f in feats:
             name = (f.get("gene") or "").strip()
             if not name:
+                ftype = f["_type"]
+                if ftype not in UNNAMED_CLASSES or UNNAMED_CLASSES[ftype][0] is None:
+                    continue
+                note = squeeze(f.get("note") or "")
+                # Name it from its own note where it has one, so TRL and IRL are
+                # findable rather than appearing as identical "repeat_region" rows.
+                label = note.split(";")[0].strip() if note else ""
+                rows.append({
+                    "name": label or f"{ftype}@{f['_location']}",
+                    "feature_type": ftype,
+                    "location": f["_location"],
+                    "feature_class": UNNAMED_CLASSES[ftype][0],
+                    "source": source,
+                    "provenance": provenance,
+                    "product": squeeze(f.get("product") or ""),
+                    "notes": note,
+                })
                 continue
             rows.append({
                 "name": name,
@@ -127,6 +159,9 @@ def main() -> int:
         fh.write("|---" * (len(SOURCES) + 2) + "|\n")
         descriptions = {label: desc for label, _, desc in CLASS_RULES}
         descriptions[DEFAULT_CLASS[0]] = DEFAULT_CLASS[1]
+        for cls, desc in UNNAMED_CLASSES.values():
+            if cls:
+                descriptions[cls] = desc
         for cls in classes:
             counts = [str(per_source_class[(s, cls)]) for s, _, _, _ in SOURCES]
             fh.write(f"| `{cls}` | " + " | ".join(counts) + f" | {descriptions[cls]} |\n")

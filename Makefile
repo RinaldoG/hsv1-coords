@@ -1,6 +1,6 @@
-.PHONY: all inputs genomes names annotation crosswalk testcases check test clean
+.PHONY: all inputs genomes names aliases annotation crosswalk testcases check test clean
 
-all: inputs genomes names annotation crosswalk testcases check test
+all: inputs genomes names aliases annotation crosswalk testcases check test
 
 inputs:        ## fetch and checksum every input into data/raw
 	python3 -I src/fetch_inputs.py
@@ -10,6 +10,9 @@ genomes:       ## fetch the complete genome set and build the strain inventory
 
 names:         ## extract and reconcile gene names across the deposited records
 	python3 -I src/extract_names.py
+
+aliases:       ## rebuild the cited gene alias dictionary
+	python3 -I src/build_aliases.py
 
 annotation:    ## build the classed, sourced, versioned annotation table
 	python3 -I src/build_annotation.py
