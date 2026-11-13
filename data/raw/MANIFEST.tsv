@@ -6,4 +6,5 @@ isomer_ON783214.1.gb	ON783214.1	266310	ae602a3d20333d3f4125a188ceec2f562f9d69f4f
 isomer_ON783215.1.gb	ON783215.1	268411	f0356053cdc4ffb0df5aeccbe68c5cc77cc4a1a466356b95956d503f148aac45	2026-11-13	isomer-resolved genome 2 of 4
 isomer_ON783216.1.gb	ON783216.1	265491	606ba50bab43cc9d703a7ba44ac1eac581bb90fe25d731809b3469dbe264a710	2026-11-13	isomer-resolved genome 3 of 4
 isomer_ON783217.1.gb	ON783217.1	269689	262ddaac2e644a66fa8837aab9ddd66bf7e28e97ff90bf1cc31b42a5bba86581	2026-11-13	isomer-resolved genome 4 of 4
+ref_NC_001806.1.gb	NC_001806.1	341633	70d83c4436d42b4f1b21e0bd4e9de889121884034836e46b5bed6e4cb031e50f	2026-11-13	the previous reference version, 152,261 bp
 HSV1_Annotation.gtf	https://zenodo.org/records/3724023/files/HSV1_Annotation.gtf?download=1	113012	fabbadd420875ac50c2fe1fb791204df34ed809d991ed2d5be362f0c4ccf8ac7	2026-11-13	Whisnant et al. 2020 re-annotation, seqname JN555585

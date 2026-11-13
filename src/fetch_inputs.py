@@ -31,6 +31,10 @@ GENBANK = {
     "ON783215.1": ("isomer_ON783215.1.gb", "isomer-resolved genome 2 of 4"),
     "ON783216.1": ("isomer_ON783216.1.gb", "isomer-resolved genome 3 of 4"),
     "ON783217.1": ("isomer_ON783217.1.gb", "isomer-resolved genome 4 of 4"),
+    # The previous version of the reference. Published work is defined against both,
+    # and the offset between them is not constant, so a coordinate can be wrong purely
+    # because two papers cited two versions of one accession.
+    "NC_001806.1": ("ref_NC_001806.1.gb", "the previous reference version, 152,261 bp"),
 }
 
 ZENODO = {

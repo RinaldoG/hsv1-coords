@@ -179,12 +179,16 @@ class ConventionSet:
         out = []
         for r in rows:
             flag = r["verified"].strip().lower()
+            # yes            verified and in this resolver's base version
+            # other_version  verified, but defined against another reference version;
+            #                usable only once a version crosswalk exists
+            # no             definition never read from its source
             out.append(Convention(
                 name=r["convention"],
                 kind=r["kind"],
                 intervals=_parse_intervals(r["intervals"]),
                 reference=r["reference"],
-                verified=flag in ("yes", "definition_only"),
+                verified=flag in ("yes", "other_version"),
                 source=r["source"],
                 quote=r["quote"],
                 reference_version=(r.get("reference_version") or "NC_001806.2").strip(),
@@ -205,7 +209,8 @@ class ConventionSet:
         return [c for c in self.conventions if c.verified and c.applicable]
 
     @property
-    def definition_only(self) -> list[Convention]:
+    def other_version(self) -> list[Convention]:
+        """Verified, but defined against a different version of the reference."""
         return [c for c in self.conventions if c.verified and not c.applicable]
 
     BASE_VERSION = "NC_001806.2"
@@ -215,18 +220,47 @@ class ConventionSet:
             raise UnverifiedConvention(
                 f"{c.name} was never verified against its source, so this resolver "
                 f"will not apply it. {c.source}")
-        if not c.applicable:
+        if not c.applicable and not self._version_crosswalk_available():
             raise ReferenceVersionMismatch(
                 f"{c.name} is defined against {c.reference_version}, and this resolver "
                 f"works in {self.BASE_VERSION}. The two differ by a non-constant "
                 f"offset, so applying it would give confident wrong answers. "
                 f"{c.source}")
 
+    @staticmethod
+    def _version_crosswalk_available() -> bool:
+        from .versions import DEFAULT
+        return DEFAULT.exists()
+
+    def _to_convention_version(self, position: int, c: Convention) -> int | None:
+        """Translate a base-version position into the version this convention uses."""
+        if c.reference_version == self.BASE_VERSION:
+            return position
+        from .versions import VersionCrosswalk
+        return VersionCrosswalk.load().convert(position, self.BASE_VERSION,
+                                               c.reference_version)
+
     def usable(self, position: int, convention: str) -> tuple[bool, str]:
-        """Is this reference position present in an analysis under that convention?"""
+        """Is this reference position present in an analysis under that convention?
+
+        `position` is always in this resolver's base version. Where a convention is
+        defined against another version, the position is translated first, and the
+        answer says so, because the translation is not a constant shift.
+        """
         c = self[convention]
         self._require_verified(c)
-        if not 1 <= position <= GENOME_BP:
+        if c.reference_version != self.BASE_VERSION:
+            native = self._to_convention_version(position, c)
+            if native is None:
+                return False, (f"has no coordinate in {c.reference_version}, which is "
+                               f"the version this convention is defined against")
+            ok, why = self._usable_native(native, c)
+            return ok, (f"{why} (as {c.reference_version} position {native:,}, "
+                        f"offset {native - position:+d})")
+        return self._usable_native(position, c)
+
+    def _usable_native(self, position: int, c: Convention) -> tuple[bool, str]:
+        if not 1 <= position <= GENOME_BP + 100:
             return False, f"outside the reference, which is 1 to {GENOME_BP:,}"
         for a, b in c.intervals:
             if a <= position <= b:
@@ -289,11 +323,11 @@ class ConventionSet:
                 rep.refused.append(
                     (c.name, "its definition has not been read from its source"))
                 continue
-            if not c.applicable:
+            if not c.applicable and not self._version_crosswalk_available():
                 rep.refused.append(
                     (c.name, f"it is defined against {c.reference_version}, which "
                              f"differs from {self.BASE_VERSION} by a non-constant "
-                             f"offset"))
+                             f"offset, and no version crosswalk is built"))
                 continue
             ok, why = self.usable(position, c.name)
             if ok:

@@ -333,6 +333,36 @@ answers.
   NR-reference, masked, excluded.
 - The resolver reasons about the reference only. Other strains reach it through M3.
 
+## M6: the reference-version crosswalk - built
+
+`NC_001806.1` is 152,261 bp and `NC_001806.2` is 152,222 bp. Published work is defined
+against both, and **the offset between them is not constant**: across the 22 aligned
+blocks there are **nine distinct offsets**, from -39 to +5. So a coordinate can be wrong
+purely because two papers cited two versions of one accession, with no repeat involved at
+all. Nothing here could detect that until this existed.
+
+```python
+VersionCrosswalk.load().to_old(60000)    # 59999, offset -1
+VersionCrosswalk.load().to_old(150000)   # 150039, offset +39
+```
+
+**What it unblocked.** `morse2017_nr` is defined on `.1` and was refused outright. It is
+now translated, and every answer about it states the version and the offset applied:
+
+```
+NOT usable under morse2017_nr: inside 117,161-125,974
+  (as NC_001806.1 position 118,776, offset -1)
+```
+
+**Criteria, met** and enforced in `tests/test_m5_conventions.py`:
+
+- Round trip returns the original coordinate for every mapped position.
+- **Mapped bases agree in sequence**, over 3,000 sampled positions, and **a deliberate
+  one-base offset must fail the same check**. That control is there because
+  `PITFALLS.md` records three gates in this repository that could not fail.
+- The offset is demonstrated non-constant, which is the justification for the component
+  existing at all.
+
 ## M5b: release
 
 Versioned release with a dataset DOI, a container image, and a README from which someone who

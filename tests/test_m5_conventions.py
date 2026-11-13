@@ -189,12 +189,10 @@ class TheReportAnswersTheQuestion(unittest.TestCase):
         self.assertTrue(any(n == "lassalle2020_excluded"
                             for n, _ in rep.unusable_under))
 
-    def test_morse_is_refused_for_a_reference_version_mismatch(self):
-        """Its definition is verified; it is the coordinate space that blocks it."""
-        refused = dict(self.cs.report(60000).refused)
-        self.assertIn("morse2017_nr", refused)
-        self.assertIn("NC_001806.1", refused["morse2017_nr"])
-        self.assertNotIn("has not been read", refused["morse2017_nr"])
+    def test_nothing_is_refused_once_the_version_crosswalk_exists(self):
+        """Morse was refused until M6. Now it is translated, not guessed at."""
+        self.assertEqual(self.cs.report(60000).refused, [])
+        self.assertEqual([c.name for c in self.cs.other_version], ["morse2017_nr"])
 
 
 class WorkedExample(unittest.TestCase):
@@ -300,18 +298,22 @@ class CollapsedReferences(unittest.TestCase):
                            "Morse removes an internal block, so a single offset cannot "
                            "describe it, even before the reference-version problem")
 
-    def test_comparing_the_two_collapsed_references_is_refused(self):
-        """They do disagree, but this resolver cannot say by how much.
+    def test_comparing_the_two_collapsed_references_needs_the_version_crosswalk(self):
+        """Szpara is defined on NC_001806.2 and Morse on NC_001806.1.
 
-        Szpara is defined on NC_001806.2 and Morse on NC_001806.1, and those two
-        differ by a non-constant offset. An earlier version of this file computed a
-        -9,213 difference between them and reported both as 136,376 bp, which treated
-        Morse's intervals as though they were .2 coordinates. That is precisely the
-        error the resolver exists to prevent, committed by the resolver.
+        Before M6 this comparison was refused outright. An earlier version of this file
+        instead computed a -9,213 difference and reported both as 136,376 bp, which
+        treated Morse's intervals as though they were .2 coordinates: the resolver
+        committing the error it exists to prevent. It is now translated through the
+        version crosswalk, and the translation is not a constant shift.
         """
-        from hsv1coords import ReferenceVersionMismatch
-        with self.assertRaises(ReferenceVersionMismatch):
-            self.cs.offsets_between("szpara2014_trimmed", "morse2017_nr", step=20000)
+        from hsv1coords import VersionCrosswalk
+        v = VersionCrosswalk.load()
+        offsets = {v.to_old(p) - p for p in (1000, 60000, 120000, 150000)
+                   if v.to_old(p) is not None}
+        self.assertGreater(len(offsets), 1,
+                           "if the version offset were constant, the earlier figures "
+                           "would have been merely imprecise rather than wrong")
 
     def test_morses_own_stated_length_is_not_reproducible_here(self):
         """Morse states 136,770 bp. Applying their intervals in .2 gives a different
@@ -367,9 +369,95 @@ class FourAnswersForOneLocus(unittest.TestCase):
         ok_w, _ = cs.usable(pos, "whisnant2020_masked")
         self.assertTrue(ok_w)
 
-    def test_morse_cannot_be_included_in_the_example(self):
-        """It would remove this position, but saying so needs a version crosswalk."""
-        from hsv1coords import ReferenceVersionMismatch
+    def test_morse_removes_the_lat_tata_box(self):
+        """The fourth answer, available only once the version crosswalk existed."""
         cs = ConventionSet.load()
-        with self.assertRaises(ReferenceVersionMismatch):
-            cs.usable(118777, "morse2017_nr")
+        ok, why = cs.usable(118777, "morse2017_nr")
+        self.assertFalse(ok)
+        self.assertIn("117,161-125,974", why)
+        self.assertIn("NC_001806.1", why)
+
+
+class VersionCrosswalkGate(unittest.TestCase):
+    """M6: the two reference versions, and the control proving the gate can fail.
+
+    PITFALLS.md rule 2: every gate ships with a control. Here the control is a
+    deliberately shifted lookup that must disagree with the sequence, proving the
+    sequence check has power.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from hsv1coords import VersionCrosswalk
+        cls.v = VersionCrosswalk.load()
+        import re as _re
+        def seq(p):
+            t = (ROOT / "data" / "raw" / p).read_text()
+            return "".join(_re.findall(r"[acgtnACGTN]",
+                           t.split("ORIGIN")[1].split("//")[0].replace("\n", ""))).upper()
+        cls.old = seq("ref_NC_001806.1.gb")
+        cls.new = seq("ref_NC_001806.2.gb")
+
+    def test_the_versions_differ_as_published(self):
+        self.assertEqual(len(self.old), 152261)
+        self.assertEqual(len(self.new), 152222)
+
+    def test_the_offset_is_not_constant(self):
+        """The entire reason this crosswalk has to exist."""
+        self.assertGreater(len(self.v.distinct_offsets), 1,
+                           "a single offset would make the crosswalk unnecessary")
+
+    def test_round_trip(self):
+        failures = []
+        for pos in range(1, len(self.old), 97):
+            there = self.v.to_new(pos)
+            if there is None:
+                continue
+            if self.v.to_old(there) != pos:
+                failures.append((pos, there, self.v.to_old(there)))
+        self.assertEqual(failures, [], f"{len(failures)} round trips failed")
+
+    def test_mapped_bases_agree_in_sequence(self):
+        """A coordinate map is only right if the bases match."""
+        same = total = 0
+        for pos in range(1, len(self.old), 29):
+            there = self.v.to_new(pos)
+            if there is None:
+                continue
+            a, b = self.old[pos - 1], self.new[there - 1]
+            if a not in "ACGT" or b not in "ACGT":
+                continue
+            total += 1
+            same += a == b
+        self.assertGreater(total, 3000)
+        rate = 100 * same / total
+        self.assertGreaterEqual(rate, 99.0,
+                                f"only {rate:.2f}% of {total} mapped bases agree")
+
+    def test_a_deliberate_offset_fails_the_same_check(self):
+        """The control. Shift by one and agreement must collapse."""
+        same = total = 0
+        for pos in range(1, len(self.old), 29):
+            there = self.v.to_new(pos)
+            if there is None or there >= len(self.new):
+                continue
+            a, b = self.old[pos - 1], self.new[there]       # deliberate +1
+            if a not in "ACGT" or b not in "ACGT":
+                continue
+            total += 1
+            same += a == b
+        rate = 100 * same / total
+        self.assertLess(rate, 60.0,
+                        f"a one-base offset still agreed {rate:.2f}% of the time, so "
+                        f"the sequence check cannot detect a frame error")
+
+    def test_morse_is_now_usable_through_the_crosswalk(self):
+        cs = ConventionSet.load()
+        refused = [n for n, _ in cs.report(118777).refused]
+        self.assertNotIn("morse2017_nr", refused,
+                         "the version crosswalk should unblock it")
+        ok, why = cs.usable(118777, "morse2017_nr")
+        self.assertFalse(ok, "Morse removes IRL, so the LAT TATA box is not in it")
+        self.assertIn("NC_001806.1", why,
+                      "the answer must state which version it was evaluated in")
+        self.assertIn("offset", why, "and the offset applied at that position")
