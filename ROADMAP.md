@@ -48,7 +48,7 @@ annotations are not compared as though they measured the same thing.
 **Criteria, two of three met** and enforced by `tests/test_m2_annotation.py`:
 
 - **Met:** every feature carries a provenance record naming its source, plus the class of
-  feature it is, plus its location. 1,723 rows across three sources.
+  feature it is, plus its location. 1,779 rows across three sources, after review found the first build dropped every feature without a /gene qualifier.
 - **Met, and reworded:** divergences are listed and justified in `CHANGELOG.md`. The
   criterion anticipated arbitrating between two conflicting annotations, and there is no
   conflict to arbitrate: one record is the other's successor on the same sequence with a
@@ -74,7 +74,7 @@ Two things the inventory establishes, both of which the crosswalk has to handle:
 - **The laboratory strain KOS is deposited four times at four lengths** (152,011, 151,974,
   151,794 and 151,024 bp) under **three different label strings** (`KOS`, `isolate KOS`,
   `isolate KOS 1.1`), from different groups. A coordinate cited against "KOS" is ambiguous
-  across up to 987 bp. Strain label normalisation is therefore part of this milestone, not
+  across a measured -79 to -887 bp, varying by position. (The 987 bp figure this line once carried was a length difference between assemblies, not a coordinate offset.) Strain label normalisation is therefore part of this milestone, not
   a separate concern.
 - **Corrected after review:** an earlier version of this file said the `ON783214` to
   `ON783217` set spans 3,421 bp "legitimately, because they are the four isomers". That
@@ -93,7 +93,7 @@ divergence, costing real alignments.
 
 **Built.** 183 genomes aligned to the reference and reduced to ungapped coordinate blocks
 (`make crosswalk`), with `hsv1coords.lift` resolving a position between any two of them
-through the reference. Median mappable fraction 98.08 per cent.
+through the reference. Median mappable fraction 98.84 per cent, after review found the asm5 preset too strict for this divergence.
 
 **Criteria:**
 - **Met:** round-trip returns the original coordinate for at least 99 per cent of positions,
@@ -169,7 +169,7 @@ marked partial where the two copies differ in length.
 
 - Reproduces all four inverted repeat boundaries from the reference's own feature table,
   exactly. Independently verified base by base.
-- Every diploid pair is derived, not asserted, and both members have equal length.
+- Every diploid pair is derived, not asserted. Both members have equal length for the 25 exact pairs; the 7 partial pairs declare the difference, because a copy can be truncated by the end of the record or extend past the repeat, as LAT does.
 - Machine-readable and enforced in code: `classify` returns a structured status.
 - The lift-over consults it. `lift_detailed` reports whether a lifted coordinate
   identifies a unique locus and names the alternatives when it does not. **This was

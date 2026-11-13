@@ -77,6 +77,15 @@ class Convention:
     quote: str
     reference_version: str = "NC_001806.2"
     applicable: bool = True      # False when the definition is known but unusable here
+    records: list[tuple[str, int, int]] = field(default_factory=list)
+    """Named records, for a convention whose artefact is more than one sequence.
+
+    Morse's NR-reference is four FASTA records (RL, UL, RS, US), confirmed from the
+    CHROM column of its own deposited VCFs, so a Morse coordinate is a pair like
+    `UL:50788` and not an integer. An earlier version of this module returned a single
+    integer for it, copied from the model used for Szpara's single-sequence trim. That
+    integer appears in no Morse file.
+    """
     boundary_uncertainty_bp: int = 0
     """How far an interval boundary might be out.
 
@@ -94,7 +103,21 @@ class Convention:
     @property
     def changes_coordinates(self) -> bool:
         """Only removing sequence moves the numbers. Masking and excluding do not."""
-        return self.kind == "trim"
+        return self.kind in ("trim", "split_records")
+
+    @property
+    def is_split(self) -> bool:
+        return self.kind == "split_records"
+
+    def locate(self, reference_position: int) -> tuple[str, int] | None:
+        """For a split convention: the record and 1-based offset within it, or None."""
+        if not self.is_split:
+            raise ValueError(f"{self.name} is not a split-record convention")
+        for name, a, b in self.records:
+            if a <= reference_position <= b:
+                return name, reference_position - a + 1
+            
+        return None
 
     @property
     def affected_bases(self) -> int:
@@ -123,6 +146,14 @@ class Convention:
     def length(self, genome_bp: int | None = None) -> int:
         return sum(b - a + 1 for a, b in self.retained_blocks(genome_bp))
 
+    def coordinate(self, reference_position: int) -> str | None:
+        """A coordinate as this convention's own files would print it."""
+        if self.is_split:
+            hit = self.locate(reference_position)
+            return None if hit is None else f"{hit[0]}:{hit[1]}"
+        v = self.to_convention(reference_position)
+        return None if v is None else str(v)
+
     def to_convention(self, reference_position: int,
                       genome_bp: int | None = None) -> int | None:
         """A coordinate IN THIS CONVENTION'S OWN REFERENCE VERSION, collapsed.
@@ -130,6 +161,10 @@ class Convention:
         The input must already be in `self.reference_version`. Callers holding a
         base-version coordinate translate it first; `ConventionSet` does this.
         """
+        if self.is_split:
+            raise ValueError(
+                f"{self.name} is a four-record reference, so a position in it is a "
+                f"pair like 'UL:50788', not an integer. Use `coordinate` or `locate`.")
         if not self.changes_coordinates:
             return reference_position
         offset = 0
@@ -185,6 +220,17 @@ class PositionReport:
         return "\n".join(lines)
 
 
+def _parse_records(text: str) -> list[tuple[str, int, int]]:
+    if not text.strip():
+        return []
+    out = []
+    for part in text.split(";"):
+        name, span = part.split(":")
+        a, b = span.split("-")
+        out.append((name.strip(), int(a), int(b)))
+    return out
+
+
 def _parse_intervals(text: str) -> list[tuple[int, int]]:
     if not text.strip() or text.strip() == "UNVERIFIED":
         return []
@@ -222,6 +268,7 @@ class ConventionSet:
                 reference_version=(r.get("reference_version") or "NC_001806.2").strip(),
                 applicable=flag == "yes",
                 boundary_uncertainty_bp=int(r.get("boundary_uncertainty_bp") or 0),
+                records=_parse_records(r.get("records", "")),
             ))
         return cls(out)
 
@@ -292,10 +339,34 @@ class ConventionSet:
             return ok, answer
         return self._usable_native(position, c)
 
+    def _warning_for(self, position: int, c: Convention) -> str | None:
+        """Any caveat attaching to this convention's answer, usable or not.
+
+        `report` previously dropped these whenever the answer was "usable", which
+        discarded every warning on exactly the positions where a reader would act on
+        the answer.
+        """
+        native = (self._to_convention_version(position, c)
+                  if c.reference_version != self.BASE_VERSION else position)
+        if native is None:
+            return None
+        if c.near_a_boundary(native):
+            return (f"{c.name}: within {c.boundary_uncertainty_bp} bp of a "
+                    f"reconstructed interval boundary, so this answer is unreliable")
+        return None
+        return self._usable_native(position, c)
+
     def _usable_native(self, position: int, c: Convention) -> tuple[bool, str]:
         limit = VERSION_LENGTHS.get(c.reference_version, GENOME_BP)
         if not 1 <= position <= limit:
             return False, (f"outside {c.reference_version}, which is 1 to {limit:,}")
+        if c.is_split:
+            hit = c.locate(position)
+            if hit is None:
+                removed = next((f"{a:,}-{b:,}" for a, b in c.intervals
+                                if a <= position <= b), "a removed block")
+                return False, f"inside {removed}, which is not in the NR-reference"
+            return True, f"present as {hit[0]}:{hit[1]:,}"
         for a, b in c.intervals:
             if a <= position <= b:
                 if c.kind == "exclude":
@@ -316,13 +387,41 @@ class ConventionSet:
         cs, ct = self[source], self[target]
         self._require_verified(cs)
         self._require_verified(ct)
-        ref = cs.to_reference(position)
-        if ref is None:
+        if cs.is_split or ct.is_split:
+            raise ValueError(
+                f"{(cs if cs.is_split else ct).name} is a multi-record reference; its "
+                f"coordinates are pairs. Use `coordinate_in` instead of `convert`.")
+        # Translate into the source's own version, out to the base version, then into
+        # the target's version. Omitting these two steps is how root cause 6b survived
+        # a fix that was supposed to remove it: `usable` translated and `convert` did
+        # not, so the two contradicted each other.
+        native_ref = cs.to_reference(position)
+        if native_ref is None:
+            return None
+        base = self._to_base_version(native_ref, cs)
+        if base is None:
+            return None
+        native_target = self._to_convention_version(base, ct)
+        if native_target is None:
             return None
         if not ct.changes_coordinates:
-            ok, _ = self.usable(ref, target)
-            return ref if ok else None
-        return ct.to_convention(ref)
+            ok, _ = self._usable_native(native_target, ct)
+            return native_target if ok else None
+        return ct.to_convention(native_target)
+
+    def coordinate_in(self, position: int, convention: str) -> str | None:
+        """A base-version position, as the named convention's own files would print it."""
+        c = self[convention]
+        self._require_verified(c)
+        native = self._to_convention_version(position, c)
+        return None if native is None else c.coordinate(native)
+
+    def _to_base_version(self, position: int, c: Convention) -> int | None:
+        if c.reference_version == self.BASE_VERSION:
+            return position
+        from .versions import VersionCrosswalk
+        return VersionCrosswalk.load().convert(position, c.reference_version,
+                                               self.BASE_VERSION)
 
     def offsets_between(self, a: str, b: str,
                         step: int = 1) -> list[tuple[int, int, int]]:
@@ -334,9 +433,15 @@ class ConventionSet:
         ca, cb = self[a], self[b]
         self._require_verified(ca)
         self._require_verified(cb)
+        if ca.is_split or cb.is_split:
+            raise ValueError("a multi-record convention has no scalar offset")
         out = []
         for pos in range(1, GENOME_BP + 1, step):
-            pa, pb = ca.to_convention(pos), cb.to_convention(pos)
+            na = self._to_convention_version(pos, ca)
+            nb = self._to_convention_version(pos, cb)
+            if na is None or nb is None:
+                continue
+            pa, pb = ca.to_convention(na), cb.to_convention(nb)
             if pa is not None and pb is not None and pa != pb:
                 out.append((pos, pa, pb))
         return out
@@ -364,6 +469,9 @@ class ConventionSet:
                              f"offset, and no version crosswalk is built"))
                 continue
             ok, why = self.usable(position, c.name)
+            warning = self._warning_for(position, c)
+            if warning:
+                rep.caveats.append(warning)
             if ok:
                 rep.usable_under.append(c.name)
             else:

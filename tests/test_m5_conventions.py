@@ -243,6 +243,8 @@ class CollapsedReferences(unittest.TestCase):
         for name in ("szpara2014_trimmed", "morse2017_nr"):
             with self.subTest(convention=name):
                 self.assertTrue(self.cs[name].changes_coordinates)
+        self.assertFalse(self.cs["szpara2014_trimmed"].is_split)
+        self.assertTrue(self.cs["morse2017_nr"].is_split)
 
     def test_szpara_and_whisnant_act_on_the_same_regions_differently(self):
         """Both touch TRL and TRS. One removes them, one masks and restores them.
@@ -258,6 +260,44 @@ class CollapsedReferences(unittest.TestCase):
         ok, _ = self.cs.usable(5000, "whisnant2020_masked")
         self.assertTrue(ok)
 
+    def test_morse_is_a_four_record_reference_not_one_sequence(self):
+        """Its coordinates are pairs like UL:50788, confirmed from its deposited VCFs.
+
+        An earlier version modelled it as a single collapsed sequence, copied from
+        Szpara, and returned integers that appear in no Morse file.
+        """
+        mo = self.cs["morse2017_nr"]
+        self.assertTrue(mo.is_split)
+        self.assertEqual([n for n, _, _ in mo.records], ["RL", "UL", "RS", "US"])
+        with self.assertRaises(ValueError):
+            mo.to_convention(60000)
+        self.assertEqual(self.cs.coordinate_in(60000, "morse2017_nr"), "UL:50787")
+
+    def test_morse_records_sum_to_the_published_length(self):
+        """136,770 bp, from the paper's stated cutting rule with nothing fitted.
+
+        The previous row reached this total with boundaries wrong at three of four
+        edges, because the errors cancelled. A sum cannot locate a boundary, so this
+        is a consistency check and the boundaries stand on the rule, not on the total.
+        """
+        mo = self.cs["morse2017_nr"]
+        self.assertEqual(sum(b - a + 1 for _, a, b in mo.records), 136770)
+
+    def test_convert_translates_versions_like_usable_does(self):
+        """Root cause 6b survived its own fix here: usable translated, convert did not."""
+        for target in ("lassalle2020_excluded", "whisnant2020_masked",
+                       "szpara2014_trimmed"):
+            for pos in (1000, 60000, 130000, 152000):
+                with self.subTest(target=target, position=pos):
+                    ok, _ = self.cs.usable(pos, target)
+                    got = self.cs.convert(pos, "full_length", target)
+                    self.assertEqual(got is not None, ok,
+                                     "usable and convert must not contradict")
+
+    def test_convert_refuses_a_multi_record_convention(self):
+        with self.assertRaises(ValueError):
+            self.cs.convert(60000, "full_length", "morse2017_nr")
+
     def test_removed_positions_have_no_coordinate(self):
         sz = self.cs["szpara2014_trimmed"]
         self.assertIsNone(sz.to_convention(5000), "TRL is removed by Szpara")
@@ -265,7 +305,7 @@ class CollapsedReferences(unittest.TestCase):
 
     def test_round_trip_through_a_collapsed_reference(self):
         failures = []
-        for name in ("szpara2014_trimmed", "morse2017_nr"):
+        for name in ("szpara2014_trimmed",):      # Morse is multi-record, tested above
             c = self.cs[name]
             for pos in range(1, GENOME_BP + 1, 311):
                 there = c.to_convention(pos)
@@ -277,7 +317,7 @@ class CollapsedReferences(unittest.TestCase):
 
     def test_the_collapsed_length_is_the_retained_length(self):
         """Measured against the length of the version each convention declares."""
-        for name in ("szpara2014_trimmed", "morse2017_nr"):
+        for name in ("szpara2014_trimmed",):
             c = self.cs[name]
             with self.subTest(convention=name):
                 self.assertEqual(c.length(), c.genome_length - c.affected_bases)
@@ -297,12 +337,13 @@ class CollapsedReferences(unittest.TestCase):
                          "Szpara removes only a leading block, so its offset is "
                          "constant across what it retains")
         mo = self.cs["morse2017_nr"]
-        mo_offsets = {mo.to_convention(p) - p
-                      for p in (10000, 60000, 140000)
-                      if mo.to_convention(p) is not None}
-        self.assertGreater(len(mo_offsets), 1,
-                           "Morse removes an internal block, so a single offset cannot "
-                           "describe it, even before the reference-version problem")
+        # Morse has no scalar offset at all: its coordinates are record-and-position
+        # pairs, so asking for one is the category error this row used to commit.
+        starts = {self.cs.coordinate_in(p, "morse2017_nr").split(":")[0]
+                  for p in (10000, 60000, 130000, 140000)
+                  if self.cs.coordinate_in(p, "morse2017_nr")}
+        self.assertGreater(len(starts), 1,
+                           "positions in different records cannot share one offset")
 
     def test_comparing_the_two_collapsed_references_needs_the_version_crosswalk(self):
         """Szpara is defined on NC_001806.2 and Morse on NC_001806.1.
@@ -381,9 +422,9 @@ class FourAnswersForOneLocus(unittest.TestCase):
         cs = ConventionSet.load()
         ok, why = cs.usable(118777, "morse2017_nr")
         self.assertFalse(ok)
-        self.assertIn("117,159-125,974", why,
+        self.assertIn("117,160-125,973", why,
                       "the interval must be quoted in NC_001806.1, the frame the row "
-                      "declares")
+                      "declares, and at the boundaries the paper's own rule gives")
         self.assertIn("NC_001806.1", why)
 
 
@@ -397,6 +438,12 @@ class VersionCrosswalkGate(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        import unittest as _ut
+        for _need in ("ref_NC_001806.1.gb", "ref_NC_001806.2.gb"):
+            if not (ROOT / "data" / "raw" / _need).exists():
+                raise _ut.SkipTest(
+                    f"{_need} is fetched, not committed. Run `make inputs` "
+                    f"and `make genomes` first.")
         from hsv1coords import VersionCrosswalk
         cls.v = VersionCrosswalk.load()
         import re as _re
@@ -427,30 +474,62 @@ class VersionCrosswalkGate(unittest.TestCase):
     # The gates below are therefore tested against deliberately broken crosswalks. A
     # gate that passes on a mutant is not a gate.
 
+    # Five gates, because no one of them is sufficient. Review built 15 broken
+    # crosswalks against an earlier version of this file and 12 passed everything.
+    # Each gate below exists because a specific mutant defeats all the others.
+
+    EXPECTED_BLOCKS = 22
+    EXPECTED_COVERAGE = 152209
+
     @staticmethod
     def _mutants(blocks):
-        """Broken crosswalks, each a realistic failure mode."""
+        """Deliberately broken crosswalks, each a realistic failure mode."""
         import random
         from hsv1coords.versions import VersionBlock, VersionCrosswalk
-        rng = random.Random(4242)
-        out = {}
-        shifted = list(blocks)
-        i = len(shifted) // 2
-        b = shifted[i]
-        shifted[i] = VersionBlock(b.old_start, b.new_start + 1, b.length)
-        out["one block shifted by one base"] = VersionCrosswalk(shifted)
-        dropped = [b for j, b in enumerate(blocks) if j != 14 % len(blocks)]
-        out["one block deleted"] = VersionCrosswalk(dropped)
-        whole = [VersionBlock(b.old_start, b.new_start + 1, b.length) for b in blocks]
-        out["every block shifted by one base"] = VersionCrosswalk(whole)
-        scrambled = [VersionBlock(b.old_start, rng.randrange(0, 150000), b.length)
-                     for b in blocks]
-        out["targets randomised"] = VersionCrosswalk(scrambled)
-        return out
+        rng = random.Random(7)
+        m = {}
 
-    def _identity_rate(self, cw) -> float:
+        def shift(i, d, label):
+            b2 = list(blocks)
+            b2[i] = VersionBlock(blocks[i].old_start, blocks[i].new_start + d,
+                                 blocks[i].length)
+            m[label] = VersionCrosswalk(b2)
+
+        shift(len(blocks) // 2, 1, "mid block shifted 1")
+        shift(len(blocks) // 2, 1000, "mid block shifted 1000")
+        shift(0, 5, "first block shifted 5")
+        shift(len(blocks) - 1, 40000, "last block pushed out of range")
+        for i, b in enumerate(blocks):
+            if b.length < 100:
+                b2 = list(blocks)
+                b2.pop(i)
+                m["smallest block deleted"] = VersionCrosswalk(b2)
+                break
+        big = max(range(len(blocks)), key=lambda i: blocks[i].length)
+        b2 = list(blocks)
+        b2.pop(big)
+        m["largest block deleted"] = VersionCrosswalk(b2)
+        i = len(blocks) // 3
+        b2 = list(blocks)
+        b2[i] = VersionBlock(blocks[i].old_start, blocks[i].new_start,
+                             blocks[i].length + 1500)
+        m["block extended 1500"] = VersionCrosswalk(b2)
+        b2 = list(blocks)
+        b2[i] = VersionBlock(blocks[i].old_start, blocks[i + 1].new_start,
+                             blocks[i].length)
+        m["two source blocks onto one target span"] = VersionCrosswalk(b2)
+        m["targets randomised"] = VersionCrosswalk(
+            [VersionBlock(b.old_start, rng.randrange(0, 150000), b.length)
+             for b in blocks])
+        b2 = list(blocks)
+        b2[1] = VersionBlock(blocks[1].old_start - 50, blocks[1].new_start,
+                             blocks[1].length)
+        m["boundary moved 50 in the query"] = VersionCrosswalk(b2)
+        return m
+
+    def _identity(self, cw, step=29) -> float:
         same = total = 0
-        for pos in range(1, len(self.old), 29):
+        for pos in range(1, len(self.old), step):
             there = cw.to_new(pos)
             if there is None or there > len(self.new):
                 continue
@@ -461,8 +540,50 @@ class VersionCrosswalkGate(unittest.TestCase):
             same += a == b
         return 100 * same / total if total else 0.0
 
-    def _coverage(self, cw) -> int:
-        return sum(b.length for b in cw.blocks)
+    def _boundary_identity(self, cw) -> float:
+        """Identity within 30 bases of a block edge, where a moved boundary shows.
+
+        Genome-wide identity misses a boundary move, because the moved region is a
+        small fraction of the whole. This is the gate that catches it.
+        """
+        same = total = 0
+        for b in cw.blocks:
+            edges = (list(range(max(1, b.old_start - 30), b.old_start + 31))
+                     + list(range(max(1, b.old_start + b.length - 30),
+                                  min(len(self.old), b.old_start + b.length + 31))))
+            for pos in edges:
+                there = cw.to_new(pos)
+                if there is None or there > len(self.new):
+                    continue
+                a, c = self.old[pos - 1], self.new[there - 1]
+                if a not in "ACGT" or c not in "ACGT":
+                    continue
+                total += 1
+                same += a == c
+        return 100 * same / total if total else 0.0
+
+    @staticmethod
+    def _in_bounds(cw, old_len, new_len) -> bool:
+        return all(b.new_start + b.length <= new_len
+                   and b.old_start + b.length <= old_len for b in cw.blocks)
+
+    @staticmethod
+    def _non_overlapping(cw) -> bool:
+        for key in ("new_start", "old_start"):
+            spans = sorted((getattr(b, key), getattr(b, key) + b.length)
+                           for b in cw.blocks)
+            if any(end > nxt for (_, end), (nxt, _) in zip(spans, spans[1:])):
+                return False
+        return True
+
+    def _gates(self, cw) -> dict[str, bool]:
+        return {
+            "identity": self._identity(cw) >= 99.5,
+            "boundary identity": self._boundary_identity(cw) >= 99.0,
+            "in bounds": self._in_bounds(cw, len(self.old), len(self.new)),
+            "non-overlapping": self._non_overlapping(cw),
+            "exact coverage": sum(b.length for b in cw.blocks) == self.EXPECTED_COVERAGE,
+        }
 
     def test_round_trip(self):
         failures = []
@@ -475,71 +596,51 @@ class VersionCrosswalkGate(unittest.TestCase):
         self.assertEqual(failures, [], f"{len(failures)} round trips failed")
 
     def test_the_round_trip_gate_is_nearly_powerless(self):
-        """Measured rather than asserted, which corrects a claim made while fixing this.
-
-        The round trip catches only mutants that make blocks overlap in the target
-        coordinate, because that breaks the bisect. It does not catch a shift, which
-        preserves the structure exactly. So it is a structural invariant, not a test of
-        whether the mapping is right, and the sequence and coverage gates are what do
-        that work.
-        """
-        caught, missed = [], []
+        """Measured, not asserted. It sees only mutants that make blocks overlap."""
+        missed = []
         for name, mutant in self._mutants(self.v.blocks).items():
             ok = all(mutant.to_old(mutant.to_new(p)) == p
                      for p in range(1, len(self.old), 997)
                      if mutant.to_new(p) is not None)
-            (missed if ok else caught).append(name)
-        self.assertIn("one block shifted by one base", missed,
-                      "a shift preserves structure, so the round trip cannot see it")
-        self.assertIn("every block shifted by one base", missed)
-        self.assertIn("one block deleted", missed)
+            if ok:
+                missed.append(name)
+        for blind_spot in ("mid block shifted 1", "smallest block deleted"):
+            self.assertIn(blind_spot, missed,
+                          "the round trip cannot see this, which is why the gates "
+                          "below exist")
 
-    def test_mapped_bases_agree_in_sequence(self):
-        rate = self._identity_rate(self.v)
-        self.assertGreaterEqual(
-            rate, 99.5,
-            f"only {rate:.4f}% of mapped bases agree; the true figure is about 99.96, "
-            f"and a threshold loose enough to tolerate a wrong block is not a gate")
+    def test_the_true_crosswalk_passes_every_gate(self):
+        failed = [g for g, ok in self._gates(self.v).items() if not ok]
+        self.assertEqual(failed, [], f"the real crosswalk fails: {failed}")
+        self.assertEqual(len(self.v.blocks), self.EXPECTED_BLOCKS)
 
-    def test_no_mutant_survives_the_gates_together(self):
-        """The real control: perturb the crosswalk, not the lookup.
+    def test_no_mutant_survives_every_gate(self):
+        """The control. Each gate exists because one mutant defeats all the others."""
+        survivors = {}
+        for name, mutant in self._mutants(self.v.blocks).items():
+            gates = self._gates(mutant)
+            if all(gates.values()):
+                survivors[name] = gates
+        self.assertEqual(survivors, {},
+                         f"these broken crosswalks passed every gate: "
+                         f"{list(survivors)}")
 
-        Neither gate catches everything, and saying which catches what is the point.
-        The sequence gate cannot see a deleted block, because removed positions return
-        nothing and are never scored: the deleted-block mutant scores 99.92 per cent,
-        above any sane identity threshold. The coverage gate catches exactly that, and
-        nothing about frame. Each gate alone leaves a hole the other covers.
+    def test_each_gate_is_the_sole_catcher_of_something(self):
+        """A gate no mutant needs is a gate that is not pulling its weight.
+
+        Recorded so that removing one later shows up as a failure here rather than as
+        a silent loss of power.
         """
-        expected_cov = self._coverage(self.v)
-        survivors, caught_by = [], {}
-        for name, mutant in self._mutants(self.v.blocks).items():
-            by = []
-            if self._identity_rate(mutant) < 99.5:
-                by.append("sequence")
-            if self._coverage(mutant) < expected_cov - 500:
-                by.append("coverage")
-            caught_by[name] = by
-            if not by:
-                survivors.append(name)
-        self.assertEqual(survivors, [],
-                         f"these broken crosswalks passed every gate: {survivors}")
-        self.assertEqual(caught_by["one block deleted"], ["coverage"],
-                         "a deletion is invisible to the sequence gate by construction")
-        self.assertIn("sequence", caught_by["one block shifted by one base"],
-                      "a shift must be caught by sequence, not by coverage")
-
-    def test_coverage_is_gated_so_a_deleted_block_is_caught(self):
-        """A deleted block barely moves per-base identity, so identity alone misses it."""
-        expected = self._coverage(self.v)
-        self.assertGreaterEqual(expected, 152000,
-                                f"only {expected:,} bases mapped")
-        for name, mutant in self._mutants(self.v.blocks).items():
-            if name != "one block deleted":
-                continue
-            self.assertLess(self._coverage(mutant), expected - 500,
-                            "the deleted-block mutant should lose real coverage")
-            self.assertLess(self._coverage(mutant), 152000,
-                            "and must therefore fail the coverage gate above")
+        mutants = self._mutants(self.v.blocks)
+        sole = {}
+        for name, mutant in mutants.items():
+            caught = [g for g, ok in self._gates(mutant).items() if not ok]
+            if len(caught) == 1:
+                sole.setdefault(caught[0], []).append(name)
+        for gate in ("in bounds", "exact coverage"):
+            self.assertIn(gate, sole,
+                          f"no mutant is caught by {gate} alone, so its power is "
+                          f"untested")
 
     def test_morse_is_now_usable_through_the_crosswalk(self):
         cs = ConventionSet.load()

@@ -10,7 +10,7 @@ that a GFF3 will be generated from.
 
 **Added**
 
-- `data/derived/annotation_v0.1.0.tsv`: 1,723 feature rows across three sources, each row
+- `data/derived/annotation_v0.1.0.tsv`: 1,779 feature rows across three sources (1,723 as first released, before review found the inverted repeats were being dropped), each row
   carrying the class of feature it is, its source record, and that record's provenance.
 - `data/derived/annotation_summary.md`: feature counts per class per source.
 

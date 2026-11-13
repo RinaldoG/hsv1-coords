@@ -173,7 +173,7 @@ and all recorded here rather than quietly corrected.
 | A coordinate cited against KOS is "ambiguous across 987 bp" | That was a length difference, not a coordinate offset. The measured offset between the two plain-KOS records runs from -79 to -887 bp depending on position. Two of the four KOS deposits are a deliberate KOS and KOS1.1 pair with published provenance markers (Colgrove et al., *Virology* 2016;487:215-221) |
 | `asm5` as the alignment preset | Too strict for 0.7 to 1.3 per cent divergence. `asm10` raises the median mappable fraction from 98.08 to 98.84 per cent |
 | A position 900 bp into `OP297884.1` resolved to 151,879 | A cross-repeat placement, and a genuinely wrong coordinate. Blocks are now chained to be monotonic, and that position declines |
-| The round-trip gate could not fail, being a mathematical identity over the same blocks | The gate now checks the base at the lifted position against the reference, with a deliberate one-base offset as a control proving the check has power |
+| The round-trip gate could not fail, being a mathematical identity over the same blocks | The gate now checks the base at the lifted position against the reference. **The one-base-offset control this line originally claimed was itself powerless**: it measured that DNA is not self-similar under a shift, which is a property of the sequence and passes on a random crosswalk. Replaced with mutation testing against deliberately broken crosswalks |
 | Continuous integration appeared to verify the build and did not: the manifest check was circular, the diff gate saw 6 of 196 derived files, and `minimap2` was never installed | All three closed |
 
 The pattern worth noting: **every one of these was found by someone checking against the

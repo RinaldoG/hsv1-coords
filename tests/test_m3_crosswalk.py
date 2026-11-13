@@ -163,6 +163,12 @@ class SequenceAgreement(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        import unittest as _ut
+        for _need in ("ref_NC_001806.2.gb", "genomes.fasta"):
+            if not (ROOT / "data" / "raw" / _need).exists():
+                raise _ut.SkipTest(
+                    f"{_need} is fetched, not committed. Run `make inputs` "
+                    f"and `make genomes` first.")
         cls.ref = genbank_sequence(ROOT / "data" / "raw" / "ref_NC_001806.2.gb")
         cls.genomes = read_fasta(ROOT / "data" / "raw" / "genomes.fasta")
 
