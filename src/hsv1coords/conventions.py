@@ -41,7 +41,24 @@ GENOME_BP = 152222
 
 
 class UnverifiedConvention(RuntimeError):
-    """Raised when asked to apply a convention whose definition was never read."""
+    """Raised when asked to apply a convention this resolver cannot apply safely.
+
+    Two cases. Either the definition was never read from its source, or it was read
+    but the coordinates cannot be applied here, which is what `definition_only` means.
+    `morse2017_nr` is the second case: it is defined against NC_001806.1 and everything
+    else here is .2, and the offset between those two versions is not constant.
+    """
+
+
+class ReferenceVersionMismatch(UnverifiedConvention):
+    """Raised when two conventions are defined against different reference versions.
+
+    NC_001806.1 is 152,261 bp and NC_001806.2 is 152,222 bp, and the difference is not
+    a constant shift: roughly 0 near the start, -1 through UL and IRL, -3 to -5 near
+    IRS, and +39 through most of TRS. Converting between conventions across that
+    boundary without a crosswalk would produce confident, wrong coordinates, which is
+    the error this repository exists to prevent.
+    """
 
 
 @dataclass(frozen=True)
@@ -53,6 +70,8 @@ class Convention:
     verified: bool
     source: str
     quote: str
+    reference_version: str = "NC_001806.2"
+    applicable: bool = True      # False when the definition is known but unusable here
 
     @property
     def changes_coordinates(self) -> bool:
@@ -112,7 +131,7 @@ class PositionReport:
     position: int
     usable_under: list[str] = field(default_factory=list)
     unusable_under: list[tuple[str, str]] = field(default_factory=list)
-    refused: list[str] = field(default_factory=list)
+    refused: list[tuple[str, str]] = field(default_factory=list)
     caveats: list[str] = field(default_factory=list)
 
     @property
@@ -131,8 +150,8 @@ class PositionReport:
             lines.append(f"  usable under {name}")
         for name, why in self.unusable_under:
             lines.append(f"  NOT usable under {name}: {why}")
-        for name in self.refused:
-            lines.append(f"  cannot say for {name}: its definition is unverified")
+        for name, why in self.refused:
+            lines.append(f"  cannot say for {name}: {why}")
         for c in self.caveats:
             lines.append(f"  caveat: {c}")
         return "\n".join(lines)
@@ -157,15 +176,21 @@ class ConventionSet:
     def load(cls, path: pathlib.Path | None = None) -> "ConventionSet":
         with (pathlib.Path(path) if path else DATA).open() as fh:
             rows = list(csv.DictReader(fh, delimiter="\t"))
-        return cls([Convention(
-            name=r["convention"],
-            kind=r["kind"],
-            intervals=_parse_intervals(r["intervals"]),
-            reference=r["reference"],
-            verified=r["verified"].strip().lower() == "yes",
-            source=r["source"],
-            quote=r["quote"],
-        ) for r in rows])
+        out = []
+        for r in rows:
+            flag = r["verified"].strip().lower()
+            out.append(Convention(
+                name=r["convention"],
+                kind=r["kind"],
+                intervals=_parse_intervals(r["intervals"]),
+                reference=r["reference"],
+                verified=flag in ("yes", "definition_only"),
+                source=r["source"],
+                quote=r["quote"],
+                reference_version=(r.get("reference_version") or "NC_001806.2").strip(),
+                applicable=flag == "yes",
+            ))
+        return cls(out)
 
     def __getitem__(self, name: str) -> Convention:
         return self._by_name[name]
@@ -176,13 +201,26 @@ class ConventionSet:
 
     @property
     def verified(self) -> list[Convention]:
-        return [c for c in self.conventions if c.verified]
+        """Verified from source AND applicable in this resolver's coordinate space."""
+        return [c for c in self.conventions if c.verified and c.applicable]
+
+    @property
+    def definition_only(self) -> list[Convention]:
+        return [c for c in self.conventions if c.verified and not c.applicable]
+
+    BASE_VERSION = "NC_001806.2"
 
     def _require_verified(self, c: Convention) -> None:
         if not c.verified:
             raise UnverifiedConvention(
                 f"{c.name} was never verified against its source, so this resolver "
                 f"will not apply it. {c.source}")
+        if not c.applicable:
+            raise ReferenceVersionMismatch(
+                f"{c.name} is defined against {c.reference_version}, and this resolver "
+                f"works in {self.BASE_VERSION}. The two differ by a non-constant "
+                f"offset, so applying it would give confident wrong answers. "
+                f"{c.source}")
 
     def usable(self, position: int, convention: str) -> tuple[bool, str]:
         """Is this reference position present in an analysis under that convention?"""
@@ -248,7 +286,14 @@ class ConventionSet:
         rep = PositionReport(position)
         for c in self.conventions:
             if not c.verified:
-                rep.refused.append(c.name)
+                rep.refused.append(
+                    (c.name, "its definition has not been read from its source"))
+                continue
+            if not c.applicable:
+                rep.refused.append(
+                    (c.name, f"it is defined against {c.reference_version}, which "
+                             f"differs from {self.BASE_VERSION} by a non-constant "
+                             f"offset"))
                 continue
             ok, why = self.usable(position, c.name)
             if ok:

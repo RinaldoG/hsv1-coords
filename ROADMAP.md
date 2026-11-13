@@ -251,20 +251,29 @@ ConventionSet.load().report(118777)      # the LAT TATA box
 |---|---|---|
 | `full_length` | The deposited record, 152,222 bp | unchanged |
 | `lassalle2020_excluded` | Excludes `1-9,338`, `116,926-132,647`, `145,582-150,962` from analysis | unchanged |
-| `whisnant2020_masked` | Masks the terminal repeats, then copies the read mappings back in | unchanged |
+| `whisnant2020_masked` | Masks the two terminal repeats, `TRL` and `TRS`, then copies the read mappings back in | unchanged |
 | `szpara2014_trimmed` | Keeps one copy of each inverted repeat, `IRL` and `IRS`, removing `TRL` and `TRS` | **shifted** |
-| `morse2017_nr` | Removes the `IRL` and `TRS` blocks | **shifted** |
+| `morse2017_nr` | Removes the `IRL` and `TRS` blocks | **shifted**, and defined on `NC_001806.1`, so refused here |
 
-**The worked example, and the reason the milestone exists.** The LAT TATA box at
-reference 118,777 is printed as **109,564** in a Szpara-trimmed analysis, **does not
-exist at all** in a Morse NR analysis, is **excluded** by Lassalle, and is **retained**
-by Whisnant. Four published handlings, four different answers, for one position in the
-gene that dominates latent transcription.
+**The worked example.** The LAT TATA box at reference 118,777 is printed as **109,564**
+in a Szpara-trimmed analysis, **excluded** by Lassalle, and **retained** by Whisnant.
+Three published handlings, three different answers, for one position in the gene that
+dominates latent transcription.
 
-And the two collapsed references are **both exactly 136,376 bp**, which is what makes a
-bare coordinate look safe when it is not. Their offsets differ by -9,213 across most of
-the long segment and by zero after the internal repeat, so no single offset describes
-the relationship.
+**The clearest illustration is a pair with identical intervals.** Szpara and Whisnant
+both act on `TRL` and `TRS`. Szpara removes them, so every downstream coordinate shifts.
+Whisnant masks them and copies the read mappings back, so no coordinate moves. Same two
+intervals, opposite consequences for a printed number.
+
+**And a second problem, orthogonal to the repeats, which review surfaced.**
+`NC_001806.1` is 152,261 bp and `NC_001806.2` is 152,222 bp, and **the offset between
+them is not constant**: roughly 0 near the start, -1 through `UL` and `IRL`, -3 to -5
+near `IRS`, and +39 through most of `TRS`. Morse's NR-reference is built on `.1`. So a
+coordinate can be wrong simply because two papers used two versions of the same
+accession, with no repeat involved at all, and nothing in this repository could detect
+it until now. `morse2017_nr` is therefore recorded with its definition verified and
+**refused for conversion**, because applying it in `.2` space would give confident wrong
+answers.
 
 **Criteria, written before the code, all met** and enforced in
 `tests/test_m5_conventions.py`:
@@ -282,6 +291,16 @@ the relationship.
 - A worked example reconciles one locus across the handlings, above.
 
 **What review corrected, and it is the important part:**
+
+- **Two of the five intervals were wrong.** `whisnant2020_masked` was encoded as `TRL`
+  plus `IRL`, which is both copies of the long repeat and neither of the short. That is
+  impossible, because the paper restores read mappings from the unmasked copy and this
+  encoding leaves none. The sentence immediately before the quoted one settles it: "The
+  HSV-1 genome consists of two components (L and S) that are both flanked by long
+  repeats." It masks `TRL` and `TRS`. `morse2017_nr` over-removed by 399 bases, because
+  their `IRL` block stops before the a-sequence that belongs to the `IRS` block they
+  kept.
+- **The reference-version problem above was invisible to every check here.**
 
 - **`szpara2014_trimmed` was marked unverified and refused, on the strength of one
   failed API call.** The paper is free to read on the publisher's own site, and another
@@ -301,8 +320,15 @@ the relationship.
 
 **Known limits:**
 
-- Five handlings. There are certainly more, and the file is hand-curated rather than
-  generated. Each row carries its source so it can be checked.
+- Five handlings, one of them refused. There are certainly more: review documented five
+  further distinct ones, of which reference-fill and synthetic duplication matter most,
+  because both produce records that look like complete 152 kb data and are not.
+- **No crosswalk between `NC_001806.1` and `.2` exists here**, which is what blocks
+  Morse. Building one is the obvious next piece and would also let the repo detect a
+  class of error it currently cannot see.
+- `lassalle2020_excluded` is transcribed verbatim, but review found it is one of at
+  least three frames in that paper and not the one behind its variant calls. Its numbers
+  are gene boundaries. The row is correct as quoted and narrower than its name suggests.
 - "Convention" is this repository's word, not the field's. Papers say trimmed,
   NR-reference, masked, excluded.
 - The resolver reasons about the reference only. Other strains reach it through M3.

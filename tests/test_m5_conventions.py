@@ -47,6 +47,16 @@ class EveryDefinitionIsSourced(unittest.TestCase):
                 self.assertTrue(len(c.source) > 40,
                                 "an unverified convention must say what was tried")
 
+    def test_whisnant_masks_the_two_terminal_repeats(self):
+        """TRL and TRS, not TRL and IRL.
+
+        The first encoding masked both copies of the long repeat and neither of the
+        short, which is impossible: the paper restores read mappings from the unmasked
+        copy, and that encoding leaves none.
+        """
+        c = self.cs["whisnant2020_masked"]
+        self.assertEqual(sorted(c.intervals), [(1, 9213), (145590, 152222)])
+
     def test_every_convention_is_now_verified(self):
         """All four were read from their own sources in the end.
 
@@ -105,7 +115,8 @@ class RefusesWhatItCannotVerify(unittest.TestCase):
 
     def test_report_marks_an_unverified_convention_unanswerable(self):
         cs = self._with_synthetic_unverified()
-        self.assertIn("synthetic_unverified", cs.report(60000).refused)
+        self.assertIn("synthetic_unverified",
+                      [n for n, _ in cs.report(60000).refused])
 
 
 class DroppingDataIsNotMoving(unittest.TestCase):
@@ -178,8 +189,12 @@ class TheReportAnswersTheQuestion(unittest.TestCase):
         self.assertTrue(any(n == "lassalle2020_excluded"
                             for n, _ in rep.unusable_under))
 
-    def test_nothing_is_refused_now_that_all_four_are_verified(self):
-        self.assertEqual(self.cs.report(60000).refused, [])
+    def test_morse_is_refused_for_a_reference_version_mismatch(self):
+        """Its definition is verified; it is the coordinate space that blocks it."""
+        refused = dict(self.cs.report(60000).refused)
+        self.assertIn("morse2017_nr", refused)
+        self.assertIn("NC_001806.1", refused["morse2017_nr"])
+        self.assertNotIn("has not been read", refused["morse2017_nr"])
 
 
 class WorkedExample(unittest.TestCase):
@@ -231,11 +246,24 @@ class CollapsedReferences(unittest.TestCase):
             with self.subTest(convention=name):
                 self.assertTrue(self.cs[name].changes_coordinates)
 
+    def test_szpara_and_whisnant_act_on_the_same_regions_differently(self):
+        """Both touch TRL and TRS. One removes them, one masks and restores them.
+
+        Same intervals, opposite consequences for a coordinate, which is the clearest
+        illustration of why the intervals alone are not the answer.
+        """
+        sz, wh = self.cs["szpara2014_trimmed"], self.cs["whisnant2020_masked"]
+        self.assertEqual(sorted(sz.intervals), sorted(wh.intervals))
+        self.assertTrue(sz.changes_coordinates)
+        self.assertFalse(wh.changes_coordinates)
+        self.assertIsNone(sz.to_convention(5000))
+        ok, _ = self.cs.usable(5000, "whisnant2020_masked")
+        self.assertTrue(ok)
+
     def test_removed_positions_have_no_coordinate(self):
         sz = self.cs["szpara2014_trimmed"]
         self.assertIsNone(sz.to_convention(5000), "TRL is removed by Szpara")
-        mo = self.cs["morse2017_nr"]
-        self.assertIsNone(mo.to_convention(120000), "IRL is removed by Morse")
+        self.assertIsNone(sz.to_convention(150000), "TRS is removed by Szpara")
 
     def test_round_trip_through_a_collapsed_reference(self):
         failures = []
@@ -270,18 +298,29 @@ class CollapsedReferences(unittest.TestCase):
                       if mo.to_convention(p) is not None}
         self.assertGreater(len(mo_offsets), 1,
                            "Morse removes an internal block, so a single offset cannot "
-                           "describe it")
+                           "describe it, even before the reference-version problem")
 
-    def test_the_two_collapsed_references_disagree(self):
-        """Same length, different content: the sharpest form of the problem."""
-        sz, mo = self.cs["szpara2014_trimmed"], self.cs["morse2017_nr"]
-        self.assertEqual(sz.length(), mo.length(),
-                         "both collapse to the same length, which is what makes a "
-                         "bare number look safe")
-        disagreements = self.cs.offsets_between("szpara2014_trimmed", "morse2017_nr",
-                                                step=5000)
-        self.assertTrue(disagreements,
-                        "two references removing different blocks must disagree")
+    def test_comparing_the_two_collapsed_references_is_refused(self):
+        """They do disagree, but this resolver cannot say by how much.
+
+        Szpara is defined on NC_001806.2 and Morse on NC_001806.1, and those two
+        differ by a non-constant offset. An earlier version of this file computed a
+        -9,213 difference between them and reported both as 136,376 bp, which treated
+        Morse's intervals as though they were .2 coordinates. That is precisely the
+        error the resolver exists to prevent, committed by the resolver.
+        """
+        from hsv1coords import ReferenceVersionMismatch
+        with self.assertRaises(ReferenceVersionMismatch):
+            self.cs.offsets_between("szpara2014_trimmed", "morse2017_nr", step=20000)
+
+    def test_morses_own_stated_length_is_not_reproducible_here(self):
+        """Morse states 136,770 bp. Applying their intervals in .2 gives a different
+        number, which is the symptom of the version mismatch, recorded rather than
+        reconciled."""
+        mo = self.cs["morse2017_nr"]
+        self.assertNotEqual(mo.length(), 136770,
+                            "if this ever matches, a version crosswalk has appeared "
+                            "and this row should be made applicable")
 
     def test_convert_between_two_collapsed_references(self):
         cs = self.cs
@@ -319,13 +358,18 @@ class RepeatCaveats(unittest.TestCase):
 class FourAnswersForOneLocus(unittest.TestCase):
     """The worked example, in its strongest form."""
 
-    def test_the_lat_tata_box_differs_under_every_convention(self):
+    def test_the_lat_tata_box_differs_between_conventions(self):
         cs = ConventionSet.load()
         pos = 118777
         self.assertEqual(cs["szpara2014_trimmed"].to_convention(pos), 109564)
-        self.assertIsNone(cs["morse2017_nr"].to_convention(pos),
-                          "Morse removes IRL, so the LAT TATA box is not in it at all")
         ok_l, _ = cs.usable(pos, "lassalle2020_excluded")
         self.assertFalse(ok_l)
         ok_w, _ = cs.usable(pos, "whisnant2020_masked")
         self.assertTrue(ok_w)
+
+    def test_morse_cannot_be_included_in_the_example(self):
+        """It would remove this position, but saying so needs a version crosswalk."""
+        from hsv1coords import ReferenceVersionMismatch
+        cs = ConventionSet.load()
+        with self.assertRaises(ReferenceVersionMismatch):
+            cs.usable(118777, "morse2017_nr")
