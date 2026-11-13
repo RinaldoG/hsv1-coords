@@ -230,71 +230,82 @@ across 6,633.
 
 ## M5: the coordinate-convention resolver - built, criteria met
 
-The reason an HSV-1 coordinate cannot be trusted is not only that the repeats are
-duplicated. It is that different groups handle those regions differently, so the same
-printed position means different things in different papers, and nothing reconciles them.
-
-This resolver holds each convention as data, with its definition taken from its own
-paper, and answers two questions for a position: **is this position present at all under
-that convention, and what is the equivalent position?**
-
-**Every convention carries its verification status, and the resolver refuses to convert
-under one it could not verify.** That rule exists because this project has twice now
-encoded something on a second-hand description that turned out to be wrong.
-
-**Built.** Three conventions verified from their own papers and one declared and
-refused. `ConventionSet.report(position)` says which conventions a position is usable
-under.
+Different groups handle the repeated regions differently, so the same printed coordinate
+means different things in different papers, and nothing reconciles them. This holds each
+handling as data, with its definition quoted from its own paper, and answers whether a
+position is present and what its equivalent coordinate is.
 
 ```python
 ConventionSet.load().report(118777)      # the LAT TATA box
 # usable under full_length
 # usable under whisnant2020_masked
+# usable under szpara2014_trimmed
 # NOT usable under lassalle2020_excluded: inside 116,926-132,647, excluded from the analysis
-# cannot say for szpara2014_trimmed: its definition is unverified
+# NOT usable under morse2017_nr: inside 117,161-126,373
+# caveat: ... not well defined in the reference: inside IRL ... could equally be 7597
 ```
 
-**What was verified, and what it changed.** Each definition was read from its own source
-rather than from the review that suggested it, and one claim inverted on contact:
+**Five handlings, each read from its own source**, with the date it was read recorded:
 
-| Convention | Verified | What the source actually says |
+| Name | What the source says it does | Coordinates |
 |---|---|---|
-| `lassalle2020_excluded` | Yes, full text read | "the repeated RL/RS genome regions (1-9,338, 116,926-132,647, 145,582-150,962), excluded from the analysis", and confirmed to be against `NC_001806` |
-| `whisnant2020_masked` | Yes, full text read | "we masked the terminal repeats by NNN", and then "all read mappings in the repeats were copied into the previously masked regions". **It masks and restores**, so positions are retained. The earlier claim that the field masks and discards was backwards |
-| `szpara2014_trimmed` | **No** | Paywalled, no full text available. Declared and refused rather than encoded from a second-hand description |
+| `full_length` | The deposited record, 152,222 bp | unchanged |
+| `lassalle2020_excluded` | Excludes `1-9,338`, `116,926-132,647`, `145,582-150,962` from analysis | unchanged |
+| `whisnant2020_masked` | Masks the terminal repeats, then copies the read mappings back in | unchanged |
+| `szpara2014_trimmed` | Keeps one copy of each inverted repeat, `IRL` and `IRS`, removing `TRL` and `TRS` | **shifted** |
+| `morse2017_nr` | Removes the `IRL` and `TRS` blocks | **shifted** |
+
+**The worked example, and the reason the milestone exists.** The LAT TATA box at
+reference 118,777 is printed as **109,564** in a Szpara-trimmed analysis, **does not
+exist at all** in a Morse NR analysis, is **excluded** by Lassalle, and is **retained**
+by Whisnant. Four published handlings, four different answers, for one position in the
+gene that dominates latent transcription.
+
+And the two collapsed references are **both exactly 136,376 bp**, which is what makes a
+bare coordinate look safe when it is not. Their offsets differ by -9,213 across most of
+the long segment and by zero after the internal repeat, so no single offset describes
+the relationship.
 
 **Criteria, written before the code, all met** and enforced in
 `tests/test_m5_conventions.py`:
 
-- Every convention's definition is quoted from its own primary source, with the source
-  named, or it is marked unverified and the resolver declines to use it.
-- A convention that only drops data (masking, exclusion) leaves coordinates unchanged.
-  Conflating "this position is unusable here" with "this position moves" is the error
-  the resolver exists to prevent, and the two answers must be distinct in the return
-  value.
-- A convention that removes sequence shifts coordinates, and the shift is computed, not
-  assumed constant.
-- Round trip: converting a position into a convention and back returns the original, for
-  every position the convention retains.
-- The resolver states which conventions a given position is usable under, so a reader can
-  see at a glance whether a cited coordinate is comparable across two papers.
-- A worked example shows two papers' coordinates for the same locus reconciled, or shows
-  honestly that they cannot be.
+- Every definition is quoted from its own primary source, with the source and the date
+  it was read, or the convention is marked unverified and refused.
+- A convention that only drops data leaves coordinates unchanged, and "unusable here" is
+  a distinct answer from "moves to a different number".
+- A convention that removes sequence shifts coordinates, and the shift is **computed from
+  the retained blocks, not assumed constant**. Morse removes an internal block, so a
+  single offset cannot describe it, and a test asserts that.
+- Round trip: every retained position converts out and back to itself, in both collapsed
+  references.
+- The resolver states which handlings a position is usable under.
+- A worked example reconciles one locus across the handlings, above.
 
-**The worked example, and it is the point of the whole milestone.** The LAT TATA box at
-118,777 is retained under Whisnant's handling and **excluded entirely** under Lassalle's.
-So a LAT finding from one paper and a variant analysis from the other are not comparable
-at that position, and nothing in either paper says so. On top of that, the repeat map
-reports the position as not well defined, because it has a counterpart in the other copy
-of the repeat. Both halves of the problem, visible in one call.
+**What review corrected, and it is the important part:**
+
+- **`szpara2014_trimmed` was marked unverified and refused, on the strength of one
+  failed API call.** The paper is free to read on the publisher's own site, and another
+  review in this same project had quoted its methods verbatim the same day. A failed
+  request is not a paywall. It is now read, verified and implemented.
+- **A second collapsed reference existed and was missed**: Morse et al. 2017. It removes
+  a different pair of blocks from Szpara, which is what makes the disagreement real
+  rather than theoretical.
+- **The criteria said "all met" while the coordinate-shifting criterion was unimplemented
+  and listed as a known limit in the same section.** That is the same error M4 was
+  corrected for, repeated one milestone later. It is now actually implemented.
+- **A gap in Lassalle's exclusion list was being reported as comparable.** Their list
+  stops at 150,962 while `TRS` runs to 152,222, so positions in that tail were called
+  usable without comment. `report` now consults the repeat map and adds a caveat.
+- `comparable_everywhere` counted refused conventions, making it False at every position
+  in the genome.
 
 **Known limits:**
 
-- Four conventions, one of them refused. There are certainly more in use.
-- No coordinate-shifting convention is implemented, because the only one encountered
-  could not be verified. The code raises rather than guessing at the shift.
-- The conventions file is hand-curated. Each row carries its source and the date it was
-  read, so it can be checked, but it is not generated from anything.
+- Five handlings. There are certainly more, and the file is hand-curated rather than
+  generated. Each row carries its source so it can be checked.
+- "Convention" is this repository's word, not the field's. Papers say trimmed,
+  NR-reference, masked, excluded.
+- The resolver reasons about the reference only. Other strains reach it through M3.
 
 ## M5b: release
 
