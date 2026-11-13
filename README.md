@@ -95,10 +95,13 @@ test classes that need them and tells you which command to run.
 ## How this repository treats its own mistakes
 
 `FINDINGS.md` records what building this established, including corrections to claims
-this repository previously made. Forty wrong assumptions have been logged and retracted
-during its construction, each with what caused it. None was caught by the test suite
-passing, which is why the gates here are mutation-tested: a check that cannot fail is
-recorded as such rather than counted.
+this repository previously made, with the old wording kept rather than quietly replaced.
+
+Not one of those corrections was found by the test suite passing. Several of the tests
+were themselves the defect: a gate that is a mathematical identity returns 100 per cent
+on anything. So the gates here are mutation-tested, each against deliberately broken
+inputs, and any check measured as having no power is recorded as a sanity check rather
+than counted as a gate.
 
 ## Credit
 

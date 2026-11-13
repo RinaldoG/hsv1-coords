@@ -1,8 +1,14 @@
 # Findings from the inputs themselves
 
-Facts established by running `make check` against the deposited records, not taken from a
-paper or a search result. Each is asserted in `src/check_inputs.py`, so if one stops
-holding, continuous integration fails.
+Facts established against the deposited records, not taken from a paper or a search
+result.
+
+The eight facts in the first four sections are asserted in `src/check_inputs.py` and fail
+continuous integration if they stop holding. The later sections record corrections and
+measurements that are not all gated that way; where a figure is gated, it is gated by
+`tests/test_docs_match_artefacts.py`, which fails when a number here stops matching the
+artefact it describes. This paragraph previously claimed every fact in the file was
+asserted in `check_inputs.py`, which was never true of the sections added after it.
 
 Checked 13 November 2026.
 
@@ -67,8 +73,8 @@ not done.
 Doelken (submitted 7 November 2019, released 7 November 2020), citing Whisnant et al.,
 "Integrative functional genomics decodes herpes simplex virus 1", *Nature Communications*
 11(1):2038, 2020, PMID 32341360. Its `COMMENT` block states outright that it uses data
-from `JN555585.1`, which this repository has separately confirmed is byte-identical to
-`NC_001806.2`.
+from `JN555585.1`, which this repository has separately confirmed holds a sequence
+identical to `NC_001806.2`.
 
 **So the "77 CDS against 300 CDS on identical bases" is not two laboratories disagreeing.**
 It is the 2018 RefSeq annotation against the 2020 re-annotation, correctly deposited as TPA
@@ -169,7 +175,7 @@ and all recorded here rather than quietly corrected.
 | The truncated copy is clipped "by where the linear record happens to begin" | It is clipped by linearising a circular genome; the remainder is in `TRS` at the other end |
 | "No machine-readable dictionary says `UL48`, `VP16` and `alpha-TIF` are one gene" | UniProt `P06492` does, and this repository's own alias table cites it |
 | Four records of strain "B" spanning 3,421 bp, described as legitimate isomer variation | Inversion preserves length, so that spread is assembly disagreement. The single label was this repository's regex truncating `B^3x1.1A` |
-| Three genomes "in a different isomer orientation", unmappable | They are opposite-strand deposits with a rotated start. Reverse complemented, they map at 85.8, 94.7 and 99.4 per cent. The one real segmental isomer is `ON783215.1` |
+| Three genomes "in a different isomer orientation", unmappable | They are opposite-strand deposits with a rotated start. Reverse complemented, they map at 79.40, 79.67 and 69.87 per cent. The one real segmental isomer is `ON783215.1` |
 | A coordinate cited against KOS is "ambiguous across 987 bp" | That was a length difference, not a coordinate offset. The measured offset between the two plain-KOS records runs from -79 to -887 bp depending on position. Two of the four KOS deposits are a deliberate KOS and KOS1.1 pair with published provenance markers (Colgrove et al., *Virology* 2016;487:215-221) |
 | `asm5` as the alignment preset | Too strict for 0.7 to 1.3 per cent divergence. `asm10` raises the median mappable fraction from 98.08 to 98.84 per cent |
 | A position 900 bp into `OP297884.1` resolved to 151,879 | A cross-repeat placement, and a genuinely wrong coordinate. Blocks are now chained to be monotonic, and that position declines |

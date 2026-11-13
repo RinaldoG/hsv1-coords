@@ -184,8 +184,10 @@ marked partial where the two copies differ in length.
 and likewise `IRS` and `TRS`, was checked base by base at every position in both pairs:
 **15,846 of 15,846 reverse-complementary, no mismatches.** The alternatives are decisively
 excluded, since a one-base offset or a direct-orientation reading both score 29 to 38 per
-cent. `TRL` and `IRL` are byte-identical across all 9,213 bases, as are `IRS` and `TRS`
-across 6,633.
+cent. `TRL` and `IRL` are exact reverse complements across all 9,213 bases, as are `IRS`
+and `TRS` across 6,633. They are not identical read in the same direction: a
+direct-orientation comparison scores about 31 per cent, which is why the inversion
+matters.
 
 **What the review corrected:**
 
@@ -357,8 +359,11 @@ NOT usable under morse2017_nr: inside 117,160-125,973
 
 **Criteria, met** and enforced in `tests/test_m5_conventions.py`:
 
-- Round trip returns the original coordinate for every mapped position.
-- **Mapped bases agree in sequence**, and the check is **mutation-tested**: ten
+- Round trip returns the original coordinate for every mapped position. This is a
+  structural invariant rather than a test of correctness: blocks are non-overlapping
+  in both coordinates by construction, so it holds for a wrong crosswalk too. The
+  gates below are what test the mapping.
+- **Mapped bases agree in sequence**, and the check is **mutation-tested**: twelve
   deliberately broken crosswalks, with an assertion that none survives the gates and the
   structural invariants together, and another that every remaining gate is the sole
   catcher of at least one mutant. Genome-wide identity was measured as strictly subsumed

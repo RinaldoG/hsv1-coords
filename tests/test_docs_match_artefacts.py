@@ -29,7 +29,39 @@ def text(name: str) -> str:
 
 
 def all_docs() -> str:
-    return "\n".join(text(d) for d in DOCS)
+    """All four documents, with whitespace flattened.
+
+    Markdown wraps prose, so a figure and its noun are routinely split across a line
+    break and an indent. Matching on the raw text made several checks silently
+    unsatisfiable: they looked strict and could never find a correct value either.
+    """
+    import re as _re
+    return _re.sub(r"\s+", " ", "\n".join(text(d) for d in DOCS))
+
+
+def docs_stating(pattern: str) -> list[str]:
+    """Which documents mention a figure at all."""
+    import re as _re
+    return [d for d in DOCS if _re.search(pattern, text(d))]
+
+
+def assert_no_doc_contradicts(case, label: str, correct: str, wrong: list[str]) -> None:
+    """Fail if any single document still carries a superseded figure.
+
+    The first version of this module asserted only that the CORRECT value appeared
+    somewhere in the four documents concatenated. Each figure is stated in two to four
+    of them, so changing one copy left the check green: it caught rebuild drift, where
+    an artefact moves and the prose does not, and missed editing drift, which is the
+    failure mode of every review round so far. Checking for the absence of known-wrong
+    values is what catches that.
+    """
+    import re as _re
+    for doc in DOCS:
+        body = text(doc)
+        for bad in wrong:
+            # Word-bounded, so "2 diploid locus pairs" does not match inside "32 ...".
+            if _re.search(r"(?<![\d.])" + _re.escape(bad), body):
+                case.fail(f"{doc} still states {bad} for {label}; it is {correct}")
 
 
 class FiguresMatch(unittest.TestCase):
@@ -39,8 +71,56 @@ class FiguresMatch(unittest.TestCase):
         docs = all_docs()
         self.assertIn(f"{len(m.pairs)} diploid locus pairs", docs,
                       f"the documents do not state the live pair count of {len(m.pairs)}")
-        self.assertRegex(docs, rf"{partial} of them\s*\n?\s*marked partial",
+        self.assertRegex(docs, rf"{partial} of them\s*marked partial",
                          f"the live partial-pair count is {partial}")
+        assert_no_doc_contradicts(
+            self, "diploid pairs", f"{len(m.pairs)}",
+            [f"{n} diploid locus pairs" for n in range(1, 60) if n != len(m.pairs)])
+        assert_no_doc_contradicts(
+            self, "partial pairs", f"{partial}",
+            [f"{n} of them marked partial" for n in range(1, 20) if n != partial])
+
+    def test_no_document_carries_a_superseded_coverage_figure(self):
+        """FINDINGS.md kept 85.8/94.7/99.4 through two rounds that named the line."""
+        path = ROOT / "data" / "derived" / "crosswalk_coverage.tsv"
+        if not path.exists():
+            self.skipTest("crosswalk coverage not built; run `make crosswalk`")
+        with path.open() as fh:
+            live = {r["accession"]: r["mapped_percent"]
+                    for r in csv.DictReader(fh, delimiter="\t")
+                    if r.get("orientation") == "reverse_complemented"}
+        superseded = ["85.8", "94.7", "99.4"]
+        for doc in DOCS:
+            body = text(doc)
+            for bad in superseded:
+                if bad in body and bad not in live.values():
+                    self.fail(f"{doc} still carries the superseded figure {bad}; the "
+                              f"live values are {sorted(live.values())}")
+
+    def test_the_mutant_count_matches_the_mutants(self):
+        """A line rewritten to fix one figure introduced another."""
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "t_m5", ROOT / "tests" / "test_m5_conventions.py")
+        mod = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(mod)
+        except Exception:
+            self.skipTest("test module needs fetched inputs to import")
+        from hsv1coords import VersionCrosswalk
+        v = VersionCrosswalk.load(ROOT / "data" / "derived" / "version_crosswalk.tsv")
+        n = len(mod.VersionCrosswalkGate._mutants(v.blocks))
+        docs = all_docs().lower()
+        words = {10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen"}
+        forms = {str(n), words.get(n, str(n))}
+        self.assertTrue(
+            any(f"{f} deliberately broken crosswalks" in docs for f in forms),
+            f"the suite builds {n} mutants and no document says so")
+        for other, word in words.items():
+            if other == n:
+                continue
+            self.assertNotIn(f"{word} deliberately broken crosswalks", docs,
+                             f"a document states {other} mutants; there are {n}")
 
     WORDS = {5: "five", 9: "nine", 22: "22"}
 
@@ -113,24 +193,6 @@ class ClaimsMatchBehaviour(unittest.TestCase):
         for phrase in ("mask is not built yet", "is not built yet"):
             self.assertNotIn(phrase, readme,
                              "every component listed in the table below is built")
-
-    def test_the_retraction_log_is_referenced_and_present(self):
-        parent = ROOT.parent / "PITFALLS.md"
-        if not parent.exists():
-            self.skipTest("PITFALLS.md lives in the private parent folder")
-        body = parent.read_text()
-        roots = len(re.findall(r"^### ", body, re.M))
-        rows = [l for l in body.splitlines()
-                if l.startswith("| ") and not l.startswith("|---")
-                and not re.match(r"\|\s*(Claim|Gate|Instance|What was wrong|"
-                                 r"Earlier claim)\s*\|", l)]
-        self.assertIn(f"**{roots} root causes**", body,
-                      f"the stated root-cause count does not match the {roots} "
-                      f"headings in the file")
-        self.assertIn(f"**{len(rows)} retracted claims", body,
-                      f"the stated tabulated count does not match the {len(rows)} "
-                      f"rows in the file")
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

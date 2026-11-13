@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Align every complete genome to the reference and build the coordinate crosswalk (M3).
 
-Each genome is aligned to `NC_001806.2` with minimap2 (`asm5`, with `--cs`), and the
+Each genome is aligned to `NC_001806.2` with minimap2 (the preset in `PRESET`,
+with `--cs`), and the
 alignment is reduced to a list of ungapped blocks: (query_start, target_start, length).
 A lift-over is then a search over those blocks.
 
@@ -43,10 +44,10 @@ RAW = ROOT / "data" / "raw"
 DERIVED = ROOT / "data" / "derived"
 CROSSWALK = DERIVED / "crosswalk"
 REFERENCE = "NC_001806.2"
-# asm5 is documented for about 0.1 per cent divergence. HSV-1 strains differ by 0.7 to
+# `asm5` is documented for about 0.1 per cent divergence. HSV-1 strains differ by 0.7 to
 # 1.3 per cent in substitutions and more with indels, so asm5 was too strict and lost
 # real alignments: measured on this corpus, moving to asm10 raises the median mappable
-# fraction from 98.08 to 98.86 per cent and takes the genomes below 95 per cent from 13
+# fraction from 98.08 to 98.84 per cent and takes the genomes below 95 per cent from 13
 # to 8.
 PRESET = "asm10"
 
