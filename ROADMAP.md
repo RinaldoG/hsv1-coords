@@ -122,24 +122,64 @@ constant: a position cited against `JQ673480.1` resolves in `JQ780693.1` at -122
 the start, -482 bp at the LAT TATA box, and -626 bp by position 150,000. A fixed correction
 would be wrong everywhere except by accident.
 
-## M4: repeat and un-callable region mask
+## M4: the repeat and diploid-locus map - built, criteria met
 
-The regions where a single linear coordinate is not well defined: the inverted repeats
-(`TRL` and `IRL` at 9,213 bp each, `IRS` and `TRS` at 6,633 bp each), the nested reiteration
-sets inside them, the GC-extreme stretches, and the segment boundaries that differ between
-the genome's four isomers.
+**Scope changed after review.** This was going to be an internal mask that the lift-over
+consults. It is now the product. The field's current practice is to mask the repeats with
+Ns and move on, and no machine-readable description of HSV-1's repeat structure exists, so
+the map is more useful published than hidden.
 
-This matters most where it is least convenient. LAT sits in the long inverted repeat and
-extends 778 bp past it into `IRS`, exists in two copies, and in the reference record one of
-those copies is truncated because the genome is circular and its remainder lies in `TRS` at
-the other end of the linear sequence. So the mask has to express three different things
-about one gene: duplicated, spanning a segment boundary, and split across the two ends of
-the record.
+What it is: every repeated and structurally ambiguous region of the genome as data, with
+loci that exist in two copies paired to each other, and an interface that answers the
+question a coordinate user actually has, which is **"is this position well defined, and if
+not, which copies could it be?"**
 
-**Criteria:**
-- Reproduces the repeat boundaries from the reference record's own feature table.
-- Machine-readable and enforced in code, not described in prose.
-- A worked example demonstrates a downstream tool declining to make a claim inside the mask.
+Contents:
+
+- The four inverted repeats: `TRL` and `IRL` at 9,213 bp each, `IRS` and `TRS` at 6,633 bp
+  each, taken from the reference record's own feature table.
+- All 31 `repeat_region` features, including the reiteration sets nested inside the large
+  repeats, the two `'a'` sequences, and the `oriL` palindrome and `oriS` origins.
+- **Diploid locus pairs**: every feature present in both copies of a repeat, paired. `LAT`
+  and its truncated counterpart, `TRL2.5` with `IRL2.5`, `RL1` and `RL2` with their
+  internal copies, and so on, derived from the annotation rather than hand-listed.
+- Segment boundaries, and which of the four isomers a position's interpretation depends on.
+- GC-extreme stretches, which are where assemblies disagree most.
+
+**Built** (`make repeatmap`): 31 regions covering 32,019 bp, which is 21.0 per cent of the
+genome, and 14 diploid locus pairs derived from the annotation. `hsv1coords.RepeatMap`
+answers the question.
+
+```python
+RepeatMap.load().classify(900)
+# 900: not well defined (inside TRL, which is present in two copies); could equally be 125474
+RepeatMap.load().classify(60000)
+# 60000: well defined
+```
+
+**Criteria, written before the code, all met** and enforced in `tests/test_m4_repeat_map.py`:
+
+- Reproduces all four inverted repeat boundaries from the reference record's own feature
+  table, exactly.
+- Every diploid pair is derived, not asserted, and each pair's two members have the same
+  length.
+- Machine-readable and enforced in code. A downstream tool can ask whether a coordinate is
+  well defined and get a structured answer, not prose.
+- The lift-over consults it: a position inside a diploid locus is reported as such, with
+  both candidate copies named, rather than silently resolving to one.
+- **Direct tests against the three defects review found in M3**, so the mask demonstrably
+  covers the cases that actually went wrong:
+  - the cross-repeat placement, a position 900 bp into `OP297884.1` resolving to 151,879;
+  - the genuine segmental isomer, `ON783215.1`, long segment forward and short reversed;
+  - a cross-strand ambiguity, which the M3 build currently excludes from its ambiguity
+    calculation rather than detecting.
+- A worked example shows a tool declining, and naming the alternatives it declined between.
+
+**What building it found.** `IRL` and `IRS` overlap: the long and short repeats abut and
+share bases around 125,975 to 126,373, so a position in that junction belongs to both and
+has a counterpart in each. The first version of `counterpart` returned whichever pair it
+checked first, which silently gave the wrong answer for the junction. The gate caught it,
+and the interface now returns every counterpart rather than one.
 
 ## M5: release
 

@@ -1,6 +1,6 @@
-.PHONY: all inputs genomes names aliases annotation crosswalk testcases check test clean
+.PHONY: all inputs genomes names aliases annotation crosswalk repeatmap testcases check test clean
 
-all: inputs genomes names aliases annotation crosswalk testcases check test
+all: inputs genomes names aliases annotation crosswalk repeatmap testcases check test
 
 inputs:        ## fetch and checksum every input into data/raw
 	python3 -I src/fetch_inputs.py
@@ -19,6 +19,9 @@ annotation:    ## build the classed, sourced, versioned annotation table
 
 crosswalk:     ## align every genome to the reference and build the coordinate blocks
 	python3 -I src/build_crosswalk.py
+
+repeatmap:     ## build the repeat and diploid-locus map
+	python3 -I src/build_repeat_map.py
 
 testcases:     ## regenerate the machine-readable synonymy test cases from the prose doc
 	python3 -I src/build_testcases.py

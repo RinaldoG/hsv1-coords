@@ -47,6 +47,7 @@ jobs:
           make aliases
           make annotation
           make crosswalk
+          make repeatmap
           make testcases
 
       - name: Fail if any rebuilt file differs from what is committed

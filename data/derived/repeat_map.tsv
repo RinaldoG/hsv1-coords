@@ -1,0 +1,32 @@
+name	kind	start	end	length	notes
+'a' sequence	repeat_region	1	399	399	'a' sequence
+TRL	repeat_region	1	9213	9213	TRL; inverted repeat flanking UL
+'a' sequence reiteration set	repeat_region	98	320	223	'a' sequence reiteration set
+RL reiteration set 4	repeat_region	5732	5878	147	RL reiteration set 4
+RL reiteration set 3	repeat_region	8554	8585	32	RL reiteration set 3
+RL reiteration set 2	repeat_region	8806	8826	21	RL reiteration set 2
+RL reiteration set 1	repeat_region	9033	9213	181	RL reiteration set 1
+oriL palindrome	stem_loop	62404	62547	144	oriL palindrome
+UL reiteration set 1	repeat_region	71604	71814	211	UL reiteration set 1
+RL reiteration set 1	repeat_region	117160	117341	182	RL reiteration set 1
+IRL	repeat_region	117161	126373	9213	IRL; inverted repeat flanking UL
+RL reiteration set 2	repeat_region	117548	117568	21	RL reiteration set 2
+RL reiteration set 3	repeat_region	117789	117820	32	RL reiteration set 3
+RL reiteration set 4	repeat_region	120496	120642	147	RL reiteration set 4
+RL reiteration set 5	repeat_region	123750	123908	159	RL reiteration set 5
+RL reiteration set 6	repeat_region	125334	125386	53	RL reiteration set 6
+'a' sequence	repeat_region	125975	126373	399	'a' sequence
+IRS	repeat_region	125975	132607	6633	IRS; inverted repeat flanking US
+'a' sequence reiteration set	repeat_region	126054	126276	223	'a' sequence reiteration set
+RS reiteration set 1	repeat_region	126573	126712	140	RS reiteration set 1
+RS reiteration set 2	repeat_region	126813	127145	333	RS reiteration set 2
+oriS palindrome	stem_loop	131980	132024	45	oriS palindrome
+US reiteration set 1	repeat_region	143716	143868	153	US reiteration set 1
+US reiteration set 2	repeat_region	144787	145003	217	US reiteration set 2
+TRS	repeat_region	145590	152222	6633	TRS; inverted repeat flanking US
+RS reiteration set 3	repeat_region	145681	145806	126	RS reiteration set 3
+oriS palindrome	stem_loop	146173	146217	45	oriS palindrome
+RS reiteration set 2	repeat_region	151052	151384	333	RS reiteration set 2
+RS reiteration set 1	repeat_region	151486	151624	139	RS reiteration set 1
+'a' sequence	repeat_region	151824	152222	399	'a' sequence
+'a' sequence reiteration set	repeat_region	151921	152143	223	'a' sequence reiteration set
