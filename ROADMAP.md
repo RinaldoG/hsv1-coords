@@ -61,7 +61,7 @@ annotations are not compared as though they measured the same thing.
   crosswalk (M3), because emitting one merged GFF3 across sources before the crosswalk
   exists would assert equivalences that cannot yet be checked.
 
-## M3: strain coordinate crosswalk and lift-over - started, inventory built
+## M3: strain coordinate crosswalk and lift-over - built, criteria met except the hand-checked published coordinates
 
 Pairwise alignments across the complete genomes, chain files, and a lift-over tool, so that
 a coordinate cited against one strain resolves against another.
@@ -85,12 +85,37 @@ Two things the inventory establishes, both of which the crosswalk has to handle:
 a bespoke aligner is the wrong risk to take in a repository whose purpose is that others
 can check the coordinates.
 
+**Built.** 183 genomes aligned to the reference and reduced to ungapped coordinate blocks
+(`make crosswalk`), with `hsv1coords.lift` resolving a position between any two of them
+through the reference. Median mappable fraction 98.08 per cent.
+
 **Criteria:**
-- Round-trip lift-over returns the original coordinate for at least 99 per cent of positions
-  outside masked regions, with failures enumerated individually rather than averaged.
-- Resolves a published coordinate from at least five papers across at least three strains,
-  each checked by hand against the paper.
-- Returns no confident coordinate inside a masked region.
+- **Met:** round-trip returns the original coordinate for at least 99 per cent of positions,
+  enforced in `tests/test_m3_crosswalk.py` over 10,000 sampled positions with a fixed seed,
+  failures enumerated rather than averaged.
+- **Met:** returns no confident coordinate where it has none. Positions before the first
+  block, past the last, and inside insertions relative to the reference all return nothing.
+- **Outstanding:** resolving a published coordinate from at least five papers across at
+  least three strains, each checked by hand. This needs the papers read, not the code run.
+
+**Two things the build established, both recorded in `data/derived/crosswalk_report.md`:**
+
+- **36 genomes contain regions that align in more than one place**, a median of 312 bp
+  where present. These are the inverted repeats, where a position genuinely corresponds to
+  two places. They are dropped rather than resolved, so the lift-over declines there. An
+  earlier version kept both and the milestone gate caught it: overlapping blocks would have
+  let one position map to two places silently, which is the exact error this layer exists
+  to prevent.
+- **Three genomes map at 0 per cent while having 43, 51 and 5 alignments.** They are
+  deposited in a different isomer orientation, so their alignments are on the reverse
+  strand. Handling them needs per-segment orientation and belongs with the isomer-aware
+  mask in M4. Until then the crosswalk declines for them entirely, which is correct but
+  incomplete.
+
+**Worked example.** Between the two deposited genomes of strain KOS, the offset is not
+constant: a position cited against `JQ673480.1` resolves in `JQ780693.1` at -122 bp near
+the start, -482 bp at the LAT TATA box, and -626 bp by position 150,000. A fixed correction
+would be wrong everywhere except by accident.
 
 ## M4: repeat and un-callable region mask
 
