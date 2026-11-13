@@ -6,7 +6,7 @@ as such rather than relaxed.
 
 ## M0: inputs and skeleton - done
 
-Eight inputs fetched and checksummed into `data/raw/MANIFEST.tsv`, with a gate
+Nine inputs fetched and checksummed into `data/raw/MANIFEST.tsv`, with a gate
 (`make check`) that asserts the facts the rest of the work depends on rather than assuming
 them. See `FINDINGS.md` for what the gate established, including one correction to the
 premise this repository started from.
@@ -258,8 +258,7 @@ ConventionSet.load().report(118777)      # the LAT TATA box
 | `szpara2014_trimmed` | Keeps one copy of each inverted repeat, `IRL` and `IRS`, removing `TRL` and `TRS` | **shifted** |
 | `morse2017_nr` | Removes the `IRL` and `TRS` blocks, leaving four records (`RL`, `UL`, `RS`, `US`) | **a record and a position**, like `UL:50787`, and defined on `NC_001806.1`, so translated through the version crosswalk (M6) |
 
-**The worked example.** The LAT TATA box at reference 118,777 is printed as **109,564**
-in a Szpara-trimmed analysis, **excluded** by Lassalle, and **retained** by Whisnant.
+**The worked example.** The LAT TATA box at reference 118,777 is printed as 109,564 in a Szpara-trimmed analysis, **excluded** by Lassalle, and **retained** by Whisnant.
 Three published handlings, three different answers, for one position in the gene that
 dominates latent transcription.
 
@@ -372,6 +371,31 @@ NOT usable under morse2017_nr: inside 117,160-125,973
   measured a property of DNA, not of the gate.
 - The offset is demonstrated non-constant, which is the justification for the component
   existing at all.
+
+## M7: the documentation gate - built, with its coverage stated
+
+Six review rounds found stale figures in the documents. Each round's fix corrected the
+lines that round quoted, and the next round found more, including in lines already named.
+Round 6 changed one figure in one document ninety times and five turned the suite red.
+
+`src/hsv1coords/facts.py` derives each load-bearing figure from its artefact and records
+the phrasings the documents use for it. `tests/test_docs_match_artefacts.py` fails when
+any document states a different value for one of them.
+
+**What it covers, honestly.** 25 figures are derived and 18 are currently stated in the
+documents and therefore gated. The test prints both numbers on every run, so the coverage
+is visible rather than implied.
+
+**What it cannot cover, and why.** A figure is pinned by a distinctive phrase following
+it. Numbers carrying a generic unit, "bp", "bases", "per cent", cannot be pinned this
+way: the documents contain hundreds of them and a phrase match on the unit alone flags
+every other number as a contradiction. A mutation sweep against arbitrary numbers in the
+documents therefore still passes, and that is a real limit, not a solved problem.
+
+What is gated: every count derived from an artefact, the genome length, the long repeat
+length, the mappable fraction, and each reverse-complemented genome's coverage, which is
+the figure that survived three rounds wrong. What is not: coordinates quoted from papers,
+illustrative values, and figures stated only with a bare unit.
 
 ## M5b: release
 

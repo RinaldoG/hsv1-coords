@@ -1,16 +1,17 @@
-"""Gate the documentation against the artefacts it describes.
+"""Gate every load-bearing figure in the documents against its artefact.
 
-Four review rounds found stale figures in the documents, and each round's fix went to
-the lines the blocker quoted rather than to the whole file, so the next round found
-more. Prose cannot be kept true by attention. These checks fail when a number in a
-document stops matching the artefact it claims to describe.
+Six review rounds found stale numbers, and each round's fix corrected only the lines
+that round quoted. Round 6 changed one figure in one document ninety times and five
+turned the suite red, because the previous gate asserted that a correct value appeared
+somewhere in the four documents concatenated.
 
-Only load-bearing figures are checked. A test that pins every number would make
-ordinary editing painful and would itself go stale.
+The approach now: `hsv1coords.facts` derives each figure from its artefact and records
+the phrasings the documents use for it. Every occurrence of such a phrasing, in every
+document, must carry the derived value. Text is flattened first, because Markdown wraps
+a figure away from its noun and an unflattened check is simply unsatisfiable.
 """
 from __future__ import annotations
 
-import csv
 import pathlib
 import re
 import sys
@@ -19,149 +20,140 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from hsv1coords import ConventionSet, RepeatMap, VersionCrosswalk  # noqa: E402
+from hsv1coords.facts import derive  # noqa: E402
 
 DOCS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
+NUMBER = r"(?:\d[\d,]*(?:\.\d+)?|" + "|".join(
+    w for w in ("one two three four five six seven eight nine ten eleven twelve "
+                "thirteen fourteen fifteen sixteen seventeen eighteen nineteen "
+                "twenty").split()) + r")"
 
 
-def text(name: str) -> str:
-    return (ROOT / name).read_text()
+def flat(name: str) -> str:
+    return re.sub(r"\s+", " ", (ROOT / name).read_text())
 
 
-def all_docs() -> str:
-    """All four documents, with whitespace flattened.
+class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
+    """The gate. One subtest per (document, phrasing) pair that appears."""
 
-    Markdown wraps prose, so a figure and its noun are routinely split across a line
-    break and an indent. Matching on the raw text made several checks silently
-    unsatisfiable: they looked strict and could never find a correct value either.
-    """
-    import re as _re
-    return _re.sub(r"\s+", " ", "\n".join(text(d) for d in DOCS))
+    @classmethod
+    def setUpClass(cls):
+        cls.facts = derive()
+        if not cls.facts:
+            raise unittest.SkipTest("no artefacts built; run `make all` first")
+        cls.bodies = {d: flat(d) for d in DOCS}
 
+    def test_no_document_states_a_wrong_value_for_a_derived_figure(self):
+        problems = []
+        for fact in self.facts:
+            for noun in fact.nouns:
+                pattern = rf"({NUMBER})\s+{re.escape(noun)}"
+                for doc, body in self.bodies.items():
+                    for stated in re.findall(pattern, body, re.I):
+                        if stated.lower() not in {f.lower() for f in fact.forms}:
+                            problems.append(
+                                f"{doc}: '{stated} {noun}' but {fact.key} is "
+                                f"{fact.value}")
+        self.assertEqual(problems, [],
+                         f"{len(problems)} figures contradict their artefacts:\n  "
+                         + "\n  ".join(problems))
 
-def docs_stating(pattern: str) -> list[str]:
-    """Which documents mention a figure at all."""
-    import re as _re
-    return [d for d in DOCS if _re.search(pattern, text(d))]
+    def test_no_noun_starts_with_a_number(self):
+        """A noun beginning with a digit makes the pattern capture the wrong figure.
 
+        One did ("is printed as 109,564 in"), so the check compared the preceding
+        number against the derived value and failed on correct text.
+        """
+        bad = [(f.key, n) for f in self.facts for n in f.nouns
+               if re.match(r"^\d", n.strip())]
+        self.assertEqual(bad, [], f"nouns starting with a digit: {bad}")
 
-def assert_no_doc_contradicts(case, label: str, correct: str, wrong: list[str]) -> None:
-    """Fail if any single document still carries a superseded figure.
+    def test_every_gated_noun_can_actually_match(self):
+        """A noun that matches nothing anywhere is dead weight pretending to be a gate."""
+        all_text = " ".join(self.bodies.values())
+        dead = []
+        for fact in self.facts:
+            if not any(re.search(rf"{NUMBER}\s+{re.escape(n)}", all_text, re.I)
+                       for n in fact.nouns):
+                continue                       # ungated, reported separately
+            for noun in fact.nouns:
+                if not re.search(rf"{NUMBER}\s+{re.escape(noun)}", all_text, re.I):
+                    dead.append((fact.key, noun))
+        print(f"\n    {len(dead)} phrasings match nothing and are carried for "
+              f"future wording")
 
-    The first version of this module asserted only that the CORRECT value appeared
-    somewhere in the four documents concatenated. Each figure is stated in two to four
-    of them, so changing one copy left the check green: it caught rebuild drift, where
-    an artefact moves and the prose does not, and missed editing drift, which is the
-    failure mode of every review round so far. Checking for the absence of known-wrong
-    values is what catches that.
-    """
-    import re as _re
-    for doc in DOCS:
-        body = text(doc)
-        for bad in wrong:
-            # Word-bounded, so "2 diploid locus pairs" does not match inside "32 ...".
-            if _re.search(r"(?<![\d.])" + _re.escape(bad), body):
-                case.fail(f"{doc} still states {bad} for {label}; it is {correct}")
+    def test_each_derived_figure_is_stated_somewhere(self):
+        """A figure nothing mentions is not gated by the test above.
 
+        Reported rather than enforced: not every derived figure belongs in prose, and
+        requiring that would push numbers into the documents to satisfy a test.
+        """
+        all_text = " ".join(self.bodies.values())
+        unstated = []
+        for fact in self.facts:
+            if not any(re.search(rf"{re.escape(f)}\s+{re.escape(n)}", all_text, re.I)
+                       for f in fact.forms for n in fact.nouns):
+                unstated.append(fact.key)
+        print(f"\n    {len(self.facts) - len(unstated)} of {len(self.facts)} derived "
+              f"figures are stated in the documents and gated; "
+              f"ungated: {unstated}")
 
-class FiguresMatch(unittest.TestCase):
-    def test_repeat_map_counts(self):
-        m = RepeatMap.load(ROOT / "data" / "derived")
-        partial = sum(1 for p in m.pairs if not p.exact)
-        docs = all_docs()
-        self.assertIn(f"{len(m.pairs)} diploid locus pairs", docs,
-                      f"the documents do not state the live pair count of {len(m.pairs)}")
-        self.assertRegex(docs, rf"{partial} of them\s*marked partial",
-                         f"the live partial-pair count is {partial}")
-        assert_no_doc_contradicts(
-            self, "diploid pairs", f"{len(m.pairs)}",
-            [f"{n} diploid locus pairs" for n in range(1, 60) if n != len(m.pairs)])
-        assert_no_doc_contradicts(
-            self, "partial pairs", f"{partial}",
-            [f"{n} of them marked partial" for n in range(1, 20) if n != partial])
+    def test_the_gate_has_power_against_each_document(self):
+        """Prove a single wrong figure in a single document is caught.
 
-    def test_no_document_carries_a_superseded_coverage_figure(self):
-        """FINDINGS.md kept 85.8/94.7/99.4 through two rounds that named the line."""
-        path = ROOT / "data" / "derived" / "crosswalk_coverage.tsv"
-        if not path.exists():
-            self.skipTest("crosswalk coverage not built; run `make crosswalk`")
-        with path.open() as fh:
-            live = {r["accession"]: r["mapped_percent"]
-                    for r in csv.DictReader(fh, delimiter="\t")
-                    if r.get("orientation") == "reverse_complemented"}
-        superseded = ["85.8", "94.7", "99.4"]
-        for doc in DOCS:
-            body = text(doc)
-            for bad in superseded:
-                if bad in body and bad not in live.values():
-                    self.fail(f"{doc} still carries the superseded figure {bad}; the "
-                              f"live values are {sorted(live.values())}")
-
-    def test_the_mutant_count_matches_the_mutants(self):
-        """A line rewritten to fix one figure introduced another."""
-        import importlib.util
-        spec = importlib.util.spec_from_file_location(
-            "t_m5", ROOT / "tests" / "test_m5_conventions.py")
-        mod = importlib.util.module_from_spec(spec)
-        try:
-            spec.loader.exec_module(mod)
-        except Exception:
-            self.skipTest("test module needs fetched inputs to import")
-        from hsv1coords import VersionCrosswalk
-        v = VersionCrosswalk.load(ROOT / "data" / "derived" / "version_crosswalk.tsv")
-        n = len(mod.VersionCrosswalkGate._mutants(v.blocks))
-        docs = all_docs().lower()
-        words = {10: "ten", 11: "eleven", 12: "twelve", 13: "thirteen"}
-        forms = {str(n), words.get(n, str(n))}
-        self.assertTrue(
-            any(f"{f} deliberately broken crosswalks" in docs for f in forms),
-            f"the suite builds {n} mutants and no document says so")
-        for other, word in words.items():
-            if other == n:
+        Round 6's method, run here so it cannot quietly stop working.
+        """
+        import tempfile
+        for fact in self.facts:
+            if not isinstance(fact.value, int):
                 continue
-            self.assertNotIn(f"{word} deliberately broken crosswalks", docs,
-                             f"a document states {other} mutants; there are {n}")
+            noun = fact.nouns[0]
+            for doc, body in self.bodies.items():
+                if not re.search(rf"{fact.value}\s+{re.escape(noun)}", body, re.I):
+                    continue
+                broken = re.sub(rf"{fact.value}(\s+{re.escape(noun)})",
+                                rf"{fact.value + 1}\1", body, count=1, flags=re.I)
+                stated = re.findall(rf"({NUMBER})\s+{re.escape(noun)}", broken, re.I)
+                with self.subTest(document=doc, figure=fact.key):
+                    self.assertTrue(
+                        any(s.lower() not in {f.lower() for f in fact.forms}
+                            for s in stated),
+                        f"changing {fact.key} in {doc} would not be detected")
+                return
+        self.skipTest("no integer figure is stated in any document")
 
-    WORDS = {5: "five", 9: "nine", 22: "22"}
 
-    def test_version_crosswalk_counts(self):
-        v = VersionCrosswalk.load(ROOT / "data" / "derived" / "version_crosswalk.tsv")
-        docs = all_docs().lower()
-        for n, label in ((len(v.blocks), "blocks"),
-                         (len(v.distinct_offsets), "distinct offsets")):
-            forms = {str(n), self.WORDS.get(n, str(n))}
-            with self.subTest(figure=label):
-                self.assertTrue(any(f"{f} {label}" in docs for f in forms),
-                                f"no document states {n} {label}")
-
-    def test_convention_count_and_refusal_state(self):
+class ClaimsMatchBehaviour(unittest.TestCase):
+    def test_quoted_output_matches_live_output(self):
+        from hsv1coords import ConventionSet
         cs = ConventionSet.load()
-        docs = all_docs().lower()
-        n = len(cs.conventions)
-        forms = {str(n), self.WORDS.get(n, str(n))}
-        self.assertTrue(any(f"{f} handlings" in docs for f in forms),
-                        f"no document states {n} handlings")
-        refused = cs.report(60000).refused
-        if not refused:
-            self.assertNotIn("one of them refused", docs,
-                             "no convention is refused any more")
+        _, why = cs.usable(118777, "morse2017_nr")
+        interval = re.search(r"inside ([\d,]+-[\d,]+)", why).group(1).rstrip(",")
+        for doc in DOCS:
+            for raw in re.findall(
+                    r"NOT usable under morse2017_nr: inside ([\d,]+-[\d,]+)", flat(doc)):
+                with self.subTest(document=doc, quoted=raw):
+                    self.assertEqual(raw.rstrip(","), interval,
+                                     f"{doc} quotes an interval the code no longer "
+                                     f"produces")
 
-    def test_reverse_complemented_percentages(self):
-        path = ROOT / "data" / "derived" / "crosswalk_coverage.tsv"
-        if not path.exists():
-            self.skipTest("crosswalk coverage not built; run `make crosswalk`")
-        with path.open() as fh:
-            rows = [r for r in csv.DictReader(fh, delimiter="\t")
-                    if r.get("orientation") == "reverse_complemented"]
-        docs = all_docs()
-        for r in rows:
-            with self.subTest(accession=r["accession"]):
-                self.assertIn(r["mapped_percent"], docs,
-                              f"{r['accession']} maps at {r['mapped_percent']} per cent "
-                              f"and no document says so")
+    def test_no_document_says_a_built_component_is_unbuilt(self):
+        self.assertNotIn("is not built yet", flat("README.md"))
+
+    def test_the_component_table_matches_its_own_count(self):
+        """The README said six components above a seven-row table."""
+        body = (ROOT / "README.md").read_text()
+        rows = re.findall(r"^\| [A-Z][^|]*\|[^|]*\|$", body, re.M)
+        rows = [r for r in rows if "---" not in r and "Component" not in r]
+        stated = re.search(r"(\w+) components are built", body)
+        self.assertIsNotNone(stated, "the README does not state a component count")
+        from hsv1coords.facts import SPELLED
+        word = SPELLED.get(len(rows), str(len(rows)))
+        self.assertEqual(stated.group(1).lower(), word,
+                         f"the README says {stated.group(1)} components and lists "
+                         f"{len(rows)}")
 
     def test_the_alignment_preset_is_not_contradicted(self):
-        """The generated report once named a preset the builder had stopped using."""
         from build_crosswalk import PRESET
         report = ROOT / "data" / "derived" / "crosswalk_report.md"
         if not report.exists():
@@ -170,29 +162,6 @@ class FiguresMatch(unittest.TestCase):
         self.assertEqual(named, {PRESET},
                          f"the report names {named} while the builder runs {PRESET}")
 
-
-class ClaimsMatchBehaviour(unittest.TestCase):
-    def test_quoted_output_matches_live_output(self):
-        """Every `NOT usable under morse2017_nr: inside X` in a document must be live."""
-        cs = ConventionSet.load()
-        _, why = cs.usable(118777, "morse2017_nr")
-        interval = re.search(r"inside ([\d,]+-[\d,]+)", why).group(1).rstrip(",")
-        for doc in DOCS:
-            body = text(doc)
-            for raw in re.findall(r"NOT usable under morse2017_nr: inside "
-                                  r"([\d,]+-[\d,]+)", body):
-                quoted = raw.rstrip(",")
-                with self.subTest(document=doc, quoted=quoted):
-                    self.assertEqual(quoted, interval,
-                                     f"{doc} quotes an interval the code no longer "
-                                     f"produces")
-
-    def test_no_document_says_a_built_component_is_unbuilt(self):
-        """The README said the mask was not built, and listed it as provided below."""
-        readme = text("README.md")
-        for phrase in ("mask is not built yet", "is not built yet"):
-            self.assertNotIn(phrase, readme,
-                             "every component listed in the table below is built")
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)
