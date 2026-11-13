@@ -59,10 +59,26 @@ class ReferenceVersionMismatch(UnverifiedConvention):
     """Raised when two conventions are defined against different reference versions.
 
     NC_001806.1 is 152,261 bp and NC_001806.2 is 152,222 bp, and the difference is not
-    a constant shift: roughly 0 near the start, -1 through UL and IRL, -3 to -5 near
-    IRS, and +39 through most of TRS. Converting between conventions across that
-    boundary without a crosswalk would produce confident, wrong coordinates, which is
-    the error this repository exists to prevent.
+    a constant shift. Reading a `.1` position in the `.2` frame, there are nine distinct
+    offsets across 22 aligned blocks. Measured at four positions, one per segment:
+
+        offset at 60,000 is +1
+        offset at 120,000 is +2
+        offset at 130,000 is +3
+        offset at 150,000 is -39
+
+    Converting between conventions across that boundary without a crosswalk would
+    produce confident, wrong coordinates, which is the error this repository exists to
+    prevent.
+
+    Round 8: every sign in this paragraph was inverted and the magnitudes mis-located,
+    against an artefact the documentation gate was already pinning, in the text a user
+    reads to decide whether to trust a conversion. The gate reads the four top-level
+    documents only, so nothing under `src/` was covered. Each line above is now checked
+    against `VersionCrosswalk.offset_at` at that position, which is a positional check:
+    a first attempt only tested that each stated offset existed somewhere in the set,
+    and flipping +1 to -1 passed it, because -1 is a real offset elsewhere in the
+    genome.
     """
 
 
@@ -174,8 +190,39 @@ class Convention:
             offset += b - a + 1
         return None
 
+    def from_record(self, record: str, offset: int) -> int | None:
+        """For a split convention: a record and 1-based offset back to the reference.
+
+        The inverse of `locate`, and the route a user holding `UL:50788` from the
+        deposited VCFs actually needs. Round 8 found there was none, and that
+        `convert`'s error message sent them to `coordinate_in`, which goes the other
+        way.
+        """
+        if not self.is_split:
+            raise ValueError(f"{self.name} is not a split-record convention")
+        if not isinstance(offset, int) or isinstance(offset, bool) or offset < 1:
+            raise ValueError(f"an offset within a record is a positive int, got "
+                             f"{offset!r}")
+        for name, a, b in self.records:
+            if name == record:
+                return a + offset - 1 if offset <= b - a + 1 else None
+        raise KeyError(
+            f"{self.name} has no record {record!r}; it has "
+            f"{[n for n, _, _ in self.records]}")
+
     def to_reference(self, position: int, genome_bp: int | None = None) -> int | None:
-        """This convention's coordinate back to the reference, or None if out of range."""
+        """This convention's coordinate back to the reference, or None if out of range.
+
+        Refuses for a split convention, as `to_convention` already did. Round 8 found
+        the guard on only one of the pair, so `morse2017_nr.to_reference(50788)`
+        returned 50788: a four-record reference treated as one collapsed sequence,
+        wrong by roughly 9 kb, and an integer that appears in no Morse file. Use
+        `from_record` instead.
+        """
+        if self.is_split:
+            raise ValueError(
+                f"{self.name} is a four-record reference, so a position in it is a "
+                f"pair like 'UL:50788', not an integer. Use `from_record('UL', 50788)`.")
         if not self.changes_coordinates:
             return position
         remaining = position
@@ -395,9 +442,13 @@ class ConventionSet:
         self._require_verified(cs)
         self._require_verified(ct)
         if cs.is_split or ct.is_split:
+            split = cs if cs.is_split else ct
             raise ValueError(
-                f"{(cs if cs.is_split else ct).name} is a multi-record reference; its "
-                f"coordinates are pairs. Use `coordinate_in` instead of `convert`.")
+                f"{split.name} is a multi-record reference; its coordinates are pairs "
+                f"like 'UL:50788'. To go from a reference position INTO it use "
+                f"`coordinate_in(position, '{split.name}')`; to come OUT of it use "
+                f"`self['{split.name}'].from_record(record, offset)` and convert the "
+                f"reference position from there.")
         # Translate into the source's own version, out to the base version, then into
         # the target's version. Omitting these two steps is how root cause 6b survived
         # a fix that was supposed to remove it: `usable` translated and `convert` did

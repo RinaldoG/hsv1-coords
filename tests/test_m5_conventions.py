@@ -992,5 +992,96 @@ class VersionNamesAreValidatedBeforeAnswering(unittest.TestCase):
         self.assertEqual(self.vc.convert(152261, OLD, NEW), 152222)
         self.assertEqual(self.vc.convert(152222, NEW, OLD), 152261)
 
+class ASplitReferenceHasARouteBackOut(unittest.TestCase):
+    """Round 8: a user holding `UL:50788` from Morse's own VCFs had nowhere to go.
+
+    `locate` goes reference to pair, `coordinate_in` goes reference to pair, and
+    `convert` refused and then named `coordinate_in`, which is the same direction
+    again. `to_reference` did answer, with an integer that appears in no Morse file.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cs = ConventionSet.load()
+        cls.m = cls.cs["morse2017_nr"]
+
+    def test_from_record_is_the_inverse_of_locate(self):
+        for ref in (1, 5000, 9212, 9213, 60000, 117159, 125974, 132604, 132605,
+                    145584):
+            hit = self.m.locate(ref)
+            if hit is None:
+                continue
+            with self.subTest(reference=ref, pair=hit):
+                self.assertEqual(self.m.from_record(*hit), ref)
+
+    def test_every_record_boundary_round_trips(self):
+        for name, a, b in self.m.records:
+            for offset, expected in ((1, a), (b - a + 1, b)):
+                with self.subTest(record=name, offset=offset):
+                    self.assertEqual(self.m.from_record(name, offset), expected)
+            with self.subTest(record=name, offset="past the end"):
+                self.assertIsNone(self.m.from_record(name, b - a + 2))
+
+    def test_a_split_reference_refuses_a_bare_integer_in_both_directions(self):
+        with self.assertRaises(ValueError):
+            self.m.to_convention(50788)
+        with self.assertRaises(ValueError):
+            self.m.to_reference(50788)
+
+    def test_an_unknown_record_or_offset_is_refused(self):
+        with self.assertRaises(KeyError):
+            self.m.from_record("ZZ", 1)
+        for bad in (0, -1, 1.5, "1", True):
+            with self.subTest(offset=bad):
+                with self.assertRaises(ValueError):
+                    self.m.from_record("UL", bad)
+
+    def test_a_non_split_convention_refuses_from_record(self):
+        with self.assertRaises(ValueError):
+            self.cs["szpara2014_trimmed"].from_record("UL", 1)
+
+
+class DocstringFiguresMatchTheArtefact(unittest.TestCase):
+    """The documentation gate reads four top-level documents, so `src/` is uncovered.
+
+    Round 8 found every sign in `ReferenceVersionMismatch`'s docstring inverted
+    against `version_crosswalk.tsv`, in the text a user reads to decide whether to
+    trust a conversion. This gates the figures in that docstring specifically, which is
+    narrower than gating every docstring and is the one that describes an artefact.
+    """
+
+    def test_the_version_mismatch_docstring_states_the_real_offsets(self):
+        import re
+
+        from hsv1coords.conventions import ReferenceVersionMismatch
+        from hsv1coords.facts import SPELLED
+        from hsv1coords.versions import VersionCrosswalk
+        if not (DERIVED / "version_crosswalk.tsv").exists():
+            self.skipTest("version_crosswalk.tsv is built; run `make versions`")
+        vc = VersionCrosswalk.load()
+        # Flatten newlines too: "nine distinct\n    offsets" matches nothing
+        # otherwise, which is the line-break trap in standing rule 16, hit again here.
+        doc = re.sub(r"\s+", " ", ReferenceVersionMismatch.__doc__ or "")
+
+        stated = re.findall(r"offset at ([\d,]+) is ([+-]\d+)", doc)
+        self.assertGreaterEqual(
+            len(stated), 4,
+            "the docstring states fewer than four measured offsets, so it cannot be "
+            "checked positionally")
+        for position, offset in stated:
+            pos = int(position.replace(",", ""))
+            with self.subTest(position=pos):
+                self.assertEqual(
+                    vc.offset_at(pos), int(offset),
+                    f"the docstring says the offset at {position} is {offset}; the "
+                    f"crosswalk says {vc.offset_at(pos)}")
+
+        count = len(vc.distinct_offsets)
+        word = SPELLED.get(count, str(count))
+        self.assertTrue(f"{count} distinct offsets" in doc
+                        or f"{word} distinct offsets" in doc,
+                        f"the docstring does not state the {count} distinct offsets")
+        self.assertIn(f"{len(vc.blocks)} aligned blocks", doc)
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

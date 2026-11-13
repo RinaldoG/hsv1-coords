@@ -81,9 +81,23 @@ def main() -> int:
         ext = extent(r["location"])
         if not ext:
             continue
+        # The `/gene` qualifier wins in M2's name column, so three reiteration sets
+        # arrived here called `RL1`, `RL2` and `US1`: those are ICP34.5, ICP0 and
+        # ICP22, whole genes of up to 3.6 kb, and this row is a 53 to 159 bp repeat
+        # inside one. Round 8: joining this column against the gene dictionary
+        # therefore returned a 53 bp interval for ICP34.5. The repeat's own note names
+        # it, so where a note exists for a repeat feature it is preferred, and the gene
+        # qualifier is kept beside it in `within_gene`.
         name = r["name"].split(";")[0].strip()
+        note_name = r["notes"].split(";")[0].strip()
+        within_gene = ""
+        if note_name and note_name != name and (
+                "reiteration" in note_name or "sequence" in note_name
+                or "palindrome" in note_name):
+            within_gene, name = name, note_name
         regions.append({
             "name": name,
+            "within_gene": within_gene,
             "kind": (r["feature_type"]
                      if r["feature_type"] in ("repeat_region", "stem_loop", "rep_origin")
                      else r["feature_class"]),
@@ -231,7 +245,8 @@ def main() -> int:
                 x["orientation"] = "forward" if fwd > rev else "reverse"
 
     rmap = DERIVED / "repeat_map.tsv"
-    cols = ["name", "kind", "start", "end", "length", "orientation", "notes"]
+    cols = ["name", "kind", "start", "end", "length", "orientation", "within_gene",
+            "notes"]
     with rmap.open("w") as fh:
         fh.write("\t".join(cols) + "\n")
         for x in regions:

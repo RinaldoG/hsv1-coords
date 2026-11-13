@@ -13,7 +13,7 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from hsv1coords import Crosswalk, RepeatMap, lift  # noqa: E402
+from hsv1coords import Crosswalk, Dictionary, RepeatMap, lift  # noqa: E402
 from hsv1coords.liftover import REFERENCE  # noqa: E402
 from hsv1coords.repeats import GENOME_BP  # noqa: E402
 from build_crosswalk import genbank_sequence  # noqa: E402
@@ -458,6 +458,53 @@ class CorrectionsFromReview(unittest.TestCase):
         self.assertTrue(outside.well_defined)
         self.assertEqual(outside.alternatives, [])
 
+class TheNameColumnIsJoinable(unittest.TestCase):
+    """Round 8: three reiteration sets were named `RL1`, `RL2` and `US1`.
+
+    Those are ICP34.5, ICP0 and ICP22, genes of up to 3.6 kb, and the rows carrying
+    their names are 53 to 159 bp repeats inside them. Joining this column against the
+    gene dictionary returned a 53 bp interval for ICP34.5. Not a coordinate error, but
+    a joinability error in the file most likely to be joined.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.m = RepeatMap.load(DERIVED)
+        cls.d = Dictionary.load()
+
+    def test_no_repeat_region_is_named_after_a_gene_it_sits_inside(self):
+        wrong = []
+        for r in self.m.regions:
+            try:
+                canonical = self.d.resolve(r.name)
+            except Exception:
+                continue
+            # A region named for a gene is only honest if it covers that gene, not a
+            # fragment of it. Anything much shorter is the mislabel this catches.
+            if r.length < 500:
+                wrong.append((r.name, canonical, r.start, r.end, r.length))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} repeat regions are named after a gene while covering a "
+            f"fragment of it, so a join against the dictionary returns the wrong "
+            f"interval: {wrong}")
+
+    def test_the_gene_qualifier_is_kept_rather_than_discarded(self):
+        """Renaming must not lose the record's own `/gene` value."""
+        import csv
+        with (DERIVED / "repeat_map.tsv").open() as fh:
+            rows = list(csv.DictReader(fh, delimiter="\t"))
+        self.assertIn("within_gene", rows[0],
+                      "the repeat map has no within_gene column, so the record's gene "
+                      "qualifier was dropped rather than moved")
+        kept = [r for r in rows if r["within_gene"]]
+        self.assertGreaterEqual(
+            len(kept), 3,
+            f"only {len(kept)} rows carry a gene qualifier; the reference annotates "
+            f"three reiteration sets with one, so they have been lost")
+        for r in kept:
+            with self.subTest(region=r["name"]):
+                self.assertNotEqual(r["name"], r["within_gene"])
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

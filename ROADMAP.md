@@ -426,12 +426,17 @@ the gate calls, and prints how many pairs it caught.
 **What it cannot cover, and why.** A figure is pinned by a distinctive phrase beside it,
 before or after. Numbers carrying only a generic unit, "bp", "bases", "per cent", cannot
 be pinned this way: the documents contain hundreds of them and a match on the unit alone
-flags every other number as a contradiction. Round 7 measured the real catch rate over
-90 single-figure mutations spread across the four documents: 34 were caught, and 34 of
-the 52 that touched a figure `facts.py` derives. The rest are coordinates quoted from
-papers, dates, illustrative values and figures stated with a bare unit. That is a real
-limit, not a solved problem, and the honest way to shrink it is to derive more figures
-rather than to widen the matching.
+flags every other number as a contradiction.
+
+**The measured catch rate**, over 90 single-figure mutations drawn with a fixed seed from
+the 335 numbers in the four documents, and the only figure to quote for this: **45 of
+90**, up from 34 of 90 before round 7's fixes. The remaining 45 are dates, journal page
+numbers, DOIs, counts quoted from other groups' records and coordinates quoted from
+papers, none of which this repository derives and none of which this approach can pin.
+That is a real limit, not a solved problem, and the honest way to shrink it is to derive
+more figures rather than to widen the matching. The suite's own `gate power` line is a
+different measurement and not comparable: it counts mutations of figures that ARE
+derived, where the expected catch rate is 100 per cent.
 
 ## M5b: release
 

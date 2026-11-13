@@ -27,7 +27,8 @@ HSV-1 genome means one thing.
 >    answer for anyone who wants it.
 > 3. **The documentation gate was smaller than its own description, and two of the tests
 >    reporting its coverage could not fail.** **Partly fixed, and measured:** the catch
->    rate over 90 single-figure mutations went from 34 to 45. Every figure this repository
+>    rate over 90 single-figure mutations is stated in `ROADMAP.md`, measured the same
+>    way before and after. Every figure this repository
 >    derives is gated and the suite asserts that; the remaining misses are dates, page
 >    numbers, DOIs and counts quoted from other people's records, which this approach
 >    cannot pin. That limit is stated in `ROADMAP.md` rather than closed.
@@ -125,9 +126,9 @@ The HSV-1 genome is well sequenced and poorly described.
   (`P06492`), but there is no genome-wide, cited, machine-readable mapping that covers the
   systematic, protein, functional and molecular-weight conventions together with the names
   introduced by the 2020 re-annotation.
-- Both published HSV-1 assembly pipelines are unmaintained (VirAmp last pushed 8 April
-  2015, VirGA 25 July 2018), and VirGA is still cited as the assembly method in later
-  GenBank deposits.
+- Both published HSV-1 assembly pipelines are unmaintained: VirAmp was last pushed on 8
+  April 2015 and VirGA on 25 July 2018, per the GitHub API for `SzparaLab/viramp-project`
+  and `SzparaLab/VirGA`, checked 13 November 2026.
 
 This matters most exactly where it is least convenient. LAT, which dominates latent
 transcription, sits in the long inverted repeat and extends past it: the reference
