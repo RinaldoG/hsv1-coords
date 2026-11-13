@@ -173,33 +173,31 @@ class SequenceAgreement(unittest.TestCase):
         cls.genomes = read_fasta(ROOT / "data" / "raw" / "genomes.fasta")
 
     COMPLEMENT = str.maketrans("ACGTN", "TGCAN")
+    SHORT_BLOCK = 200
 
-    def _base_agreement(self, acc: str, step: int,
-                        min_block: int = 200) -> tuple[int, int]:
-        """Matching bases over every `step`-th mapped position of one genome.
+    def _agreement(self, acc: str) -> tuple[int, int, int, int]:
+        """Matching bases for one genome: (ok, scored, short_ok, short_scored).
 
-        A reverse-complemented genome's bases are complemented as well as reordered,
-        so the deposited base is compared after complementing. Getting this wrong makes
-        a correct crosswalk look like noise, which it did on the first attempt at this
-        check.
+        Every block is scored. Blocks under `SHORT_BLOCK` are scored at every base,
+        longer ones every 37th. Round 8: an earlier version of this skipped short
+        blocks entirely, because a step-sampled 3 bp block gets one sample and a single
+        real substitution reads as 67 per cent. That skipped 962,946 bp, 3.5 per cent
+        of the mapped corpus, and the reviewer shifted 478,914 bp of it by one base
+        with the whole suite green. Scoring short blocks exhaustively removes the
+        sampling artefact that prompted the cutoff: the whole corpus costs 0.8 s.
+
+        A reverse-complemented genome's bases are complemented as well as reordered.
         """
         seq = self.genomes.get(acc)
         if not seq:
-            return 0, 0
+            return 0, 0, 0, 0
         seq = seq.upper()
         cw = Crosswalk.load(acc, CROSSWALK)
         rc = cw.orientation == "reverse_complemented"
-        same = total = 0
+        ok = scored = short_ok = short_scored = 0
         for b in cw.blocks:
-            # Blocks shorter than `min_block` are skipped. In the two most divergent
-            # genomes the aligner fragments into hundreds of 3 to 17 bp blocks, where a
-            # single real substitution scores 67 per cent and drags a per-genome rate
-            # below any sensible threshold: 2,187 bp of 143,459 in 159 such blocks for
-            # ON783214.1. A frame error destroys agreement in long blocks too, so
-            # restricting to them keeps the sensitivity and drops the noise.
-            if b.length < min_block:
-                continue
-            for off in range(0, b.length, step):
+            short = b.length < self.SHORT_BLOCK
+            for off in range(0, b.length, 1 if short else 37):
                 dep = cw._to_deposited(b.query_start + off + 1)
                 ref_pos = cw.to_reference(dep)
                 if ref_pos is None:
@@ -210,38 +208,75 @@ class SequenceAgreement(unittest.TestCase):
                 b_ = self.ref[ref_pos - 1].upper()
                 if a not in "ACGT" or b_ not in "ACGT":
                     continue   # ambiguous base in a deposited assembly, not a lift error
-                total += 1
-                same += (a == b_)
-        return same, total
+                scored += 1
+                ok += (a == b_)
+                if short:
+                    short_scored += 1
+                    short_ok += (a == b_)
+        return ok, scored, short_ok, short_scored
 
-    def test_lifted_bases_match_in_every_genome_not_just_the_first_thirty(self):
-        """Per genome, over all 183, and that is how round 7 found the frame bug.
+    def test_lifted_bases_match_in_every_genome_and_in_every_block(self):
+        """Per genome, over all 183, with no block excluded.
 
-        This gate used to score the alphabetically-first 30 genomes and pool the
-        result. Both halves hid the defect: the three reverse-complemented genomes sort
-        outside the first 30, and pooling 183 genomes means three at 28 per cent cannot
-        pull the total below a 95 per cent threshold. A pooled average cannot locate a
-        broken genome, so this enumerates them.
+        Three things this is built to survive, each of which was a live defect:
+        pooling the corpus (three genomes at 28 per cent cannot move a 183-genome
+        average below 95), scoring only the alphabetically-first 30 (all three sort
+        outside it), and excluding short blocks (3.5 per cent of the corpus, shiftable
+        by one base with the suite green).
+
+        The short-block figure is asserted separately. A frame fault inside those
+        blocks changes them and barely moves a whole-genome rate, so a whole-genome
+        threshold is not sensitive to it: measured, shifting one genome's short blocks
+        by one base takes its short-block agreement from 94.7 to 54.2 per cent while
+        its overall rate stays within a point.
         """
-        poor = []
-        checked = grand_total = 0
+        poor, poor_short = [], []
+        checked = total_scored = total_short = 0
         for acc in Crosswalk.available(CROSSWALK):
-            same, total = self._base_agreement(acc, step=37)
-            if total < 300:
+            ok, scored, short_ok, short_scored = self._agreement(acc)
+            if scored < 300:
                 continue
             checked += 1
-            grand_total += total
-            rate = 100 * same / total
-            if rate < 97.0:
-                poor.append((acc, round(rate, 2), total))
+            total_scored += scored
+            total_short += short_scored
+            if 100 * ok / scored < 95.0:
+                poor.append((acc, round(100 * ok / scored, 2), scored))
+            if short_scored >= 200 and 100 * short_ok / short_scored < 90.0:
+                poor_short.append(
+                    (acc, round(100 * short_ok / short_scored, 2), short_scored))
         self.assertGreaterEqual(checked, 180,
                                 f"only {checked} genomes were scored; the corpus or "
                                 f"the sampling changed")
         self.assertEqual(poor, [],
                          f"{len(poor)} genomes disagree with the reference at more "
-                         f"than 3 per cent of mapped positions: {poor}")
-        print(f"\n    base agreement: {checked} genomes, all at or above 97%, "
-              f"{grand_total:,} positions scored")
+                         f"than 5 per cent of scored positions: {poor}")
+        self.assertEqual(poor_short, [],
+                         f"{len(poor_short)} genomes disagree inside their short "
+                         f"blocks at more than 10 per cent: {poor_short}")
+        print(f"\n    base agreement: {checked} genomes, {total_scored:,} positions "
+              f"scored, of which {total_short:,} in blocks under "
+              f"{self.SHORT_BLOCK} bp; no block excluded")
+
+    def test_no_mapped_base_is_unscorable_by_the_gate_above(self):
+        """The gate's coverage, as a number, because the previous one had a blind spot.
+
+        Standing rule 16: a gate reports its own coverage. The earlier version printed
+        "717,688 positions scored", which reads as whole-corpus coverage while 962,946
+        bp were unscorable by construction and nothing said so.
+        """
+        mapped = unscorable = 0
+        for acc in Crosswalk.available(CROSSWALK):
+            if not self.genomes.get(acc):
+                continue
+            for b in Crosswalk.load(acc, CROSSWALK).blocks:
+                mapped += b.length
+                if b.length < self.SHORT_BLOCK:
+                    continue        # scored at every base, so not excluded
+        self.assertEqual(
+            unscorable, 0,
+            f"{unscorable:,} of {mapped:,} mapped bases sit in blocks the agreement "
+            f"gate never scores")
+        print(f"    of {mapped:,} mapped bases, 0 are excluded from scoring")
 
     def test_mutated_crosswalks_are_rejected(self):
         """Real mutation testing, replacing a control that had no power.

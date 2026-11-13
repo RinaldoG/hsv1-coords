@@ -27,7 +27,10 @@ DOCS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
 # The number of derived figures that must stay gated. Raising it is a deliberate edit;
 # a change that silently ungates a figure fails instead of printing a smaller number.
 COVERAGE_FLOOR = 25
-NUMBER = r"(?:\d[\d,]*(?:\.\d+)?|" + "|".join(
+# `\d(?:[\d,]*\d)?` rather than `\d[\d,]*`: the looser form captured a trailing
+# comma, so "runs to 152,222," compared "152,222," against "152,222" and reported
+# a figure as contradicting itself.
+NUMBER = r"(?:\d(?:[\d,]*\d)?(?:\.\d+)?|" + "|".join(
     w for w in ("one two three four five six seven eight nine ten eleven twelve "
                 "thirteen fourteen fifteen sixteen seventeen eighteen nineteen "
                 "twenty").split()) + r")"
@@ -131,17 +134,18 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                          f"{len(empty)} facts carry no phrasing and so can never be "
                          f"gated: {empty}")
 
-    def test_no_large_figure_is_stated_in_a_document_the_gate_cannot_see(self):
-        """Per document, not pooled. This is the hole round 7 measured.
+    def test_no_occurrence_of_a_large_figure_is_out_of_the_gate_s_reach(self):
+        """Per occurrence. Round 7 did this per document, which was still pooling.
 
-        A figure gated in one document was counted as gated everywhere, because the
-        coverage check searched the four documents concatenated. `genome_bp` was stated
-        five times and reachable at one of them. So: wherever a document states a
-        derived value, some phrasing for that fact must match in THAT document.
+        Round 8: `genome_bp` is stated four times in ROADMAP.md and phrasings reached
+        two of them, so "A sweep of all 152,222 positions" could be changed to 99,999
+        with the suite green. The granularity had moved from four documents to one
+        document, not to the occurrence. So every occurrence of a derived value must
+        have one of its fact's phrasings adjacent to it.
 
-        Restricted to values of 1,000 or more and to percentages, because a bare "5" or
-        "nine" cannot be told from any other small number in prose. That restriction is
-        the honest limit of this approach and is stated in ROADMAP.md.
+        Restricted to values of 1,000 or more and to percentages: a bare "5" or "nine"
+        cannot be told from any other small number in prose. That restriction is the
+        honest limit of the approach and is stated in ROADMAP.md.
         """
         gaps = []
         for fact in self.facts:
@@ -149,19 +153,33 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                      and (("." in f) or len(re.sub(r"\D", "", f)) >= 4)]
             if not forms:
                 continue
+            pattern = "|".join(re.escape(f) for f in forms)
             for doc, body in self.bodies.items():
-                present = any(re.search(rf"(?<![\d,.]){re.escape(f)}(?![\d,.])", body)
-                              for f in forms)
-                if not present:
-                    continue
-                reached = any(re.search(pat, body, re.I)
-                              for _, pat in phrasings(fact))
-                if not reached:
-                    gaps.append(f"{doc} states {fact.key} ({fact.value}) but no "
-                                f"phrasing reaches it there")
+                for m in re.finditer(rf"(?<![\d,.]){pattern}(?![\d,.])", body):
+                    before = body[max(0, m.start() - 60):m.start()]
+                    after = body[m.end():m.end() + 60]
+                    # A coordinate range endpoint, `151824..152222` or "9,033 to
+                    # 9,213", is a position that happens to equal a figure, not a
+                    # statement of that figure. Deliberately narrow: both ends must be
+                    # whole numbers of four digits or more, so "from 98.08 to 98.84 per
+                    # cent" is still checked, and the repeat intervals themselves are
+                    # gated against the reference record in test_m4_repeat_map.py.
+                    if before.endswith("..") or after.startswith(".."):
+                        continue
+                    if ("." not in m.group(0)
+                            and re.search(r"(?<![\d,.])\d[\d,]{3,}\s*(?:to|-)\s*$",
+                                          before)):
+                        continue
+                    reached = any(after.lower().startswith(" " + n.lower())
+                                  or re.search(rf"{re.escape(n)}\s*$", before, re.I)
+                                  for n in fact.nouns + fact.prefixes)
+                    if not reached:
+                        gaps.append(f"{doc}: '...{before[-40:]}[{m.group(0)}]"
+                                    f"{after[:30]}...' states {fact.key} with no "
+                                    f"phrasing beside it")
         self.assertEqual(gaps, [],
-                         f"{len(gaps)} figures are stated in a document the gate "
-                         f"cannot see:\n  " + "\n  ".join(gaps))
+                         f"{len(gaps)} occurrences of a derived figure are out of the "
+                         f"gate's reach:\n  " + "\n  ".join(gaps))
 
     def test_the_gate_has_power_against_every_document_and_figure(self):
         """Mutate each figure in each document it appears in, and run the real gate.
@@ -198,14 +216,28 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
         print(f"\n    gate power: {tried} figure-in-document mutations, all caught")
 
     def test_the_gate_is_load_bearing(self):
-        """The gate's own assertion must be what fails, not something incidental.
+        """The gate reacts to a wrong figure. Deliberately not a second value check.
 
-        Standing rule 10 in PITFALLS says a gate is justified by deleting it and
-        watching the suite fail. Round 7 did that and the suite stayed green, so this
-        checks the inverse directly: a document with a wrong figure produces
-        contradictions, and the unmutated documents produce none.
+        Standing rule 10 says a gate is justified by deleting it and watching the suite
+        fail. For this gate that check reads green and always will, because the gate
+        holds the only assertion that a stated figure equals its artefact: delete it and
+        nothing else makes that comparison. Round 8 found an earlier version of this
+        test had duplicated the gate's assertion, which made deletion harmless and the
+        rule-10 check meaningless. Removing the duplicate is the fix; adding another
+        would reinstate the defect.
+
+        So rule 10 is satisfied differently here, and this is where that is recorded:
+        with the gate present, changing any figure a phrasing reaches fails the suite,
+        demonstrated 62 times over by
+        `test_the_gate_has_power_against_every_document_and_figure`. Deleting the gate
+        removes a check rather than exposing a redundant one, which is what a
+        load-bearing test looks like.
         """
-        self.assertEqual(contradictions(self.facts, self.bodies), [])
+        # Deliberately NOT asserting `contradictions(...) == []` here: that is the
+        # gate's own assertion, and duplicating it meant deleting the gate left the
+        # suite green, so standing rule 10's check returned green and was
+        # indistinguishable from the defect it exists to catch. This test asserts only
+        # that the gate reacts; the gate asserts that it currently has nothing to say.
         fact = next((f for f in self.facts if isinstance(f.value, int)
                      and any(re.search(rf"{NUMBER}\s+{re.escape(n)}", b, re.I)
                              for n in f.nouns for b in self.bodies.values())), None)
@@ -291,6 +323,78 @@ class ClaimsMatchBehaviour(unittest.TestCase):
         self.assertEqual(named, {PRESET},
                          f"the report names {named} while the builder runs {PRESET}")
 
+class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
+    """Sample numbers the gate does NOT choose, and print what fraction it catches.
+
+    Round 8: `test_the_gate_has_power_against_every_document_and_figure` is 100 per cent
+    by construction, because it skips any site whose stated value is not already one of
+    a fact's derived forms. Its mutants are drawn exactly from the sites the gate
+    reaches, which is root cause 13, "a mutant set assembled after the gates is
+    assembled to die", inside the test written to prove power. Its 62 of 62 is still
+    worth having as a regression check, and it is not a coverage measurement.
+
+    This samples every standalone number in the four documents with a fixed seed,
+    mutates one at a time, and runs the real comparison in process. It asserts a floor
+    well below the measured rate, because most of those numbers are dates, page
+    numbers, DOIs and figures quoted from other groups' records, which this repository
+    does not derive and this approach cannot pin. The point is that the rate is
+    measured on an independent sample and printed on every run, so a change that
+    shrinks the gate shows up as a number rather than as silence.
+    """
+
+    SAMPLE = 60
+    FLOOR = 10.0
+    """A floor on the figure-comparison gate ALONE, not on the suite.
+
+    Measured, this gate catches about 18 per cent of mutations to arbitrary numbers in
+    the documents, because most of them are dates, journal page numbers, DOIs and
+    counts quoted from other groups' records. A full-suite sweep catches about 50 per
+    cent, since the occurrence check, the component-table check, the quoted-output
+    checks and the README example runner each catch things this comparison cannot. Both
+    figures are in ROADMAP.md, labelled. Quoting the 50 for this gate would flatter it,
+    which is how round 7's headline came to overstate it.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.facts = derive()
+        if not cls.facts:
+            raise unittest.SkipTest("no artefacts built; run `make all` first")
+        cls.bodies = {d: flat(d) for d in DOCS}
+
+    def test_the_measured_catch_rate_is_printed_and_above_its_floor(self):
+        import random
+
+        standalone = re.compile(r"(?<![\w.,])(\d(?:[\d,]*\d)?(?:\.\d+)?)(?![\w,.]\d)")
+        sites = [(doc, m.start(), m.group(1))
+                 for doc, body in self.bodies.items()
+                 for m in standalone.finditer(body)]
+        self.assertGreater(len(sites), 200,
+                           f"only {len(sites)} numbers found, so a sample of "
+                           f"{self.SAMPLE} is not independent of the gate")
+        random.Random(8).shuffle(sites)
+        caught = tried = 0
+        for doc, pos, value in sites[:self.SAMPLE]:
+            digits = value.replace(",", "")
+            try:
+                wrong = (f"{float(digits) + 0.7:.2f}" if "." in digits
+                         else str(int(digits) + 7))
+            except ValueError:          # pragma: no cover
+                continue
+            body = self.bodies[doc]
+            broken = dict(self.bodies)
+            broken[doc] = body[:pos] + wrong + body[pos + len(value):]
+            tried += 1
+            if contradictions(self.facts, broken):
+                caught += 1
+        rate = 100 * caught / tried
+        print(f"\n    measured catch rate, this gate alone: {caught} of {tried} "
+              f"independently sampled figure mutations ({rate:.1f} per cent), floor "
+              f"{self.FLOOR}")
+        self.assertGreaterEqual(
+            rate, self.FLOOR,
+            f"the gate caught {caught} of {tried} ({rate:.1f} per cent), below the "
+            f"recorded floor of {self.FLOOR} per cent")
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

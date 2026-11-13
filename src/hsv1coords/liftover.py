@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import bisect
 import csv
+import functools
 import pathlib
 from dataclasses import dataclass, field
 
@@ -62,7 +63,13 @@ class Crosswalk:
         self._t_starts = [b.target_start for b in self._by_target]
 
     @classmethod
+    @functools.lru_cache(maxsize=64)
     def load(cls, accession: str, directory: pathlib.Path | None = None) -> "Crosswalk":
+        """Cached: a genome-to-genome lift loads two crosswalks, twice over.
+
+        Round 8 counted four `load` calls per cross-genome lift, each re-reading and
+        re-sorting up to 1088 blocks. Same immutability assumption as `RepeatMap.load`.
+        """
         directory = directory or DEFAULT_DIR
         path = pathlib.Path(directory) / f"{accession}.blocks.tsv"
         if not path.exists():

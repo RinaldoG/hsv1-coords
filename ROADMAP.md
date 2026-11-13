@@ -428,15 +428,25 @@ before or after. Numbers carrying only a generic unit, "bp", "bases", "per cent"
 be pinned this way: the documents contain hundreds of them and a match on the unit alone
 flags every other number as a contradiction.
 
-**The measured catch rate**, over 90 single-figure mutations drawn with a fixed seed from
-the 335 numbers in the four documents, and the only figure to quote for this: **45 of
-90**, up from 34 of 90 before round 7's fixes. The remaining 45 are dates, journal page
-numbers, DOIs, counts quoted from other groups' records and coordinates quoted from
-papers, none of which this repository derives and none of which this approach can pin.
-That is a real limit, not a solved problem, and the honest way to shrink it is to derive
-more figures rather than to widen the matching. The suite's own `gate power` line is a
-different measurement and not comparable: it counts mutations of figures that ARE
-derived, where the expected catch rate is 100 per cent.
+**The measured catch rates.** Three numbers, which measure three different things, and
+each is only honest beside its definition:
+
+| Measurement | Rate | What it samples |
+|---|---|---|
+| The whole suite | **45 of 90** | A number anywhere in the four documents, changed one at a time, with the full suite re-run. Was 34 of 90 before round 7. |
+| This gate alone | **about 18 per cent** | The same independent sample, judged only by the figure-to-artefact comparison. Printed on every run with a floor. |
+| `gate power` | **62 of 62** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction. |
+
+The gap between the first two is the rest of the suite: the per-occurrence reach check,
+the component-table count, the quoted-resolver output and the README example runner each
+catch things the figure comparison cannot. The gap between those and 100 per cent is
+dates, journal page numbers, DOIs, counts quoted from other groups' records and
+coordinates quoted from papers, none of which this repository derives and none of which
+this approach can pin. That is a real limit, not a solved problem, and the honest way to
+shrink it is to derive more figures rather than to widen the matching.
+
+Round 7 reported the first figure as though it described the second, which overstated
+the gate. Round 8 measured them separately.
 
 ## M5b: release
 

@@ -207,7 +207,9 @@ def derive() -> list[Fact]:
         # exactly one of them, because the coverage check pooled the four documents.
         facts.append(Fact("genome_bp", len(seq),
                           ("bp, and", "bp of sequence",
-                           "bp. The offset between them")))
+                           "bp. The offset between them"),
+                          prefixes=("A sweep of all", "runs to",
+                                    "`NC_001806.2` is")))
         repeats = {}
         for loc, quals in _re.findall(
                 r"^     repeat_region\s+(\S+)\n((?:\s+/.*\n)+)", body, _re.M):
@@ -241,7 +243,8 @@ def derive() -> list[Fact]:
         # subject of root cause 6b, ungated at all four places it is stated.
         facts.append(Fact("genome_v1_bp", len(s1),
                           ("bp and `NC_001806.2` is", "bp; `NC_001806.2` is",
-                           "bp, which is `.1`")))
+                           "bp, which is `.1`"),
+                          prefixes=("`NC_001806.1` is",)))
 
     try:
         from .conventions import ConventionSet
@@ -251,7 +254,7 @@ def derive() -> list[Fact]:
         if lat is not None:
             facts.append(Fact("lat_in_szpara", lat,
                               ("in a Szpara-trimmed analysis",
-                               "in a Szpara-trimmed")))
+                               "is computed here from the rule")))
         facts.append(Fact("conventions", len(cs.conventions),
                           ("handlings, all", "handlings, each", "handlings,")))
     except Exception:                                   # artefacts not built
@@ -260,20 +263,17 @@ def derive() -> list[Fact]:
     return facts
 
 
-def superseded_values(fact: Fact, span: int = 60) -> set[str]:
-    """Plausible wrong values for this figure, for an absence check.
-
-    Only generated for small integers, where an off-by-a-few is the realistic drift.
-    Percentages and large counts are checked by presence of the correct value and by
-    the absence of any OTHER figure carrying the same noun, which `tests` does.
-    """
-    if not isinstance(fact.value, int) or fact.value > span:
-        return set()
-    out = set()
-    for n in range(1, span + 1):
-        if n == fact.value:
-            continue
-        out.add(str(n))
-        if n in SPELLED:
-            out.add(SPELLED[n])
-    return out
+# `superseded_values` was removed in round 8. It generated plausible wrong values for
+# an absence check, it had zero callers from the day it was written, and it was the
+# helper standing rule 14 named ("a documentation gate asserts the absence of
+# superseded values, per document"). Round 7's own root cause 18 lists "a helper was
+# added with zero callers, which reads as coverage and is not" as one of three
+# compounding causes, and then round 7 did not remove this one.
+#
+# It is deleted rather than wired because the check it was for is now done better and
+# in the other direction: `tests/test_docs_match_artefacts.py` asserts that every
+# occurrence of a derived value in every document has one of its fact's phrasings
+# beside it, and that every number carrying such a phrasing equals the derived value.
+# That catches any wrong value, not a guessed list of plausible ones, so an absence
+# check over invented candidates would add nothing. Standing rule 14 is amended in
+# PITFALLS.md to say so.

@@ -1083,5 +1083,63 @@ class DocstringFiguresMatchTheArtefact(unittest.TestCase):
                         f"the docstring does not state the {count} distinct offsets")
         self.assertIn(f"{len(vc.blocks)} aligned blocks", doc)
 
+class TheGenomeLengthsAreNotJustTypedIn(unittest.TestCase):
+    """Round 8: `GENOME_BP` is declared in five files and gated nowhere.
+
+    Setting `repeats.GENOME_BP` to 152200 left the suite green at 173 tests, while
+    `facts.py` already derives the same figure from the record. A wrong value makes
+    `classify` declare the tail of the genome outside the reference, so `lift` silently
+    declines there: a confident refusal, which is the quiet half of the error this
+    repository exists to prevent.
+
+    The constants stay, because a module that reads a GenBank file to learn a constant
+    is worse, but they are checked against the records here.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.raw = ROOT / "data" / "raw"
+        for name in ("ref_NC_001806.2.gb", "ref_NC_001806.1.gb"):
+            if not (cls.raw / name).exists():
+                raise unittest.SkipTest(f"{name} is fetched, not committed; "
+                                        f"run `make inputs` first")
+        sys.path.insert(0, str(ROOT / "src"))
+        from build_crosswalk import genbank_sequence
+        cls.lengths = {
+            "NC_001806.2": len(genbank_sequence(cls.raw / "ref_NC_001806.2.gb")),
+            "NC_001806.1": len(genbank_sequence(cls.raw / "ref_NC_001806.1.gb")),
+        }
+
+    def test_every_declared_genome_length_matches_the_record(self):
+        from hsv1coords import conventions, repeats
+        import build_repeat_map
+        import check_inputs
+        expected = self.lengths["NC_001806.2"]
+        for module in (repeats, conventions, build_repeat_map, check_inputs):
+            with self.subTest(module=module.__name__):
+                self.assertEqual(
+                    module.GENOME_BP, expected,
+                    f"{module.__name__}.GENOME_BP is {module.GENOME_BP} and "
+                    f"NC_001806.2 is {expected} bases")
+
+    def test_the_version_lengths_match_both_records(self):
+        from hsv1coords.conventions import VERSION_LENGTHS
+        self.assertEqual(VERSION_LENGTHS, self.lengths,
+                         f"VERSION_LENGTHS is {VERSION_LENGTHS} and the records are "
+                         f"{self.lengths}")
+
+    def test_the_declared_lengths_agree_with_each_other(self):
+        """Five declarations of one number, so they are checked against each other too.
+
+        A reader changing one would otherwise see a green suite on four of five files.
+        """
+        from hsv1coords import conventions, repeats
+        import build_repeat_map
+        import check_inputs
+        values = {m.__name__: m.GENOME_BP for m in
+                  (repeats, conventions, build_repeat_map, check_inputs)}
+        self.assertEqual(len(set(values.values())), 1,
+                         f"the declared genome lengths disagree: {values}")
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

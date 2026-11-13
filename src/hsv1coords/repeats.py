@@ -25,6 +25,7 @@ artefact, and `tests/test_m4_repeat_map.py` fails if this module reintroduces ei
 from __future__ import annotations
 
 import csv
+import functools
 import pathlib
 import re
 from dataclasses import dataclass, field
@@ -155,7 +156,16 @@ class RepeatMap:
                 for n, c in groups.items() if len(c) > 1}
 
     @classmethod
+    @functools.lru_cache(maxsize=4)
     def load(cls, directory: pathlib.Path | None = None) -> "RepeatMap":
+        """Cached: `lift` consults the repeat map on every call.
+
+        Round 8 measured 0.358 ms per lift against 0.0029 ms for the same work with the
+        objects reused, 124 times the useful cost, because this re-read and re-parsed
+        two TSVs and re-derived the pairs each time. A corpus-wide sweep went from about
+        80 seconds to about 3 hours. The map is derived from files on disk and treated
+        as immutable within a run; rebuild and reload in a new process.
+        """
         d = pathlib.Path(directory) if directory else DERIVED
         with (d / "repeat_map.tsv").open() as fh:
             rows = list(csv.DictReader(fh, delimiter="\t"))
