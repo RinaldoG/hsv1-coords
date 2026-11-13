@@ -228,7 +228,75 @@ across 6,633.
 - Tandem reiteration sets are flagged as repeat features but no alternative positions are
   computed for them, because a tandem array has no single counterpart.
 
-## M5: release
+## M5: the coordinate-convention resolver - built, criteria met
+
+The reason an HSV-1 coordinate cannot be trusted is not only that the repeats are
+duplicated. It is that different groups handle those regions differently, so the same
+printed position means different things in different papers, and nothing reconciles them.
+
+This resolver holds each convention as data, with its definition taken from its own
+paper, and answers two questions for a position: **is this position present at all under
+that convention, and what is the equivalent position?**
+
+**Every convention carries its verification status, and the resolver refuses to convert
+under one it could not verify.** That rule exists because this project has twice now
+encoded something on a second-hand description that turned out to be wrong.
+
+**Built.** Three conventions verified from their own papers and one declared and
+refused. `ConventionSet.report(position)` says which conventions a position is usable
+under.
+
+```python
+ConventionSet.load().report(118777)      # the LAT TATA box
+# usable under full_length
+# usable under whisnant2020_masked
+# NOT usable under lassalle2020_excluded: inside 116,926-132,647, excluded from the analysis
+# cannot say for szpara2014_trimmed: its definition is unverified
+```
+
+**What was verified, and what it changed.** Each definition was read from its own source
+rather than from the review that suggested it, and one claim inverted on contact:
+
+| Convention | Verified | What the source actually says |
+|---|---|---|
+| `lassalle2020_excluded` | Yes, full text read | "the repeated RL/RS genome regions (1-9,338, 116,926-132,647, 145,582-150,962), excluded from the analysis", and confirmed to be against `NC_001806` |
+| `whisnant2020_masked` | Yes, full text read | "we masked the terminal repeats by NNN", and then "all read mappings in the repeats were copied into the previously masked regions". **It masks and restores**, so positions are retained. The earlier claim that the field masks and discards was backwards |
+| `szpara2014_trimmed` | **No** | Paywalled, no full text available. Declared and refused rather than encoded from a second-hand description |
+
+**Criteria, written before the code, all met** and enforced in
+`tests/test_m5_conventions.py`:
+
+- Every convention's definition is quoted from its own primary source, with the source
+  named, or it is marked unverified and the resolver declines to use it.
+- A convention that only drops data (masking, exclusion) leaves coordinates unchanged.
+  Conflating "this position is unusable here" with "this position moves" is the error
+  the resolver exists to prevent, and the two answers must be distinct in the return
+  value.
+- A convention that removes sequence shifts coordinates, and the shift is computed, not
+  assumed constant.
+- Round trip: converting a position into a convention and back returns the original, for
+  every position the convention retains.
+- The resolver states which conventions a given position is usable under, so a reader can
+  see at a glance whether a cited coordinate is comparable across two papers.
+- A worked example shows two papers' coordinates for the same locus reconciled, or shows
+  honestly that they cannot be.
+
+**The worked example, and it is the point of the whole milestone.** The LAT TATA box at
+118,777 is retained under Whisnant's handling and **excluded entirely** under Lassalle's.
+So a LAT finding from one paper and a variant analysis from the other are not comparable
+at that position, and nothing in either paper says so. On top of that, the repeat map
+reports the position as not well defined, because it has a counterpart in the other copy
+of the repeat. Both halves of the problem, visible in one call.
+
+**Known limits:**
+
+- Four conventions, one of them refused. There are certainly more in use.
+- No coordinate-shifting convention is implemented, because the only one encountered
+  could not be verified. The code raises rather than guessing at the shift.
+- The conventions file is hand-curated. Each row carries its source and the date it was
+  read, so it can be checked, but it is not generated from anything.
+
+## M5b: release
 
 Versioned release with a dataset DOI, a container image, and a README from which someone who
 has not seen the project can reproduce a release.
