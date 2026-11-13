@@ -152,20 +152,33 @@ class LiftResult:
     alternatives: list[int] = field(default_factory=list)
     loci: list[str] = field(default_factory=list)
     reason: str = ""
+    complemented: bool = False
+    """True when the two coordinates are on opposite strands.
+
+    Three of the 183 deposited genomes are on the opposite strand from the reference, so
+    a lift into or out of one of them is positionally correct while the base at the
+    answer is the complement of the base at the question. Round 8: the frame handling was
+    right and nothing told the user, so someone lifting variant positions out of
+    `ON783216.1` would have got reference positions whose alleles were the complement of
+    theirs, with no warning. That is the shape of error this repository exists to
+    prevent, so it is a field and it is in `__str__`.
+    """
 
     def __bool__(self) -> bool:
         return self.position is not None
 
     def __str__(self) -> str:
+        strand = (", ON THE OPPOSITE STRAND, so the base here is the complement of "
+                  "the base there" if self.complemented else "")
         if self.position is None:
             return f"{self.source}:{self.position} does not lift to {self.target}"
         if self.well_defined:
-            return f"{self.source} -> {self.target}: {self.position}"
+            return f"{self.source} -> {self.target}: {self.position}{strand}"
         alts = ", ".join(str(a) for a in self.alternatives) or "none computable"
         loci = f" ({', '.join(self.loci)})" if self.loci else ""
-        return (f"{self.source} -> {self.target}: {self.position}, but NOT well "
-                f"defined{loci}: {self.reason}. The reference position could equally "
-                f"be {alts}")
+        return (f"{self.source} -> {self.target}: {self.position}{strand}, but NOT "
+                f"well defined{loci}: {self.reason}. The reference position could "
+                f"equally be {alts}")
 
 
 def lift_detailed(position: int, source: str, target: str,
@@ -180,13 +193,22 @@ def lift_detailed(position: int, source: str, target: str,
     """
     from .repeats import RepeatMap
 
+    def orientation_of(accession: str) -> str:
+        if accession == REFERENCE:
+            return "forward"
+        return Crosswalk.load(accession, directory).orientation
+
     if source == REFERENCE:
         ref_pos: int | None = position
     else:
         ref_pos = Crosswalk.load(source, directory).to_reference(position)
+    # Opposite strands iff exactly one of the two is a reverse-complemented deposit.
+    complemented = ((orientation_of(source) == "reverse_complemented")
+                    != (orientation_of(target) == "reverse_complemented"))
     if ref_pos is None:
         return LiftResult(None, source, target, None, True, [], [],
-                          "no reference coordinate for this position")
+                          "no reference coordinate for this position",
+                          complemented=complemented)
 
     out = position if source == target else (
         ref_pos if target == REFERENCE
@@ -194,7 +216,8 @@ def lift_detailed(position: int, source: str, target: str,
 
     status = RepeatMap.load().classify(ref_pos)
     return LiftResult(out, source, target, ref_pos, status.well_defined,
-                      status.alternatives, status.loci, status.reason)
+                      status.alternatives, status.loci, status.reason,
+                      complemented=complemented)
 
 
 def lift(position: int, source: str, target: str,

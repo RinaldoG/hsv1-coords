@@ -47,21 +47,49 @@ for the criteria
 each component must clear, and `FINDINGS.md` for what building it established, including
 corrections to this repository's own earlier claims.
 
+```
+pip install -e .          # or run anything below with PYTHONPATH=src
+make inputs genomes all   # fetches the records and builds the artefacts
+```
+
+Every output below is copied from a real run, not written by hand.
+
 ```python
 from hsv1coords import ConventionSet, Dictionary, RepeatMap, lift
+from hsv1coords.liftover import lift_detailed
 
-Dictionary.load().resolve("VP16")              # 'UL48'
-Dictionary.load().resolve("alpha-TIF")         # 'UL48'
+Dictionary.load().resolve("VP16")                        # 'UL48'
+Dictionary.load().resolve("alpha-TIF")                   # 'UL48'
 
-lift(118777, "JQ673480.1", "JQ780693.1")       # 118295, or None where it cannot say
+# A position outside the repeats lifts to a number.
+lift(60000, "JQ673480.1", "JQ780693.1")                  # 59722
 
-RepeatMap.load().classify(118777)
-# not well defined (inside IRL, which is present in two copies); could equally be 7597
+# One inside a repeat returns None, because there is no single honest answer.
+lift(118777, "NC_001806.2", "JQ780693.1")                # None
+print(lift_detailed(118777, "NC_001806.2", "JQ780693.1"))
+# NC_001806.2 -> JQ780693.1: 118185, but NOT well defined (LAT,
+# regulatory@complement(7592..7597) / LAT): inside IRL, which is present in two
+# copies. The reference position could equally be 7597
 
-ConventionSet.load().report(118777)            # the LAT TATA box
-# usable under full_length, whisnant2020_masked, szpara2014_trimmed
-# NOT usable under lassalle2020_excluded: excluded from the analysis
-# NOT usable under morse2017_nr: not in the NR-reference
+# Three deposits are on the opposite strand, and a lift says so.
+
+print(lift_detailed(50000, "ON783216.1", "NC_001806.2"))
+# ON783216.1 -> NC_001806.2: 75929, ON THE OPPOSITE STRAND, so the base here is
+# the complement of the base there
+
+print(RepeatMap.load().classify(118777))                 # the LAT TATA box
+# 118777: not well defined (inside IRL, which is present in two copies);
+# could equally be 7597
+
+print(ConventionSet.load().report(118777))
+# reference position 118777:
+#   usable under full_length
+#   usable under whisnant2020_masked
+#   usable under szpara2014_trimmed
+#   NOT usable under lassalle2020_excluded: inside 116,926-132,647, excluded from
+#   the analysis
+#   NOT usable under morse2017_nr: inside 117,160-125,973, which is not in the
+#   NR-reference (as NC_001806.1 position 118,776, offset -1)
 ```
 
 So one position in the gene that dominates latent transcription becomes 109,564 in a
