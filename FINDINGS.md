@@ -105,3 +105,41 @@ because the good annotation already exists and is deposited twice. What is missi
 **crosswalk between naming systems**, including between one paper's own two deposits. That
 is milestone 1's job, and it has just become the centre of the project rather than its
 warm-up.
+
+## A name in an inverted repeat is not an ambiguous name
+
+Found 13 November 2026 by the milestone 1 gate, which is the point of writing the gate
+before the code.
+
+Three alias strings in the dictionary map to two canonical genes each. The gate initially
+treated all three as ambiguous. Two of them are not:
+
+| Alias | Maps to | What it is |
+|---|---|---|
+| `LAT 0.7kb` | `TRL2.5`, `IRL2.5` | One locus, present in both copies of the long inverted repeat |
+| `pri-miRNA-H1` | `TRL2.5`, `IRL2.5` | The same |
+| `IE63` | `UL54`, `US1` | A genuine collision across two different genes |
+
+`TRL2.5` and `IRL2.5` are the same locus. It appears twice because it lies inside the
+inverted repeat, which is also why LAT itself appears twice. So a name mapping to both is
+not under-determined in the way an ambiguous name is: it is fully determined apart from
+which repeat copy is meant, and that is a coordinate question, not a naming one.
+
+The resolver now separates them. A repeat-paired name raises `RepeatPairedName`, which
+tells the caller it must choose a copy or accept both. A genuinely ambiguous name raises
+`AmbiguousName`. Collapsing the two would have meant either silently picking one copy of
+LAT, which is the error the un-callable mask exists to prevent, or declaring a
+well-determined locus unusable.
+
+`IE63` is the real collision, and the dictionary documents it rather than resolving it:
+`IE63` on `UL54` (ICP27) is well attested in HSV-1 papers, while `IE63` on `US1` (ICP22)
+traces to a varicella-zoster virus paper on that virus's ORF63, which is the likely source
+of the confusion. Both usages are recorded with citations and neither is deleted.
+
+**One correction to the gate itself.** The first version of the test demanded that every
+row for an ambiguous alias be marked `ambiguous`. That was wrong, and the data was right:
+`confidence` describes how well sourced one gene-and-alias pair is, which is a different
+axis from whether the alias collides across genes. Flattening every `IE63` row would have
+thrown away the fact that one of the two assignments is far better supported than the
+other. The test now requires the collision to be documented in at least one row, with an
+explanation, which is what the data already did.

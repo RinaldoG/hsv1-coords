@@ -17,5 +17,11 @@ jobs:
         run: make inputs
       - name: Verify inputs and assumptions
         run: make check
-      - name: Tests
+      - name: Rebuild derived name tables
+        run: make names
+      - name: Rebuild the synonymy test cases from the prose document
+        run: make testcases
+      - name: Fail if any rebuilt file differs from what is committed
+        run: git diff --exit-code -- data/derived tests/testcases_synonymy.tsv
+      - name: Milestone gates
         run: make test

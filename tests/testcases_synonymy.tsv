@@ -1,0 +1,155 @@
+case	pmid	access	expected_canonical	name_string
+Test case 1	1846201	abstract only	UL48	alpha trans-induction factor
+Test case 1	1846201	abstract only	UL48	alpha TIF
+Test case 1	1846201	abstract only	UL48	ICP25
+Test case 1	1846201	abstract only	UL48	VP16
+Test case 1	1846201	abstract only	UL48	Vmw65
+Test case 1	1846201	abstract only	UL46	UL46
+Test case 1	1846201	abstract only	UL47	UL47
+Test case 1	1846201	abstract only	UL23	thymidine kinase
+Test case 2	8126462	abstract only	RL2	infected cell protein 0
+Test case 2	8126462	abstract only	RL2	ICP0
+Test case 2	8126462	abstract only	RL2	Vmw110
+Test case 2	8126462	abstract only	RS1	ICP4
+Test case 2	8126462	abstract only	RS1	Vmw175
+Test case 2	8126462	abstract only	UL54	ICP27
+Test case 2	8126462	abstract only	UL23	thymidine kinase
+Test case 2	8126462	abstract only	UL48	VP16
+Test case 2	8126462	abstract only	UL48	ICP25
+Test case 2	8126462	abstract only	UL48	Vmw65
+Test case 2	8126462	abstract only	LAT	Latency-associated transcripts
+Test case 2	8126462	abstract only	LAT	LATs
+Test case 3	7983744	abstract only	RS1	IE175
+Test case 3	7983744	abstract only	RS1	ICP4
+Test case 3	7983744	abstract only	RL2	IE110
+Test case 3	7983744	abstract only	RL2	ICP0
+Test case 3	7983744	abstract only	RL2	1E110
+Test case 3	7983744	abstract only	UL54	IE63
+Test case 3	7983744	abstract only	UL54	ICP27
+Test case 4	2845144	abstract only	RS1	IE175
+Test case 4	2845144	abstract only	RS1	alpha 4
+Test case 4	2845144	abstract only	RS1	ICP4
+Test case 4	2845144	abstract only	RL2	IE110
+Test case 4	2845144	abstract only	RL2	alpha 0
+Test case 5	1645782	abstract only	UL48	alpha-transinducing factor
+Test case 5	1645782	abstract only	UL48	alpha TIF
+Test case 5	1645782	abstract only	UL48	VP16
+Test case 5	1645782	abstract only	UL54	alpha 27 promoter
+Test case 5	1645782	abstract only	UL54	alpha 27
+Test case 5	1645782	abstract only	RS1	alpha 4 gene
+Test case 5	1645782	abstract only	RS1	alpha 4
+Test case 6	32341360	full text read	RL2	RL2
+Test case 6	32341360	full text read	RL2	ICP0
+Test case 6	32341360	full text read	RL2	RL2A
+Test case 6	32341360	full text read	RL2	RL2 iso1
+Test case 6	32341360	full text read	RL1	RL1
+Test case 6	32341360	full text read	RL1	ICP34.5
+Test case 6	32341360	full text read	RL1	RL1A
+Test case 6	32341360	full text read	UL54	UL54
+Test case 6	32341360	full text read	UL54	ICP27
+Test case 6	32341360	full text read	UL19	UL19
+Test case 6	32341360	full text read	UL19	VP5
+Test case 6	32341360	full text read	UL19	MCP
+Test case 6	32341360	full text read	UL35	UL35
+Test case 6	32341360	full text read	UL35	VP26
+Test case 6	32341360	full text read	RS1	ICP4
+Test case 6	32341360	full text read	UL1	glycoprotein L
+Test case 6	32341360	full text read	UL49A	UL49.5
+Test case 6	32341360	full text read		JN555585
+Test case 7	24794394	full text read	UL18	UL18
+Test case 7	24794394	full text read	UL18	VP23
+Test case 7	24794394	full text read	UL19	UL19
+Test case 7	24794394	full text read	UL19	VP5
+Test case 7	24794394	full text read	UL35	UL35
+Test case 7	24794394	full text read	UL35	VP26
+Test case 7	24794394	full text read	UL38	UL38
+Test case 7	24794394	full text read	UL38	VP19C
+Test case 7	24794394	full text read	UL26.5	UL26.5
+Test case 7	24794394	full text read	UL26.5	ICP35
+Test case 7	24794394	full text read	UL26	UL26
+Test case 7	24794394	full text read	UL26	VP24
+Test case 7	24794394	full text read	UL26	VP21
+Test case 7	24794394	full text read	UL6	pUL6
+Test case 7	24794394	full text read	UL23	TK
+Test case 7	24794394	full text read	UL23	Thymidine Kinase
+Test case 7	24794394	full text read		ICP4
+Test case 7	24794394	full text read		ICP6
+Test case 7	24794394	full text read		UL5
+Test case 7	24794394	full text read		UL8
+Test case 7	24794394	full text read		UL9
+Test case 7	24794394	full text read		UL12
+Test case 7	24794394	full text read		UL29
+Test case 7	24794394	full text read		UL30
+Test case 7	24794394	full text read		UL39
+Test case 7	24794394	full text read		UL42
+Test case 7	24794394	full text read		UL52
+Test case 8	34578430	full text read	UL1	gL
+Test case 8	34578430	full text read	UL1	UL1
+Test case 8	34578430	full text read	UL22	gH
+Test case 8	34578430	full text read	UL22	UL22
+Test case 8	34578430	full text read	UL53	gK
+Test case 8	34578430	full text read	UL53	UL53
+Test case 8	34578430	full text read	UL27	gB
+Test case 8	34578430	full text read	US6	gD
+Test case 9	42015059	full text read	UL23	UL23
+Test case 9	42015059	full text read	UL23	TK
+Test case 9	42015059	full text read	UL23	thymidine kinase
+Test case 9	42015059	full text read	UL30	UL30
+Test case 9	42015059	full text read	UL30	DNA polymerase
+Test case 9	42015059	full text read	UL30	DNA pol
+Test case 10	31443275	full text read	RL2	ICP0
+Test case 10	31443275	full text read	UL41	VHS
+Test case 10	31443275	full text read	UL41	vhs
+Test case 10	31443275	full text read	UL41	UL41
+Test case 10	31443275	full text read	UL23	TK
+Test case 10	31443275	full text read	UL23	thymidine kinase
+Test case 10	31443275	full text read	LAT	LAT
+Test case 10	31443275	full text read	RL1	ICP34.5
+Test case 10	31443275	full text read	RL1	gamma1 34.5
+Test case 10	31443275	full text read		miR-H2
+Test case 10	31443275	full text read		miR-H1
+Test case 10	31443275	full text read		miR-H4
+Test case 10	31443275	full text read		miR-H6
+Test case 10	31443275	full text read		miR-H8
+Test case 10	31443275	full text read		miR-H27
+Test case 10	31443275	full text read		miR-H28
+Test case 10	31443275	full text read		miR-H29
+Test case 10	31443275	full text read		miR-H2-3p
+Test case 10	31443275	full text read		miR-H4-5p
+Test case 10	31443275	full text read		miR-H6-3p
+Test case 10	31443275	full text read		UL30
+Test case 10	31443275	full text read		UL37
+Test case 10	31443275	full text read		UL46
+Test case 10	31443275	full text read		US3
+Test case 10	31443275	full text read		US11
+Test case 10	31443275	full text read		UL36USP
+Test case 10	31443275	full text read		ICP4
+Test case 10	31443275	full text read		ICP27
+Test case 10	31443275	full text read		ICP47
+Test case 10	31443275	full text read		VP22
+Test case 10	31443275	full text read		gC
+Test case 11	6098466		RS1	Vmw175
+Test case 11	6098466		RS1	ICP 4
+Test case 11	6098466		RL2	Vmw110
+Test case 11	6098466		RL2	ICP 0
+Test case 11	6098466		RL2	IE gene 1
+Test case 11	6098466			IE RNA 1
+Test case 11	6098466			IE RNA 2
+Test case 11	6098466			IE RNA 3
+Test case 11	6098466			IE RNA 4
+Test case 12	6317887	abstract only	UL26.5	infected cell polypeptides (ICP) 35
+Test case 12	6317887	abstract only	UL26.5	ICP35
+Test case 12	6317887	abstract only	UL26.5	ICP35a
+Test case 12	6317887	abstract only	UL26.5	ICP35f
+Test case 12	6317887	abstract only	UL26.5	virion protein 22a
+Test case 12	6317887	abstract only	UL19	ICP5
+Test case 12	6317887	abstract only	UL19	major capsid protein
+Test case 13	34960783	full text read	UL19	VP5
+Test case 13	34960783	full text read	UL19	UL19
+Test case 13	34960783	full text read	UL18	VP23
+Test case 13	34960783	full text read	UL18	UL18
+Test case 13	34960783	full text read	UL38	VP19C
+Test case 13	34960783	full text read	UL38	UL38
+Test case 13	34960783	full text read	UL6	UL6
+Test case 13	34960783	full text read	UL35	VP26
+Test case 13	34960783	full text read	UL48	VP16

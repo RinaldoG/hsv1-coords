@@ -1,0 +1,28 @@
+name_string	expected_canonical	pmid	category	reason
+ICP35a	UL26.5	6317887	missing_content	ICP35 protein species (a to f) are electrophoretic forms of one gene product. Needs a cited source for the species naming.
+ICP35f	UL26.5	6317887	missing_content	ICP35 protein species (a to f) are electrophoretic forms of one gene product. Needs a cited source for the species naming.
+IE RNA 1	(any)	6098466	missing_content	Not yet in the dictionary; no reason recorded.
+IE RNA 2	(any)	6098466	missing_content	Not yet in the dictionary; no reason recorded.
+IE RNA 3	(any)	6098466	missing_content	Not yet in the dictionary; no reason recorded.
+IE RNA 4	(any)	6098466	missing_content	Not yet in the dictionary; no reason recorded.
+JN555585	(any)	32341360	missing_content	Not yet in the dictionary; no reason recorded.
+RL1A	RL1	32341360	missing_content	Isoform naming from the 2020 re-annotation, not yet extracted.
+RL2 iso1	RL2	32341360	missing_content	Isoform naming from the 2020 re-annotation, not yet extracted.
+RL2A	RL2	32341360	missing_content	Isoform naming from the 2020 re-annotation, not yet extracted.
+UL36USP	(any)	31443275	missing_content	Domain name (the UL36 ubiquitin-specific protease domain), not a whole-gene alias. Needs a decision on whether domains belong in a gene dictionary.
+1E110	RL2	7983744	observed_variant	Almost certainly a rendering or typographical error for IE110 in the accessed text. Recorded because a text pipeline will meet it. Needs a decision on whether to carry observed corruptions.
+Latency-associated transcripts	LAT	8126462	out_of_scope_m1	A prose phrase rather than a name string. Resolving free text is named-entity recognition, a different problem from a dictionary lookup.
+alpha 27 promoter	UL54	1645782	out_of_scope_m1	A prose phrase rather than a name string. Resolving free text is named-entity recognition, a different problem from a dictionary lookup.
+alpha 4 gene	RS1	1645782	out_of_scope_m1	A prose phrase rather than a name string. Resolving free text is named-entity recognition, a different problem from a dictionary lookup.
+infected cell polypeptides (ICP) 35	UL26.5	6317887	out_of_scope_m1	A prose phrase rather than a name string. Resolving free text is named-entity recognition, a different problem from a dictionary lookup.
+miR-H1	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H2	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H2-3p	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H27	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H28	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H29	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H4	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H4-5p	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H6	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H6-3p	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.
+miR-H8	(any)	31443275	out_of_scope_m1	Viral microRNAs are a separate namespace from protein-coding genes. Deferred: strand 01 found that viral miRNA sequences recovered from human tissue differ from miRBase, so this namespace needs its own sourcing decision before it is populated.

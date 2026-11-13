@@ -13,7 +13,7 @@ premise this repository started from.
 
 **Criteria, met:** every input fetches and verifies from a clean machine with one command.
 
-## M1: gene name dictionary - in progress
+## M1: gene name dictionary - met, with a recorded gap list
 
 One row per gene: canonical identifier, systematic name (`UL48`), protein name (`VP16`),
 and every historical alias (`alpha-TIF`, `Vmw65`), each alias carrying a citation.
@@ -23,14 +23,21 @@ deposited records and reconciles them across sources, without inventing synonymy
 in `data/derived/`. The finding that shapes this milestone is in `FINDINGS.md`: of 232
 distinct gene names across the four sources, five appear in all four.
 
-**Criteria:**
+**Criteria, all met** and enforced by `tests/test_m1_dictionary.py`, which runs in CI:
+
 - Name to canonical to name is lossless for every entry.
-- Reproduces the synonymy used in at least three published papers, each named in the test
-  suite.
-- No entry carries an uncited alias. Names believed to exist but lacking a citation are
-  listed separately as unverified.
-- Where a name has been used for more than one gene, the ambiguity is recorded rather than
-  resolved.
+- Reproduces the synonymy used in at least three published papers: 13 papers, 154
+  assertions, generated from `data/derived/alias_testcases.md` by `make testcases` so the
+  prose and the tests cannot drift.
+- No entry carries an uncited alias: 683 rows, 166 genes, 103 citations, zero uncited.
+- Where a name has been used for more than one locus, the collision is recorded rather
+  than resolved, and `Dictionary.resolve` refuses it instead of guessing.
+
+**Gaps are listed, not hidden.** `tests/known_gaps.tsv` holds 27 published name strings
+the dictionary does not resolve, each with a category and a reason. A new gap fails the
+suite, and so does a listed gap that has quietly started resolving, so the list cannot
+rot. The largest category is the viral microRNAs, deferred because their reference
+sequences need a sourcing decision of their own (see `FINDINGS.md`).
 
 ## M2: canonical versioned annotation
 
