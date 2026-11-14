@@ -30,6 +30,33 @@ def python_blocks(body: str) -> list[str]:
     return re.findall(r"```python\n(.*?)```", body, re.S)
 
 
+def output_groups(block: str) -> list[str]:
+    """The quoted-output comment groups of a block, in order.
+
+    A group is a run of `#` comment lines. It is quoted output when the line before the
+    run is a `print(`, and prose otherwise. Round 9: the earlier rule asked whether the
+    PREVIOUS line was a print or another comment, so the first line of a multi-line
+    prose comment was correctly skipped and every line after it was read as output. A
+    three-line note about the example was compared against the program's stdout.
+    """
+    groups: list[str] = []
+    lines = block.splitlines()
+    i = 0
+    while i < len(lines):
+        if not lines[i].strip().startswith("#"):
+            i += 1
+            continue
+        start = i
+        run = []
+        while i < len(lines) and lines[i].strip().startswith("#"):
+            run.append(lines[i].strip().lstrip("#").strip())
+            i += 1
+        prior = lines[start - 1].strip() if start else ""
+        if prior.startswith("print("):
+            groups.append(" ".join(x for x in run if x))
+    return groups
+
+
 class TheReadmeExamplesRun(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -59,31 +86,18 @@ class TheReadmeExamplesRun(unittest.TestCase):
                 self._run(block)
 
     def test_the_quoted_outputs_are_what_the_code_prints(self):
-        """Each `# ...` comment after a print must appear in the real output.
+        """Each quoted output line must appear in the real output.
 
-        This is what makes the examples a gate rather than decoration: an output
-        comment that drifts from the behaviour fails here.
+        Kept beside the equality check below: this one names the offending fragment,
+        which is the more useful failure when a single line has drifted.
         """
         checked = 0
         for i, block in enumerate(self.blocks):
             if "print(" not in block:
                 continue
-            out = self._run(block)
-            flat = re.sub(r"\s+", " ", out)
-            lines = block.splitlines()
-            for n, line in enumerate(lines):
-                stripped = line.strip()
-                # An output comment is a `#` line that follows a print or another
-                # output comment, and is not prose about the code.
-                if not stripped.startswith("# "):
-                    continue
-                # Directly after a print, or after another output comment, with no
-                # blank line between. A prose comment separated by a blank line is a
-                # note about the code, not quoted output.
-                prior = lines[n - 1].strip() if n else ""
-                if not (prior.startswith("print(") or prior.startswith("# ")):
-                    continue
-                fragment = re.sub(r"\s+", " ", stripped[2:]).strip()
+            flat = re.sub(r"\s+", " ", self._run(block))
+            for group in output_groups(block):
+                fragment = re.sub(r"\s+", " ", group).strip()
                 if len(fragment) < 8:
                     continue
                 with self.subTest(block=i, quoted=fragment[:60]):
@@ -92,9 +106,45 @@ class TheReadmeExamplesRun(unittest.TestCase):
                         f"the README quotes output the code does not print:\n"
                         f"  quoted: {fragment}\n  actual: {flat[:600]}")
                 checked += 1
-        self.assertGreater(checked, 5,
-                           f"only {checked} quoted output lines were checked, so this "
+        self.assertGreater(checked, 3,
+                           f"only {checked} quoted output groups were checked, so this "
                            f"proves little")
+
+    def test_the_quoted_output_is_the_whole_output_in_order(self):
+        """Equality, not containment, because containment missed three things.
+
+        The check above asserts each quoted fragment appears somewhere in the real
+        output. Round 9 showed what that cannot see: the README quoted six of the seven
+        lines `report` printed and dropped the seventh, which was the ambiguity caveat,
+        the most load-bearing line in the file; reordering three quoted lines passed;
+        and deleting two quoted lines entirely passed, because a `findall` over zero
+        occurrences runs zero subtests and reports success. All three were under a
+        heading that says "Every output below is copied from a real run".
+
+        So this reassembles every quoted output comment in the block, in order, and
+        requires it to equal what the block actually prints. An example may still be
+        written without quoting its output; it may not quote part of it and leave the
+        rest unsaid.
+        """
+        checked = 0
+        for i, block in enumerate(self.blocks):
+            if "print(" not in block:
+                continue
+            groups = output_groups(block)
+            if not groups:
+                continue
+            expected = re.sub(r"\s+", " ", " ".join(groups)).strip()
+            actual = re.sub(r"\s+", " ", self._run(block)).strip()
+            with self.subTest(block=i):
+                self.assertEqual(
+                    actual, expected,
+                    "the README's quoted output is not what the block prints, in "
+                    "order and in full. A line the code prints and the README does "
+                    "not quote is the failure this catches.")
+            checked += 1
+        self.assertGreater(checked, 0,
+                           "no block with quoted output was compared, so this gate ran "
+                           "on nothing")
 
     def test_an_inline_expectation_comment_matches_the_value(self):
         """`expr  # value` comments, such as `resolve("VP16")  # 'UL48'`."""

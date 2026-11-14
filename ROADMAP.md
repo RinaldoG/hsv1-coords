@@ -434,8 +434,8 @@ each is only honest beside its definition:
 | Measurement | Rate | What it samples |
 |---|---|---|
 | The whole suite | **45 of 90** | A number anywhere in the four documents, changed one at a time, with the full suite re-run. Was 34 of 90 before round 7. |
-| This gate alone | **about 18 per cent** | The same independent sample, judged only by the figure-to-artefact comparison. Printed on every run with a floor. |
-| `gate power` | **62 of 62** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction. |
+| This gate alone | **about 15 per cent** | Every standalone number in the four documents, changed one at a time, judged only by the figure-to-artefact comparison. Printed on every run as a count and a rate, with a floor on each, and this row is checked against the rate the run measures. Round 8 sampled 60 of these sites with a fixed seed and this row said 18 per cent; the unchanged gate ranged from 8.3 to 23.3 per cent across other seeds, so the sample was narrower than its own spread and the row overstated it. The exact counts are printed by the run rather than written here, because they move whenever a document gains a number. |
+| `gate power` | **67 of 67** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
 
 The gap between the first two is the rest of the suite: the per-occurrence reach check,
 the component-table count, the quoted-resolver output and the README example runner each

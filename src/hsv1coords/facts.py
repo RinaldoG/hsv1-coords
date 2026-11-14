@@ -70,8 +70,17 @@ SPELLED = {1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "s
 
 
 def _rows(path: pathlib.Path) -> list[dict[str, str]]:
+    """Rows of a TSV, skipping any `#` preamble.
+
+    `base_agreement.tsv` carries five comment lines before its header, and without this
+    the first comment became the header: every row then parsed into one column, the
+    figures came out empty, and `derive` raised on an empty sequence instead of
+    reporting a missing artefact. A silent version of that would have published three
+    facts with no values.
+    """
     with path.open() as fh:
-        return list(csv.DictReader(fh, delimiter="\t"))
+        lines = [line for line in fh if not line.startswith("#")]
+    return list(csv.DictReader(lines, delimiter="\t"))
 
 
 def missing_inputs() -> list[str]:
@@ -92,6 +101,7 @@ def missing_inputs() -> list[str]:
         "data/derived/diploid_pairs.tsv": DERIVED / "diploid_pairs.tsv",
         "data/derived/version_crosswalk.tsv": DERIVED / "version_crosswalk.tsv",
         "data/derived/crosswalk_coverage.tsv": DERIVED / "crosswalk_coverage.tsv",
+        "data/derived/base_agreement.tsv": DERIVED / "base_agreement.tsv",
     }
     return sorted(name for name, path in needed.items() if not path.exists())
 
@@ -164,6 +174,31 @@ def derive() -> list[Fact]:
         facts.append(Fact("version_blocks", len(blocks),
                           ("aligned blocks", "blocks, from")))
         facts.append(Fact("version_offsets", len(offsets), ("distinct offsets",)))
+
+    # The base-agreement figures. Round 9: README.md stated "97 per cent or better over
+    # 717,688 scored positions" as the evidence that the lift-over defect was fixed, and
+    # both numbers were the pre-fix measurement: the widened gate scores 1,676,839
+    # positions and four genomes fall below 97. Neither figure was derivable from any
+    # artefact, so the gate could not see them, while README.md claimed every figure the
+    # repository derives is gated. They are derivable now because the measurement is
+    # pinned in a committed file.
+    agreement = DERIVED / "base_agreement.tsv"
+    if agreement.exists():
+        rows = [r for r in _rows(agreement) if r.get("scored")]
+        scored = sum(int(r["scored"]) for r in rows)
+        matching = sum(int(r["matching"]) for r in rows)
+        worst = min(100 * int(r["matching"]) / int(r["scored"]) for r in rows)
+        facts.append(Fact("scored_positions", scored,
+                          ("scored positions",),
+                          note="positions compared against the reference"))
+        facts.append(Fact("worst_agreement", f"{worst:.1f}",
+                          ("per cent or better",),
+                          note="the weakest genome's base agreement",
+                          prefixes=("agrees with the reference at",)))
+        facts.append(Fact("pooled_agreement", f"{100 * matching / scored:.2f}",
+                          ("per cent across the corpus",),
+                          note="pooled base agreement",
+                          prefixes=("pooled agreement of",)))
 
     coverage = DERIVED / "crosswalk_coverage.tsv"
     if coverage.exists():

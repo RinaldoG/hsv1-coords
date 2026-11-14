@@ -37,7 +37,22 @@ NUMBER = r"(?:\d(?:[\d,]*\d)?(?:\.\d+)?|" + "|".join(
 
 
 def flat(name: str) -> str:
-    return re.sub(r"\s+", " ", (ROOT / name).read_text())
+    """One document as a single line, with Markdown line furniture removed.
+
+    The blockquote marker is stripped before the whitespace is collapsed. Round 9: a
+    figure in a wrapped blockquote line came out as "1,676,839 scored > positions", so
+    none of its fact's phrasings sat beside it and the occurrence left the gate's reach.
+    The whole known-defects notice at the top of README.md is a blockquote, which is the
+    part of the file most likely to state a superseded number, so that blind spot was in
+    the worst possible place. List bullets and heading hashes go the same way: they are
+    furniture, and a phrase that wraps across one of them is still the phrase a reader
+    sees.
+    """
+    text = (ROOT / name).read_text()
+    text = re.sub(r"(?m)^[ \t]*(?:>[ \t]*)+", " ", text)
+    text = re.sub(r"(?m)^[ \t]*(?:[-*+]|\d+\.)[ \t]+", " ", text)
+    text = re.sub(r"(?m)^[ \t]*#+[ \t]*", " ", text)
+    return re.sub(r"\s+", " ", text)
 
 
 def contradictions(facts, bodies: dict[str, str]) -> list[str]:
@@ -181,16 +196,27 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                          f"{len(gaps)} occurrences of a derived figure are out of the "
                          f"gate's reach:\n  " + "\n  ".join(gaps))
 
-    def test_the_gate_has_power_against_every_document_and_figure(self):
-        """Mutate each figure in each document it appears in, and run the real gate.
+    def _require_every_artefact(self) -> None:
+        """A count claimed by a document is only comparable on a full build.
 
-        Round 6's version had `return` inside two nested loops, so it ran exactly one
-        subtest, on one figure, in one document, while being named "against each
-        document". It also reimplemented the comparison instead of calling the gate, so
-        deleting the gate entirely left the suite green. This calls `contradictions`,
-        which is what the gate itself calls.
+        Without the fetched records `derive` yields fewer facts, so the power count and
+        the catch rate both fall and a comparison against ROADMAP.md fails for a reason
+        that has nothing to do with the documents. Round 9: these two checks failed on a
+        fresh clone, which the README promises will skip rather than fail.
         """
-        tried = 0
+        absent = missing_inputs()
+        if absent:
+            raise unittest.SkipTest(
+                f"{len(absent)} artefacts are not built, so the gate is smaller than "
+                f"the one these counts describe: run `make all`")
+
+    def _power_mutations(self):
+        """Each (fact, phrasing, document) the power check can mutate.
+
+        Enumerated in one place so the count the run achieves and the count the
+        documents claim are the same number, rather than two numbers that agree until
+        one of them stops.
+        """
         for fact in self.facts:
             patterns = ([(n, rf"({NUMBER})\s+{re.escape(n)}") for n in fact.nouns]
                         + [(p, rf"{re.escape(p)}\s+({NUMBER})")
@@ -203,17 +229,64 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                         continue
                     wrong = ("0" if not m.group(1)[0].isdigit()
                              else m.group(1).replace(",", "") + "7")
-                    broken = dict(self.bodies)
-                    broken[doc] = (body[:m.start(1)] + wrong + body[m.end(1):])
-                    tried += 1
-                    with self.subTest(document=doc, figure=fact.key, phrasing=label):
-                        self.assertTrue(
-                            contradictions(self.facts, broken),
-                            f"changing {fact.key} to {wrong} in {doc} is not caught")
-        self.assertGreater(tried, 25,
-                           f"only {tried} figure-in-document pairs were mutated, so "
-                           f"this proves little; the phrasings or documents changed")
+                    broken = {doc: body[:m.start(1)] + wrong + body[m.end(1):]}
+                    yield fact, label, doc, broken, wrong
+
+    def _power_pairs(self) -> int:
+        return sum(1 for _ in self._power_mutations())
+
+    def test_the_gate_has_power_against_every_document_and_figure(self):
+        self._require_every_artefact()
+        """Mutate each figure in each document it appears in, and run the real gate.
+
+        Round 6's version had `return` inside two nested loops, so it ran exactly one
+        subtest, on one figure, in one document, while being named "against each
+        document". It also reimplemented the comparison instead of calling the gate, so
+        deleting the gate entirely left the suite green. This calls `contradictions`,
+        which is what the gate itself calls.
+        """
+        tried = 0
+        for fact, label, doc, broken, wrong in self._power_mutations():
+            tried += 1
+            with self.subTest(document=doc, figure=fact.key, phrasing=label):
+                self.assertTrue(
+                    contradictions(self.facts, broken),
+                    f"changing {fact.key} to {wrong} in {doc} is not caught")
+        # Round 9: this asserted `tried > 25` while ROADMAP.md and a docstring both
+        # said 62, so the demonstrated power could have fallen by 58 per cent with the
+        # suite green and both documents stale. The floor is now near the real number,
+        # and ROADMAP.md's figure is checked against it below.
+        self.assertGreaterEqual(
+            tried, self.POWER_FLOOR,
+            f"only {tried} figure-in-document pairs were mutated, against a recorded "
+            f"{self.POWER_FLOOR}; the phrasings or the documents shrank")
         print(f"\n    gate power: {tried} figure-in-document mutations, all caught")
+
+    POWER_FLOOR = 60
+    """How many figure-in-document pairs the power check must still find.
+
+    Not an equality: adding a figure or a phrasing legitimately raises it, and a floor
+    that fails on an improvement would be edited away. Round 9 found the assertion set
+    at 25 against a documented 62.
+    """
+
+    def test_the_roadmap_states_the_power_count_this_run_achieves(self):
+        self._require_every_artefact()
+        """The 62 in the document, against what the run actually mutates."""
+        body = flat("ROADMAP.md")
+        m = re.search(r"\|\s*`gate power`\s*\|\s*\*\*(\d+) of (\d+)\*\*", body)
+        self.assertIsNotNone(
+            m, "ROADMAP.md no longer states the gate power count in the form "
+               "`| `gate power` | **N of N** |`")
+        caught, tried = int(m.group(1)), int(m.group(2))
+        self.assertEqual(caught, tried,
+                         "the gate power row states fewer caught than tried, which "
+                         "would mean the power check is failing")
+        pairs = self._power_pairs()
+        self.assertEqual(
+            tried, pairs,
+            f"ROADMAP.md states {tried} figure-in-document mutations and this run finds "
+            f"{pairs}")
 
     def test_the_gate_is_load_bearing(self):
         """The gate reacts to a wrong figure. Deliberately not a second value check.
@@ -330,11 +403,14 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
     by construction, because it skips any site whose stated value is not already one of
     a fact's derived forms. Its mutants are drawn exactly from the sites the gate
     reaches, which is root cause 13, "a mutant set assembled after the gates is
-    assembled to die", inside the test written to prove power. Its 62 of 62 is still
-    worth having as a regression check, and it is not a coverage measurement.
+    assembled to die", inside the test written to prove power. Its all-of-them result is
+    still worth having as a regression check, and it is not a coverage measurement. The
+    count it achieves is printed and compared against the figure ROADMAP.md states, so
+    neither this docstring nor that table carries a number that can go stale: round 9
+    found both saying 62 while the assertion beneath them accepted 26.
 
-    This samples every standalone number in the four documents with a fixed seed,
-    mutates one at a time, and runs the real comparison in process. It asserts a floor
+    This mutates every standalone number in the four documents, one at a time, and runs
+    the real comparison in process. It asserts a floor
     well below the measured rate, because most of those numbers are dates, page
     numbers, DOIs and figures quoted from other groups' records, which this repository
     does not derive and this approach cannot pin. The point is that the rate is
@@ -342,17 +418,27 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
     shrinks the gate shows up as a number rather than as silence.
     """
 
-    SAMPLE = 60
-    FLOOR = 10.0
+    FLOOR_RATE = 10.0
     """A floor on the figure-comparison gate ALONE, not on the suite.
 
-    Measured, this gate catches about 18 per cent of mutations to arbitrary numbers in
-    the documents, because most of them are dates, journal page numbers, DOIs and
-    counts quoted from other groups' records. A full-suite sweep catches about 50 per
-    cent, since the occurrence check, the component-table check, the quoted-output
-    checks and the README example runner each catch things this comparison cannot. Both
-    figures are in ROADMAP.md, labelled. Quoting the 50 for this gate would flatter it,
-    which is how round 7's headline came to overstate it.
+    Round 8 measured this on a 60-site sample with a fixed seed and printed 15.0 per
+    cent against a floor of 10. Round 9 ran the same unchanged gate under 12 other seeds
+    and got 8.3 to 23.3 per cent: seed 2 was below the floor. The 5-point margin was
+    smaller than the measurement's own variance, so the floor was not a regression guard,
+    it was where the seed happened to land. Every site is measured now, so the number is
+    deterministic and the floor means what it says.
+    """
+
+    FLOOR_CAUGHT = 40
+    """A floor on the COUNT, which the rate's denominator cannot move.
+
+    Round 9's other attack on this metric: appending 40 ungated page numbers to a
+    document dropped the printed rate from 15.0 to 6.7 per cent with the gate untouched,
+    so writing a references paragraph failed the build and deleting ungated prose
+    "improved" the gate. The rate is partly prose-number density, in both directions.
+    The count of mutations caught is not: adding numbers the gate cannot see leaves it
+    where it was. The rate is still printed, because a falling rate is worth seeing, but
+    the count is what regresses when the gate shrinks.
     """
 
     @classmethod
@@ -362,39 +448,90 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
             raise unittest.SkipTest("no artefacts built; run `make all` first")
         cls.bodies = {d: flat(d) for d in DOCS}
 
-    def test_the_measured_catch_rate_is_printed_and_above_its_floor(self):
-        import random
+    @classmethod
+    def _measure(cls) -> tuple[int, int]:
+        """Memoised: two tests consume it and the sweep costs a few seconds."""
+        if getattr(cls, "_result", None) is not None:
+            return cls._result
+        cls._result = cls._sweep()
+        return cls._result
 
+    @classmethod
+    def _sweep(cls) -> tuple[int, int]:
         standalone = re.compile(r"(?<![\w.,])(\d(?:[\d,]*\d)?(?:\.\d+)?)(?![\w,.]\d)")
         sites = [(doc, m.start(), m.group(1))
-                 for doc, body in self.bodies.items()
+                 for doc, body in cls.bodies.items()
                  for m in standalone.finditer(body)]
-        self.assertGreater(len(sites), 200,
-                           f"only {len(sites)} numbers found, so a sample of "
-                           f"{self.SAMPLE} is not independent of the gate")
-        random.Random(8).shuffle(sites)
         caught = tried = 0
-        for doc, pos, value in sites[:self.SAMPLE]:
+        for doc, pos, value in sites:
             digits = value.replace(",", "")
             try:
                 wrong = (f"{float(digits) + 0.7:.2f}" if "." in digits
                          else str(int(digits) + 7))
             except ValueError:          # pragma: no cover
                 continue
-            body = self.bodies[doc]
-            broken = dict(self.bodies)
-            broken[doc] = body[:pos] + wrong + body[pos + len(value):]
+            body = cls.bodies[doc]
+            # Only the mutated document is re-judged: a changed number in one document
+            # cannot create a contradiction in another, and judging all five made the
+            # sweep five times slower for the same answer. Checked: the totals are
+            # identical either way.
+            broken = {doc: body[:pos] + wrong + body[pos + len(value):]}
             tried += 1
-            if contradictions(self.facts, broken):
+            if contradictions(cls.facts, broken):
                 caught += 1
+        return caught, tried
+
+    def _require_every_artefact(self) -> None:
+        absent = missing_inputs()
+        if absent:
+            raise unittest.SkipTest(
+                f"{len(absent)} artefacts are not built, so the gate is smaller than "
+                f"the one this rate describes: run `make all`")
+
+    def test_the_measured_catch_rate_is_printed_and_above_its_floor(self):
+        caught, tried = self._measure()
+        self.assertGreater(tried, 200,
+                           f"only {tried} numbers found, so this is not a measurement "
+                           f"of the documents as they stand")
         rate = 100 * caught / tried
-        print(f"\n    measured catch rate, this gate alone: {caught} of {tried} "
-              f"independently sampled figure mutations ({rate:.1f} per cent), floor "
-              f"{self.FLOOR}")
+        print(f"\n    measured catch rate, this gate alone: {caught} of {tried} figure "
+              f"mutations, every number in the documents ({rate:.1f} per cent), floors "
+              f"{self.FLOOR_CAUGHT} caught and {self.FLOOR_RATE} per cent")
         self.assertGreaterEqual(
-            rate, self.FLOOR,
+            caught, self.FLOOR_CAUGHT,
+            f"the gate caught {caught} mutations, below the recorded floor of "
+            f"{self.FLOOR_CAUGHT}. Unlike the rate, this count does not move when "
+            f"ungated prose numbers are added or removed, so it has shrunk.")
+        self.assertGreaterEqual(
+            rate, self.FLOOR_RATE,
             f"the gate caught {caught} of {tried} ({rate:.1f} per cent), below the "
-            f"recorded floor of {self.FLOOR} per cent")
+            f"recorded floor of {self.FLOOR_RATE} per cent")
+
+    def test_the_roadmap_states_the_rate_this_run_measures(self):
+        self._require_every_artefact()
+        """The figure in the document, against the figure the run produces.
+
+        Round 9: ROADMAP.md said "about 18 per cent" for this gate while the suite
+        printed 15.0 and the full population gives 14.4. The table was added in round 8
+        to stop one number being reported as a measurement of something else, and it
+        overstated the number it was added to state honestly. The rate is not derivable
+        from any artefact, so the only way to gate it is to measure it here and compare.
+        """
+        caught, tried = self._measure()
+        rate = 100 * caught / tried
+        body = flat("ROADMAP.md")
+        m = re.search(r"\|\s*This gate alone\s*\|\s*\*\*about ([\d.]+) per cent\*\*",
+                      body)
+        self.assertIsNotNone(
+            m, "ROADMAP.md no longer states this gate's own catch rate in the form "
+               "`| This gate alone | **about N per cent**`, so nothing ties the "
+               "document to the measurement")
+        stated = float(m.group(1))
+        self.assertLess(
+            abs(stated - rate), 1.0,
+            f"ROADMAP.md states about {stated} per cent for this gate and the run "
+            f"measures {rate:.1f} per cent ({caught} of {tried})")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

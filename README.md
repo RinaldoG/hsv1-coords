@@ -14,9 +14,20 @@ HSV-1 genome means one thing.
 >    opposite strand, so their block files held offsets into the reverse complement, and
 >    the only record of that sat in a column of a different file which nothing read.
 >    **Fixed:** the frame is now stated on the first line of each block file and applied
->    where a deposited coordinate enters. Every one of the 183 genomes now agrees with the
->    reference at 97 per cent or better over 717,688 scored positions; these three were at
->    28 per cent. Re-introducing the fault fails a named test.
+>    where a deposited coordinate enters. Every one of the 183 genomes now
+>    agrees with the reference at 95.8 per cent or better, over 1,676,839 scored
+>    positions, for a pooled agreement of 98.58 per cent across the corpus; these three
+>    were at 28 per cent. Re-introducing the fault fails a named test.
+>
+>    Both figures in that sentence were wrong until round 9. They were the measurement
+>    taken while the gate excluded every alignment block shorter than 200 bp. The commit
+>    that widened the gate to the whole corpus did not update the sentence describing its
+>    result: scoring the excluded blocks more than doubled the positions compared and
+>    brought four genomes below the threshold the sentence claimed. Neither figure was
+>    derivable from an artefact, so nothing could check it. Both now come from
+>    `data/derived/base_agreement.tsv`. The superseded numbers are deliberately not
+>    repeated here: a stale figure in a gated document is what standing rule 14 exists to
+>    prevent, and this paragraph would be the one place it could hide.
 > 2. **The lift-over did not decline inside the inverted repeats, although this file said
 >    it did.** The aligner runs with `--secondary=no`, so the second placement is
 >    discarded before the ambiguity filter can see it, and roughly 92 per cent of
@@ -70,7 +81,8 @@ lift(118777, "NC_001806.2", "JQ780693.1")                # None
 print(lift_detailed(118777, "NC_001806.2", "JQ780693.1"))
 # NC_001806.2 -> JQ780693.1: 118185, but NOT well defined (LAT,
 # regulatory@complement(7592..7597) / LAT): inside IRL, which is present in two
-# copies. The reference position could equally be 7597
+# copies. The reference position could equally be 7597 (opposite strand, so
+# complement the allele)
 
 # Three deposits are on the opposite strand, and a lift says so.
 
@@ -80,9 +92,12 @@ print(lift_detailed(50000, "ON783216.1", "NC_001806.2"))
 
 print(RepeatMap.load().classify(118777))                 # the LAT TATA box
 # 118777: not well defined (inside IRL, which is present in two copies);
-# could equally be 7597
+# could equally be 7597 (opposite strand, so complement the allele)
 
-print(ConventionSet.load().report(118777))
+# Pass the repeat map and the report says the position is ambiguous as well as
+# where it survives. Round 9 found this example calling `report` without it, so the
+# quoted output ended one line early and dropped exactly that caveat.
+print(ConventionSet.load().report(118777, RepeatMap.load()))
 # reference position 118777:
 #   usable under full_length
 #   usable under whisnant2020_masked
@@ -91,6 +106,14 @@ print(ConventionSet.load().report(118777))
 #   the analysis
 #   NOT usable under morse2017_nr: inside 117,160-125,973, which is not in the
 #   NR-reference (as NC_001806.1 position 118,776, offset -1)
+#   caveat: retained by the conventions above, but the position is not well
+#   defined in the reference: inside IRL, which is present in two copies. It
+#   could equally be 7597 (opposite strand, so complement the allele)
+#   provenance: whisnant2020_masked, szpara2014_trimmed, morse2017_nr print no
+#   coordinates in their own text, so the intervals used are the reference
+#   record's annotation read together with what the source says in words. The
+#   edges are exact to the base; the identification is an inference. See the
+#   source column of data/conventions.tsv
 ```
 
 So one position in the gene that dominates latent transcription becomes 109,564 in a
@@ -160,8 +183,17 @@ make genomes    # fetch the pinned set of 183 complete genomes
 make all        # build every derived file and run the gates
 ```
 
-Inputs are fetched rather than committed, so `make test` on a fresh clone skips the two
-test classes that need them and tells you which command to run.
+Inputs are fetched rather than committed, so `make test` on a fresh clone skips every
+check that needs the deposited records, and tells you which command to run. That is five
+test classes and a handful of individual tests: the base-agreement gate, the
+record-derived repeat checks, the strand check on each alternative, the version crosswalk
+and the genome-length cross-check. The rest of the suite runs. Those five are not
+incidental: the base-agreement gate is the one that actually tests the coordinate
+mapping, so a clone that has not fetched its inputs has not checked the lift-over.
+
+Round 9 found this paragraph claiming two classes, and found the suite failing rather
+than skipping on a fresh clone, because two checks added in that same round compared a
+count against a build that was not there.
 
 ## How this repository treats its own mistakes
 
