@@ -559,8 +559,28 @@ EST, PROB, AMB = "established", "probable", "ambiguous"
 ROWS = []
 
 
-def add(canonical, alias, atype, cit, inventory, conf, notes=""):
-    ROWS.append((canonical, alias, atype, cit, inventory, conf, notes))
+DECLINE = "decline"
+RESOLVE = "resolve"
+"""What the resolver does with this row.
+
+Round 10: the `confidence` column was loaded into the dictionary and never read by any
+code path, so four rows flagged `ambiguous`, with notes saying in terms that they are
+not resolved here, resolved silently and confidently. `ICP10` is the HSV-2 name for the
+positional homologue and returned UL39 with no signal; `AP` is attributable to either
+UL26 or UL26.5 and returned UL26.
+
+Blanket refusal would be wrong, because `ambiguous` covers two different situations: a
+string that cannot be attributed (refuse) and a string that is correctly attributed but
+sits one letter from another gene's name (answer, and say so). So each flagged row states
+which it is, rather than the resolver inferring it from the prose of the note.
+"""
+
+
+def add(canonical, alias, atype, cit, inventory, conf, notes="",
+        resolution=RESOLVE):
+    if conf == AMB and resolution not in (RESOLVE, DECLINE):
+        raise ValueError(f"{alias}: an ambiguous row must state its resolution")
+    ROWS.append((canonical, alias, atype, cit, inventory, conf, notes, resolution))
 
 
 # --- repeat-region genes -------------------------------------------------- #
@@ -698,15 +718,27 @@ UL_SIMPLE = {
              ("ICP6", P, "TPA", "CDS /note 'icp6'"),
              ("RR1", F, "TPA", "CDS /note 'rr-1'"),
              ("R1", F, "UP:P08543", "UniProt short name 'R1'"),
-             ("ribonucleotide reductase large subunit", F, "REF", "RefSeq /product")],
+             ("ribonucleotide reductase subunit 1", F, "REF", "RefSeq /product"),
+             ("ribonucleotide reductase large subunit", F, "REF",
+              "conventional name in the literature for the UL39 product. NOT the "
+              "RefSeq /product string, which is 'ribonucleotide reductase subunit "
+              "1'; this row previously claimed it was")],
     "UL40": [("RR2", F, "TPA", "CDS /note 'rr-2'"),
-             ("ribonucleotide reductase small subunit", F, "REF", "RefSeq /product")],
+             ("ribonucleotide reductase subunit 2", F, "REF", "RefSeq /product"),
+             ("ribonucleotide reductase small subunit", F, "REF",
+              "conventional name in the literature for the UL40 product. NOT the "
+              "RefSeq /product string, which is 'ribonucleotide reductase subunit "
+              "2'; this row previously claimed it was")],
     "UL41": [("vhs", F, "UP:P10225", "UniProt alternative short name 'Vhs'"),
              ("vhs", F, "TPA", "CDS /note 'vhs'"),
              ("virion host shutoff protein", F, "UP:P10225", "UniProt recommended name"),
              ("tegument host shutoff protein", F, "REF", "RefSeq /product")],
     "UL42": [("PAP", P, "UP:P10226", "UniProt alternative short name"),
-             ("DNA polymerase processivity factor", F, "REF", "RefSeq /product")],
+             ("DNA polymerase processivity subunit", F, "REF", "RefSeq /product"),
+             ("DNA polymerase processivity factor", F, "REF",
+              "conventional name in the literature for the UL42 product. NOT the "
+              "RefSeq /product string, which is 'DNA polymerase processivity "
+              "subunit'; this row previously claimed it was")],
     "UL44": [("gC", P, "REF", "RefSeq /product 'envelope glycoprotein C'"),
              ("gC", P, "TPA", "CDS /note 'glycoprotein c'")],
     "UL45": [("18 kDa protein", M, "UP:P10229", "UniProt alternative name")],
@@ -777,7 +809,7 @@ add("UL26", "AP", P, "UP:P10210", "classical", AMB,
     "UniProt names the cleaved 'Assembly protein (AP)' chain of UL26. That chain covers "
     "the same polypeptide region as the separate UL26.5 product (VP22a, ICP35), so AP is "
     "attributable to either gene depending on whether the full-length precursor or the "
-    "nested gene is meant. Not resolved here")
+    "nested gene is meant. Not resolved here", DECLINE)
 add("UL26.5", "UL26.5", S, "REF", "both", EST,
     "a decimal name that predates the 2020 re-annotation and is in the classical inventory")
 add("UL26.5", "VP22a", P, "REF", "classical", EST,
@@ -1071,7 +1103,7 @@ add("UL39", "ICP10", P, "CHUNG1989", "", AMB,
     "type 2 (HSV-2) ribonucleotide reductase (RR1) ... The HSV-1 RR1 was shown to be "
     "negative for PK activity'. The HSV-1 and HSV-2 ICP series were numbered "
     "independently by gel mobility, so ICP6 and ICP10 are homologues with different "
-    "numbers. Held as a cross-species ambiguity, not merged")
+    "numbers. Held as a cross-species ambiguity, not merged", DECLINE)
 
 add("UL28", "ICP18.5", P, "KNOPF1987", "", EST,
     "title: 'the herpes simplex virus type 1 late gene ICP18.5 of strain Angelotti'")
@@ -1388,7 +1420,40 @@ HEADER = [
     "inventory",
     "confidence",
     "notes",
+    "resolution",
+    "verbatim_in_citation",
 ]
+
+# Which deposited record each citation identifier is, for the verbatim check below.
+LOCAL_RECORDS = {
+    "NC_001806.2": "ref_NC_001806.2.gb",
+    "NC_001806.1": "ref_NC_001806.1.gb",
+    "BK012101.1": "alt_BK012101.1.gb",
+    "JN555585.1": "base_JN555585.1.gb",
+}
+
+
+def verbatim_in(ident: str, alias: str, raw: str) -> str:
+    """Whether this alias string actually occurs in the record it cites.
+
+    `yes`, `no`, or `` when the citation is a paper rather than a file here.
+
+    Round 10: 11 aliases cited a deposited record that does not contain them. Eight are
+    conventional abbreviations whose notes disclose the record's own wording, which is
+    honest but is not what README.md promises when it says every alias carries a
+    citation. Three claimed to be the RefSeq /product string and were not: the record
+    says "ribonucleotide reductase subunit 1", not "large subunit". Those three are
+    corrected; the column makes the distinction explicit for the rest, and the suite
+    checks it rather than leaving it to the next reader to notice.
+    """
+    filename = LOCAL_RECORDS.get(ident)
+    if not filename:
+        return ""
+    path = os.path.join(raw, filename)
+    if not os.path.exists(path):
+        return ""
+    with open(path) as fh:
+        return "yes" if alias.lower() in fh.read().lower() else "no"
 
 # Which gene inventory each source speaks for. The inventory column is DERIVED from
 # this rather than asserted per row, so a gene/alias pair reads "both" only when it is
@@ -1413,12 +1478,12 @@ def main():
     os.makedirs(os.path.dirname(OUT), exist_ok=True)
 
     pair_sources = {}
-    for canon, alias, _atype, citkey, _inv, _conf, _notes in ROWS:
+    for canon, alias, _atype, citkey, _inv, _conf, _notes, _res in ROWS:
         pair_sources.setdefault((canon, alias), set()).add(citkey)
 
     seen = set()
     out = []
-    for canon, alias, atype, citkey, _inv, conf, notes in ROWS:
+    for canon, alias, atype, citkey, _inv, conf, notes, resolution in ROWS:
         if citkey not in CIT:
             sys.exit("unknown citation key: %s (row %s/%s)" % (citkey, canon, alias))
         inv = inventory_for(pair_sources[(canon, alias)])
@@ -1427,7 +1492,9 @@ def main():
         if key in seen:
             continue
         seen.add(key)
-        row = [canon, alias, atype, citation, ident, inv, conf, notes]
+        row = [canon, alias, atype, citation, ident, inv, conf, notes,
+               resolution,
+               verbatim_in(ident, alias, os.path.join(REPO, "data", "raw"))]
         for cell in row:
             if "\t" in cell or "\n" in cell:
                 sys.exit("tab or newline in cell: %r" % cell)

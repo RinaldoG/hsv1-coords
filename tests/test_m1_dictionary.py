@@ -8,6 +8,7 @@ from __future__ import annotations
 import csv
 import pathlib
 import sys
+import re
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -89,11 +90,17 @@ class Criterion3Ambiguity(unittest.TestCase):
         cls.d = Dictionary.load(TABLE)
 
     def test_ambiguous_names_refuse_to_resolve(self):
-        """A name used for two different loci must not silently resolve to one."""
+        """A name used for two different loci must not silently resolve to one.
+
+        Either refusal counts: `AmbiguousName` when the data holds two canonicals, and
+        `UnresolvableName` when it holds one and a row saying it must not be handed out.
+        Round 10 added the second case, for ICP10 and AP.
+        """
+        from hsv1coords.resolver import UnresolvableName
         for entry in self.d.entries:
             if self.d.is_ambiguous(entry.alias):
                 with self.subTest(alias=entry.alias):
-                    with self.assertRaises(AmbiguousName):
+                    with self.assertRaises((AmbiguousName, UnresolvableName)):
                         self.d.resolve(entry.alias)
 
     def test_ambiguous_names_are_documented_in_the_table(self):
@@ -319,6 +326,147 @@ class SingleLetterGreekRenderingsResolve(unittest.TestCase):
         """The control: this must not make every `a` name a Greek rendering."""
         with self.assertRaises(KeyError):
             self.d.resolve("a-NOTAGENE")
+
+
+class TheTableDecidesWhatResolves(unittest.TestCase):
+    """Round 10: `confidence` was loaded into the dictionary and read by nothing.
+
+    Four rows flagged `ambiguous`, whose notes say in terms that they are not resolved
+    here, resolved silently and confidently. ICP10 is the HSV-2 name for the positional
+    homologue of UL39, verified against Chung et al. 1989 (PMID 2545912), whose title
+    says type 2; it returned UL39 with no signal. AP is attributable to either UL26 or
+    the nested UL26.5; it returned UL26. The module docstring says refusing to guess is
+    the point, and the table recorded the refusal while the code guessed.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.d = Dictionary.load()
+
+    def test_a_row_marked_decline_does_not_resolve(self):
+        from hsv1coords.resolver import UnresolvableName, normalise
+        declining = sorted({e.alias for e in self.d.entries
+                            if e.resolution == "decline"})
+        self.assertGreaterEqual(len(declining), 2,
+                                f"only {len(declining)} aliases are marked decline, so "
+                                f"this gate is checking almost nothing: {declining}")
+        for alias in declining:
+            with self.subTest(alias=alias):
+                with self.assertRaises(UnresolvableName) as caught:
+                    self.d.resolve(alias)
+                self.assertTrue(caught.exception.why,
+                                f"{alias} declines without saying why")
+                self.assertTrue(self.d.is_ambiguous(alias),
+                                f"{alias} declines but is_ambiguous says False")
+                self.assertTrue(self.d.why_declined(alias))
+
+    def test_every_ambiguous_row_states_what_to_do_with_it(self):
+        """The flag has to mean something to the code, not just to a reader."""
+        unstated = sorted({e.alias for e in self.d.entries
+                           if e.confidence == "ambiguous"
+                           and e.resolution not in ("resolve", "decline")})
+        self.assertEqual(unstated, [],
+                         f"these ambiguous aliases state no resolution: {unstated}")
+
+    def test_icp10_and_ap_specifically(self):
+        """The two the reviewer demonstrated, named so a regression is obvious."""
+        from hsv1coords.resolver import UnresolvableName
+        for alias in ("ICP10", "AP"):
+            with self.subTest(alias=alias):
+                with self.assertRaises(UnresolvableName):
+                    self.d.resolve(alias)
+
+    def test_an_established_alias_still_resolves(self):
+        """The control: the flag must not have turned the dictionary off."""
+        for alias, canonical in (("ICP0", "RL2"), ("VP16", "UL48"), ("gB", "UL27"),
+                                 ("ICP34.5", "RL1")):
+            with self.subTest(alias=alias):
+                self.assertEqual(self.d.resolve(alias), canonical)
+        self.assertEqual(self.d.confidence_of("ICP0"), "established")
+
+    def test_the_confidence_column_is_visible_to_a_caller(self):
+        """It was in the data, in the dataclass, and unreachable through the API."""
+        self.assertEqual(self.d.confidence_of("ICP10"), "ambiguous")
+        self.assertEqual(self.d.confidence_of("nothing-like-this"), "")
+
+
+class EveryCitationAttestsItsAlias(unittest.TestCase):
+    """Round 10: 11 aliases cited a deposited record that does not contain them.
+
+    Three claimed to be the RefSeq `/product` string and were not: the record says
+    "ribonucleotide reductase subunit 1", not "large subunit". Those are corrected. The
+    other eight are conventional abbreviations such as gB and RR1, which the record does
+    not print and whose notes disclose the record's own wording. That is honest, but
+    README.md says every alias carries a citation, so the distinction is now a column
+    and this checks it.
+    """
+
+    RECORDS = {"NC_001806.2": "ref_NC_001806.2.gb",
+               "NC_001806.1": "ref_NC_001806.1.gb",
+               "BK012101.1": "alt_BK012101.1.gb",
+               "JN555585.1": "base_JN555585.1.gb"}
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = [r for r in csv.DictReader(
+            (ROOT / "data" / "derived" / "aliases_literature.tsv").open(),
+            delimiter="\t")]
+        cls.texts = {}
+        for ident, filename in cls.RECORDS.items():
+            path = ROOT / "data" / "raw" / filename
+            if path.exists():
+                cls.texts[ident] = path.read_text().lower()
+        if not cls.texts:
+            raise unittest.SkipTest("the deposited records are fetched, not committed")
+
+    def test_the_verbatim_column_is_the_truth_about_the_record(self):
+        wrong = []
+        for r in self.rows:
+            text = self.texts.get(r["citation_identifier"])
+            if text is None:
+                if r["verbatim_in_citation"]:
+                    wrong.append((r["alias"], "marked for a record not held here"))
+                continue
+            present = r["alias"].lower() in text
+            if (r["verbatim_in_citation"] == "yes") != present:
+                wrong.append((r["alias"], r["citation_identifier"],
+                              r["verbatim_in_citation"], present))
+        self.assertEqual(wrong, [],
+                         f"{len(wrong)} rows disagree with the record they cite: "
+                         f"{wrong[:8]}")
+
+    def test_a_row_not_verbatim_discloses_the_record_s_own_wording(self):
+        """An abbreviation is fine. Claiming to be the record's string is not."""
+        bare = []
+        for r in self.rows:
+            if r["verbatim_in_citation"] != "no":
+                continue
+            note = r["notes"]
+            quoted = re.findall(r"'([^']+)'", note)
+            text = self.texts.get(r["citation_identifier"], "")
+            if any(q.lower() in text for q in quoted):
+                continue
+            if "NOT the" in note or "conventional" in note.lower():
+                continue
+            bare.append((r["canonical_systematic_name"], r["alias"], note[:60]))
+        self.assertEqual(
+            bare, [],
+            f"{len(bare)} aliases are absent from the record they cite and their notes "
+            f"quote nothing from it either: {bare[:6]}")
+
+    def test_the_three_product_strings_are_the_record_s(self):
+        """Named, because a bare 'RefSeq /product' note was false on exactly these."""
+        for gene, product in (
+                ("UL39", "ribonucleotide reductase subunit 1"),
+                ("UL40", "ribonucleotide reductase subunit 2"),
+                ("UL42", "DNA polymerase processivity subunit")):
+            with self.subTest(gene=gene):
+                rows = [r for r in self.rows
+                        if r["canonical_systematic_name"] == gene
+                        and r["alias"] == product
+                        and r["citation_identifier"] == "NC_001806.2"]
+                self.assertTrue(rows, f"{product} is not cited to the record for {gene}")
+                self.assertEqual(rows[0]["verbatim_in_citation"], "yes")
 
 
 if __name__ == "__main__":
