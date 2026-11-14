@@ -26,9 +26,23 @@ site. A failed request is not a paywall.
 
 **The two collapsed references disagree with each other, and that is the real cost.**
 Szpara trims to one copy of each inverted repeat, keeping `IRL` and `IRS` and removing
-`TRL` and `TRS`. Morse removes `IRL` and `TRS` instead. Both are 1-based coordinates on
-a shortened genome, both are published without an offset table, and in the region
-between them the same printed number means two different places.
+`TRL` and `TRS`. Morse removes `IRL` and `TRS` instead, and splits what remains into four
+named records, so a Morse coordinate is a pair like `UL:50788` rather than an integer.
+
+Measured, for the reference positions where both can be expressed: in the long unique
+region a Morse offset is one base higher than the Szpara number for the same place, and
+in the short region the two differ by 116,760 bases (`RS`) or 123,391 bases (`US`),
+because Morse restarts numbering at each record and Szpara does not. So a bare number
+carried from one into the other is wrong by one base over two thirds of the genome and by
+more than a hundred kilobases in the rest.
+
+An earlier version of this paragraph said both references are "published without an
+offset table" and described Morse with the single-sequence model this module raises on.
+Round 10 corrected both: Morse's Table 1 names a BED file of the NR-reference
+coordinates, which this repository has not retrieved and which would be the better source
+than the stated rule it derives from, and the module has refused to return a bare integer
+for Morse since round 7. What `data/conventions.tsv` records for that row is what was
+available and what was derived.
 """
 from __future__ import annotations
 
@@ -314,11 +328,14 @@ class PositionReport:
             lines.append(f"  caveat: {c}")
         if self.inferred_intervals:
             lines.append(
-                f"  provenance: {', '.join(self.inferred_intervals)} print no "
-                f"coordinates in their own text, so the intervals used are the "
-                f"reference record's annotation read together with what the source says "
-                f"in words. The edges are exact to the base; the identification is an "
-                f"inference. See the source column of data/conventions.tsv")
+                f"  provenance: for {', '.join(self.inferred_intervals)} the intervals "
+                f"used here were not read from the source. Two of those sources print "
+                f"no coordinates at all, so the interval is the reference record's own "
+                f"annotation read with what the source says in words; for "
+                f"morse2017_nr the paper names a coordinate file that has not been "
+                f"retrieved, and the blocks are derived from its stated rule. The edges "
+                f"are exact to the base; which features they are is the inference. See "
+                f"the source column of data/conventions.tsv")
         return "\n".join(lines)
 
 
@@ -464,9 +481,8 @@ class ConventionSet:
         """
         if not c.boundaries_are_inferred:
             return answer
-        return (f"{answer} [interval inferred: {c.name} prints no coordinates in its "
-                f"own text, so this interval is the reference record's annotation read "
-                f"with what the source says in words]")
+        return (f"{answer} [interval not read from the source: see the source column of "
+                f"data/conventions.tsv for what was available and what was derived]")
 
     def _warning_for(self, position: int, c: Convention) -> str | None:
         """Any caveat attaching to this convention's answer, usable or not.

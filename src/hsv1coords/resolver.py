@@ -18,7 +18,12 @@ else. Round 9 found this paragraph claiming `normalise` folded `a-TIF` when it r
 `KeyError`, which would drop a record in a text pipeline that believed it.
 
 It is deliberately conservative: it never merges two names that differ in anything but
-case, separators and Greek rendering. Note that a dot is not a separator here: `UL20.6`
+case, separators and Greek rendering. One consequence worth knowing, found in round 10
+and declared in `tests/known_gaps.tsv`: because a hyphen is a separator, `oriS` and
+`Ori-S` fold to one key, and the answer is the 2020 re-annotation's reading frame
+spanning the TRS copy and TRS1, not the oriS palindrome. The origins of replication are
+not gene names and are not in this table at all; they are `stem_loop` features in
+`data/derived/repeat_map.tsv`. Note that a dot is not a separator here: `UL20.6`
 and `UL-20-6` are different keys, because a decimal point inside a systematic name
 carries meaning. An earlier version of this paragraph said dots between a word and a
 digit were folded, which described a behaviour the code does not have and should not.

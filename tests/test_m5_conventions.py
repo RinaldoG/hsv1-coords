@@ -1242,13 +1242,14 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
                 continue
             with self.subTest(convention=c.name):
                 _, why = self.cs.usable(118777, c.name)
-                self.assertIn("interval inferred", why,
-                              f"{c.name} takes its intervals from the record and "
-                              f"usable() says nothing about it")
+                self.assertIn("interval not read from the source", why,
+                              f"{c.name} takes its intervals from somewhere other than "
+                              f"its source's own coordinates and usable() says nothing "
+                              f"about it")
 
     def test_a_read_convention_says_nothing_of_the_kind(self):
         _, why = self.cs.usable(118777, "full_length")
-        self.assertNotIn("interval inferred", why)
+        self.assertNotIn("interval not read from the source", why)
 
     def test_both_kinds_are_present_so_the_flag_is_not_a_constant(self):
         kinds = {c.boundaries for c in self.cs.conventions}

@@ -469,5 +469,53 @@ class EveryCitationAttestsItsAlias(unittest.TestCase):
                 self.assertEqual(rows[0]["verbatim_in_citation"], "yes")
 
 
-if __name__ == "__main__":
-    unittest.main(verbosity=2)
+class TheDeclaredGapsAreRealGaps(unittest.TestCase):
+    """A gap declared in `known_gaps.tsv` must still be a gap, or the file is stale.
+
+    Round 10: `oriL` did not resolve and was not declared, unlike the miRNAs, while
+    `oriS` resolved to the name of a reading frame rather than the origin. Both are
+    declared now, and this checks the declaration against the dictionary and the repeat
+    map so that it cannot quietly stop being true.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.d = Dictionary.load(TABLE)
+        cls.gaps = known_gaps()
+
+    def test_the_origins_are_declared_and_their_coordinates_are_findable(self):
+        from hsv1coords import RepeatMap
+        regions = {r.name for r in RepeatMap.load().regions}
+        # oriL does not resolve, so it is a declared gap. oriS does resolve, to the
+        # name of a reading frame, so it is a documented collision instead and is
+        # covered by the test below.
+        self.assertIn("oriL", self.gaps, "oriL is not declared in known_gaps.tsv")
+        self.assertIn("repeat_map.tsv", self.gaps["oriL"]["reason"])
+        for feature in ("oriL palindrome", "oriS palindrome"):
+            with self.subTest(feature=feature):
+                self.assertIn(feature, regions,
+                              f"{feature} is not in the repeat map, so the reason given "
+                              f"in known_gaps.tsv points at nothing")
+
+    def test_the_oris_collision_behaves_as_the_documents_say(self):
+        """`oriS` resolves, so it is not a declared gap; it is a documented collision.
+
+        A hyphen is a separator in the normaliser, so `oriS` and `Ori-S` fold to one
+        key, and the answer is the 2020 re-annotation's reading frame spanning the TRS
+        copy and TRS1, cited to Hubenthal-Voss 1987, not the oriS palindrome. Round 10
+        found that behaviour undocumented. Writing it into `known_gaps.tsv` would have
+        been wrong, since that file lists names which do NOT resolve, so it is stated in
+        the module docstring and asserted here.
+        """
+        from hsv1coords import RepeatMap
+        self.assertEqual(self.d.resolve("oriS"), "Ori-S")
+        self.assertEqual(self.d.resolve("Ori-S"), "Ori-S")
+        regions = {r.name: (r.start, r.end) for r in RepeatMap.load().regions}
+        self.assertIn("oriS palindrome", regions,
+                      "the palindrome is not in the repeat map, so the distinction "
+                      "this test draws has nowhere to point")
+        docstring = __import__("hsv1coords.resolver",
+                               fromlist=["x"]).__doc__ or ""
+        self.assertIn("oriS", docstring,
+                      "the collision is not documented where a reader would meet it")
+        self.assertIn("not the oriS palindrome", docstring)

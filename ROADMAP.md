@@ -285,18 +285,22 @@ print(ConventionSet.load().report(118777, RepeatMap.load()))
 #   usable under full_length
 #   usable under whisnant2020_masked
 #   usable under szpara2014_trimmed
-#   NOT usable under lassalle2020_excluded: inside 116,926-132,647, excluded
-#   from the analysis
-#   NOT usable under morse2017_nr: inside 117,160-125,973, which is not in the
-#   NR-reference (as NC_001806.1 position 118,776, offset -1)
-#   caveat: retained by the conventions above, but the position is not well
-#   defined in the reference: inside IRL, which is present in two copies. It
-#   could equally be 7597 (opposite strand, so complement the allele)
-#   provenance: whisnant2020_masked, szpara2014_trimmed, morse2017_nr print no
-#   coordinates in their own text, so the intervals used are the reference
-#   record's annotation read together with what the source says in words. The
-#   edges are exact to the base; the identification is an inference. See the
-#   source column of data/conventions.tsv
+#   NOT usable under lassalle2020_excluded: inside 116,926-132,647,
+#   excluded from the analysis
+#   NOT usable under morse2017_nr: inside 117,160-125,973, which is not
+#   in the NR-reference (as NC_001806.1 position 118,776, offset -1)
+#   caveat: retained by the conventions above, but the position is not
+#   well defined in the reference: inside IRL, which is present in two
+#   copies. It could equally be 7597 (opposite strand, so complement the
+#   allele)
+#   provenance: for whisnant2020_masked, szpara2014_trimmed,
+#   morse2017_nr the intervals used here were not read from the source.
+#   Two of those sources print no coordinates at all, so the interval is
+#   the reference record's own annotation read with what the source says
+#   in words; for morse2017_nr the paper names a coordinate file that
+#   has not been retrieved, and the blocks are derived from its stated
+#   rule. The edges are exact to the base; which features they are is
+#   the inference. See the source column of data/conventions.tsv
 ```
 
 **Five handlings, each read from its own source**, with the date it was read recorded:
