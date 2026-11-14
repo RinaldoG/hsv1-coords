@@ -28,7 +28,7 @@ stating plainly in the release.
 ## The 77 against 300 CDS discrepancy is real and is not a length difference
 
 `NC_001806.2` carries 77 CDS features and 79 gene features. `BK012101.1` carries 300 CDS
-features and 83 gene features. Both describe 152,222 bp of sequence. So the two records
+features and 83 gene names. Both describe 152,222 bp of sequence. So the two records
 disagree about
 what is coding on identical sequence, which is a feature-level disagreement, not an
 assembly one. Milestone 2 documents both rather than silently choosing.

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import csv
 import pathlib
+import re
 import sys
 import unittest
 
@@ -556,6 +557,62 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
             wrong, [],
             f"{len(wrong)} pairs state two copies of different length without being "
             f"marked partial, or the reverse: {wrong[:8]}")
+
+
+class EveryQuotedIntervalIsOneTheRecordStates(unittest.TestCase):
+    """The documentation gate exempts coordinate ranges. This closes the exemption.
+
+    `test_no_occurrence_of_a_large_figure_is_out_of_the_gate_s_reach` skips `a..b`
+    ranges, on the stated grounds that the repeat intervals are gated against the record
+    in this file. They were gated as artefact rows, not as the text of a document, so
+    round 9 changed `117161..126373` in README.md to `126673` with the suite green: a
+    wrong boundary for IRL, contradicting both the README's own arithmetic and
+    repeat_map.tsv, in the sentence that introduces the inverted repeats.
+
+    Every such range in the four documents must be an interval the reference record
+    states, either as a feature's extent or as one span of a joined location, which is
+    what makes the LAT spans quoted in FINDINGS.md legitimate.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "src"))
+        from extract_names import parse_genbank
+        from build_repeat_map import spans_of
+        record = require_reference()
+        cls.extents = set()
+        for f in parse_genbank(record):
+            spans = spans_of(f.get("_location", ""))
+            if not spans:
+                continue
+            cls.extents.add((min(s for s, _ in spans), max(e for _, e in spans)))
+            cls.extents.update(spans)
+
+    RANGE = re.compile(r"(\d{1,3}(?:,\d{3})+|\d{4,})\s*\.\.\s*"
+                       r"(\d{1,3}(?:,\d{3})+|\d{4,})")
+    DOCS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
+
+    def test_every_interval_quoted_in_the_documents_is_in_the_record(self):
+        wrong, checked = [], 0
+        for name in self.DOCS:
+            path = ROOT / name
+            if not path.exists():
+                continue
+            for m in self.RANGE.finditer(path.read_text()):
+                a = int(m.group(1).replace(",", ""))
+                z = int(m.group(2).replace(",", ""))
+                checked += 1
+                if (a, z) not in self.extents:
+                    wrong.append((name, f"{a}..{z}"))
+        self.assertGreater(checked, 8,
+                           f"only {checked} intervals were checked, so either the "
+                           f"documents stopped quoting coordinates or the pattern no "
+                           f"longer matches them")
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} intervals quoted in the documents are not intervals "
+            f"{REFERENCE} states, as a feature extent or as a span of a joined "
+            f"location: {wrong[:8]}")
 
 
 class ThePublishedTableMarksThePartialPairs(unittest.TestCase):

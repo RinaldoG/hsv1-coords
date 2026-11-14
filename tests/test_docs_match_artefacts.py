@@ -458,6 +458,19 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
 
     @classmethod
     def _sweep(cls) -> tuple[int, int]:
+        """Mutate every number and count what the gate catches.
+
+        The baseline must be clean first. Round 9: adding four facts introduced one
+        phrasing that matched a neighbouring figure, so the documents contradicted their
+        artefacts before any mutation, and this sweep then counted every mutation as
+        caught and printed 76.5 per cent. A measurement taken over a failing baseline
+        flatters the thing being measured, which is the shape of error this whole test
+        exists to report.
+        """
+        standing = contradictions(cls.facts, cls.bodies)
+        assert not standing, (
+            f"the documents already contradict their artefacts, so a catch rate "
+            f"measured against them would count every mutation as caught: {standing}")
         standalone = re.compile(r"(?<![\w.,])(\d(?:[\d,]*\d)?(?:\.\d+)?)(?![\w,.]\d)")
         sites = [(doc, m.start(), m.group(1))
                  for doc, body in cls.bodies.items()

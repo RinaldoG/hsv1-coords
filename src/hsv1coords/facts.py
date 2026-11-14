@@ -15,6 +15,7 @@ remaining hole and is stated as such in the roadmap rather than papered over.
 """
 from __future__ import annotations
 
+import collections
 import csv
 import pathlib
 import statistics
@@ -199,6 +200,51 @@ def derive() -> list[Fact]:
                           ("per cent across the corpus",),
                           note="pooled base agreement",
                           prefixes=("pooled agreement of",)))
+
+    # The feature counts the documents compare, and the LAT overhang. Round 9 showed
+    # all three could be changed with the suite green: they are the arithmetic the
+    # "77 against 300 CDS" section rests on, and 778 bp is the measurement that makes
+    # the LAT pair partial rather than exact.
+    annotation = DERIVED / "annotation_v0.1.0.tsv"
+    if annotation.exists():
+        rows = _rows(annotation)
+        counts = collections.Counter(
+            (r["source"], r["feature_type"]) for r in rows)
+        # Phrasings have to tell these four apart: "300 CDS features and 83 gene
+        # names" and "77 CDS features and 79 gene features" sit in the same paragraph,
+        # so a noun of "CDS features" alone matched the wrong number and reported a
+        # contradiction in correct text. A pattern that matches both figures is worse
+        # than no pattern: it fails on the truth.
+        facts.append(Fact("ref_cds", counts[("NC_001806.2", "CDS")],
+                          (),
+                          note="CDS features in the reference record",
+                          prefixes=("`NC_001806.2` carries",
+                                    "against the reference's")))
+        facts.append(Fact("ref_genes", counts[("NC_001806.2", "gene")],
+                          ("gene features",),
+                          note="gene features in the reference record"))
+        facts.append(Fact("alt_cds", counts[("BK012101.1", "CDS")],
+                          (),
+                          note="CDS features in the re-annotation",
+                          prefixes=("`BK012101.1` carries", "bp of sequence with")))
+        facts.append(Fact("alt_genes", counts[("BK012101.1", "gene")],
+                          ("gene names",),
+                          note="gene names in the re-annotation"))
+
+    pairs_file = DERIVED / "diploid_pairs.tsv"
+    if pairs_file.exists():
+        overhangs = []
+        for r in _rows(pairs_file):
+            if r["locus"] != "LAT" or r["feature_type"] != "ncRNA":
+                continue
+            len_1 = int(r["copy_1_end"]) - int(r["copy_1_start"])
+            len_2 = int(r["copy_2_end"]) - int(r["copy_2_start"])
+            overhangs.append(abs(len_2 - len_1))
+        if overhangs:
+            facts.append(Fact("lat_overhang_bp", max(overhangs),
+                              ("bp past `IRL`", "bp into `IRS`"),
+                              note="how far the LAT copy runs past IRL",
+                              prefixes=("it extends",)))
 
     coverage = DERIVED / "crosswalk_coverage.tsv"
     if coverage.exists():
