@@ -429,6 +429,12 @@ class SequenceAgreement(unittest.TestCase):
                 ref_pos = cw.to_reference(dep)
                 if ref_pos is None:
                     continue
+                if ref_pos > len(self.ref):
+                    # Counted as a mismatch, not skipped. Under a one-base shift this
+                    # raised IndexError instead of reporting a rate, which still fails
+                    # the suite but fails it as a crash rather than as a measurement.
+                    scored += 1
+                    continue
                 a = seq[dep - 1]
                 if rc:
                     a = a.translate(comp)
