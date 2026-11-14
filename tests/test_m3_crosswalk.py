@@ -11,6 +11,7 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from hsv1coords import Crosswalk, RepeatMap, lift  # noqa: E402
 from hsv1coords.liftover import REFERENCE, SEGMENT_BP  # noqa: E402
+from hsv1coords.repeats import GENOME_BP  # noqa: E402
 from hsv1coords import lift_detailed  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "src"))
@@ -146,11 +147,29 @@ class Monotonicity(unittest.TestCase):
                          f"{offenders[:5]}")
 
     def test_the_known_cross_repeat_case_now_declines(self):
+        """The historic defect, and what actually makes this case safe now.
+
+        Fable's finding in round 10: re-creating the original defect, a block placing
+        position 900 at 151,879 in the far copy of the terminal repeat, left this test
+        green. `lift` declines anything landing in a repeat, and 151,879 is in TRS, so
+        the decline here is produced by the repeat map and says nothing about the
+        crosswalk. The defect was caught by three other gates, but not by the test named
+        for it.
+
+        So this now checks both halves: that the lift declines, and that the crosswalk
+        itself does not place 900 in the far copy, which is the thing that was wrong.
+        """
         if "OP297884.1" not in Crosswalk.available(CROSSWALK):
             self.skipTest("OP297884.1 not in the pinned genome set")
         self.assertIsNone(
             lift(900, "OP297884.1", REFERENCE, CROSSWALK),
             "position 900 must not resolve to the far copy of the terminal repeat")
+        raw = Crosswalk.load("OP297884.1", CROSSWALK).to_reference(900)
+        self.assertNotIn(
+            raw, range(145590, GENOME_BP + 1),
+            f"the crosswalk itself places position 900 at {raw}, inside TRS, which is "
+            f"the far copy. The lift declines because the repeat map covers that "
+            f"position, so the decline alone does not show the crosswalk is right.")
 
 
 class TheBlocksComeFromTheAlignment(unittest.TestCase):

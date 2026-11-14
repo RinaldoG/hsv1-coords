@@ -24,6 +24,14 @@ import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 README = ROOT / "README.md"
+DOCUMENTS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
+"""Every document, not only the README.
+
+Round 10: only README python blocks were executed, so ROADMAP.md still showed two
+flagship examples handing out an alternative with no strand note, nine commits after the
+strand note was added and the README was fixed. That is PITFALLS root cause 14, fixing
+the file the blocker quoted.
+"""
 
 
 def python_blocks(body: str) -> list[str]:
@@ -58,11 +66,24 @@ def output_groups(block: str) -> list[str]:
 
 
 class TheReadmeExamplesRun(unittest.TestCase):
+    source_of: dict[str, str] = {}
+
     @classmethod
     def setUpClass(cls):
-        cls.blocks = python_blocks(README.read_text())
+        cls.blocks = []
+        for name in DOCUMENTS:
+            path = ROOT / name
+            if not path.exists():
+                continue
+            for block in python_blocks(path.read_text()):
+                if not re.search(r"^(from|import) ", block, re.M):
+                    # A fragment with no import cannot be executed. It is also not
+                    # allowed to quote output: that is how an example dodges this gate.
+                    continue
+                cls.blocks.append(block)
+                cls.source_of[block] = name
         if not cls.blocks:
-            raise unittest.SkipTest("the README states no Python examples")
+            raise unittest.SkipTest("the documents state no Python examples")
         for need in ("data/derived/crosswalk", "data/derived/repeat_map.tsv"):
             if not (ROOT / need).exists():
                 raise unittest.SkipTest(f"{need} is built, not committed; run `make all`")
@@ -126,12 +147,18 @@ class TheReadmeExamplesRun(unittest.TestCase):
         written without quoting its output; it may not quote part of it and leave the
         rest unsaid.
         """
-        checked = 0
+        checked, unquoted = 0, []
         for i, block in enumerate(self.blocks):
             if "print(" not in block:
                 continue
             groups = output_groups(block)
             if not groups:
+                # A block with a print and no quoted output: run it, so a claim in its
+                # prose cannot rest on code that does not work, but there is nothing to
+                # compare. Round 10 added such a block whose comment said every position
+                # in the inverted repeats lifts cleanly, and nothing looked at it.
+                self._run(block)
+                unquoted.append(self.source_of.get(block, "?"))
                 continue
             expected = re.sub(r"\s+", " ", " ".join(groups)).strip()
             actual = re.sub(r"\s+", " ", self._run(block)).strip()
@@ -145,6 +172,10 @@ class TheReadmeExamplesRun(unittest.TestCase):
         self.assertGreater(checked, 0,
                            "no block with quoted output was compared, so this gate ran "
                            "on nothing")
+        self.assertEqual(
+            unquoted, [],
+            f"{len(unquoted)} example blocks print something and quote none of it, so "
+            f"whatever they claim in prose is unchecked: {unquoted}")
 
     def test_an_inline_expectation_comment_matches_the_value(self):
         """`expr  # value` comments, such as `resolve("VP16")  # 'UL48'`."""
@@ -152,10 +183,35 @@ class TheReadmeExamplesRun(unittest.TestCase):
         for i, block in enumerate(self.blocks):
             for line in block.splitlines():
                 m = re.match(r"^([A-Za-z_][^#]*?)\s{2,}#\s*(\S.*)$", line)
-                if not m or m.group(1).strip().startswith("print("):
+                if not m:
+                    continue
+                if m.group(1).strip().startswith("print("):
+                    # A trailing comment on a print line was read by nothing: the
+                    # inline check skipped it and `output_groups` only collects
+                    # whole-line comments. Round 10 turned "# the LAT TATA box" into a
+                    # false claim about the position with the suite green. Such a
+                    # comment is a label, so it must not look like an assertion about a
+                    # value: no digits, and no claim words.
+                    label = m.group(2).strip()
+                    bad = re.search(r"\d|\bis\b|\bequals\b|\breturns\b|"
+                                    r"\bwell defined\b|\bnone\b", label, re.I)
+                    with self.subTest(label=label[:50]):
+                        self.assertIsNone(
+                            bad,
+                            f"a trailing comment on a print line is a label, and "
+                            f"nothing checks it, so it must not read as a statement "
+                            f"about the output: {label!r}")
                     continue
                 expr, expected = m.group(1).strip(), m.group(2).strip()
-                if expr.endswith(("(", ",")) or expected.startswith(("or ", "the ")):
+                # Round 10: skipping any expectation starting "or " or "the " let a
+                # wrong value hide behind one word. `# 59722` was changed to `# the
+                # answer is 99999` and the suite stayed green. An expectation that is
+                # prose rather than a value has to say so with a marker, so that the
+                # skip is a decision somebody wrote down rather than a word they
+                # happened to start with.
+                if expr.endswith(("(", ",")):
+                    continue
+                if expected.startswith("prose:"):
                     continue
                 header = "\n".join(l for l in block.splitlines()
                                    if l.startswith(("from ", "import ")))
@@ -178,6 +234,38 @@ class TheReadmeExamplesRun(unittest.TestCase):
             "make that import work. It fails on a fresh clone.")
         self.assertTrue((ROOT / "pyproject.toml").exists(),
                         "there is no pyproject.toml, so `pip install -e .` cannot work")
+
+
+class EveryQuotedExampleIsExecutable(unittest.TestCase):
+    """A block that quotes output must be runnable, or the quote is unchecked.
+
+    Round 10: only README blocks were executed, and two ROADMAP blocks quoted output
+    while importing nothing, so their text could say anything. One of them did: it
+    showed an alternative with no strand note, nine commits after the strand note was
+    added.
+    """
+
+    def test_a_block_that_quotes_output_imports_what_it_uses(self):
+        offenders = []
+        for name in DOCUMENTS:
+            path = ROOT / name
+            if not path.exists():
+                continue
+            for i, block in enumerate(python_blocks(path.read_text())):
+                if re.search(r"^(from|import) ", block, re.M):
+                    continue
+                lines = block.splitlines()
+                quotes = [n for n, line in enumerate(lines)
+                          if line.strip().startswith("#") and n
+                          and not lines[n - 1].strip().startswith("#")
+                          and lines[n - 1].strip()
+                          and not lines[n - 1].strip().startswith("#")]
+                if quotes:
+                    offenders.append((name, i, lines[quotes[0]].strip()[:60]))
+        self.assertEqual(
+            offenders, [],
+            f"{len(offenders)} example blocks quote output without importing anything, "
+            f"so nothing can run them and the quoted text is unchecked: {offenders}")
 
 
 if __name__ == "__main__":

@@ -26,7 +26,23 @@ DOCS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
 
 # The number of derived figures that must stay gated. Raising it is a deliberate edit;
 # a change that silently ungates a figure fails instead of printing a smaller number.
-COVERAGE_FLOOR = 25
+COVERAGE_FLOOR = 30
+
+REQUIRED_FACTS = frozenset({
+    # The figures a reader acts on. Named, not counted: round 10 deleted the five facts
+    # added in round 9 and retyped two numbers in ROADMAP.md, and every floor still
+    # held, because a floor on a count can be met by a smaller set. Deleting any of
+    # these now fails with the name of what went missing.
+    "genome_bp", "genome_v1_bp", "genomes", "regions", "diploid_pairs",
+    "partial_pairs", "repeat_covered_bp", "repeat_covered_percent",
+    "annotation_rows", "alias_rows", "alias_genes", "alias_citations",
+    "version_blocks", "version_offsets", "conventions",
+    "scored_positions", "worst_agreement", "pooled_agreement",
+    "ref_cds", "ref_genes", "alt_cds", "alt_genes", "lat_overhang_bp",
+    "transcript_spans", "transcript_span_rows", "nested_orfs",
+    "long_repeat_bp", "short_repeat_bp", "median_mappable",
+    "reverse_complemented", "lat_in_szpara",
+})
 # `\d(?:[\d,]*\d)?` rather than `\d[\d,]*`: the looser form captured a trailing
 # comma, so "runs to 152,222," compared "152,222," against "152,222" and reported
 # a figure as contradicting itself.
@@ -359,6 +375,18 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
             len(gated), COVERAGE_FLOOR,
             f"coverage fell to {len(gated)} of {len(self.facts)}, below the recorded "
             f"floor of {COVERAGE_FLOOR}. Ungated: {ungated}")
+        derived = {f.key for f in self.facts}
+        missing = sorted(REQUIRED_FACTS - derived)
+        self.assertEqual(
+            missing, [],
+            f"{len(missing)} figures that must be derived and gated are not being "
+            f"derived at all: {missing}. A floor on the count cannot see this, because "
+            f"a smaller set can still meet it.")
+        ungated_required = sorted(REQUIRED_FACTS & set(ungated))
+        self.assertEqual(
+            ungated_required, [],
+            f"{len(ungated_required)} required figures are derived but stated in no "
+            f"document, so nothing compares them: {ungated_required}")
 
 
 class ClaimsMatchBehaviour(unittest.TestCase):

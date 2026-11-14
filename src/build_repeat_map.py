@@ -62,11 +62,38 @@ def load_annotation() -> list[dict[str, str]]:
                 if r["source"] == REFERENCE]
 
 
+def strand_relationship(repeat_pair: str, copy_1: tuple[int, int],
+                        copy_2: tuple[int, int], sequence: str) -> str:
+    """Whether the two copies of a pair read in the same direction.
+
+    Measured against the sequence, not asserted: the two copies are compared directly
+    and as reverse complements, over whichever length they share. Round 10 found
+    `diploid_pairs.tsv` and the published table giving two copies with no strand at all,
+    beside an explanation saying a position in one maps to the other by the repeat's own
+    arithmetic, which reverses for an inverted pair.
+    """
+    length = min(copy_1[1] - copy_1[0], copy_2[1] - copy_2[0]) + 1
+    if length < 12 or not sequence:
+        return "undetermined"
+    first = sequence[copy_1[0] - 1:copy_1[0] - 1 + length].upper()
+    second = sequence[copy_2[1] - length:copy_2[1]].upper()
+    forward = sequence[copy_2[0] - 1:copy_2[0] - 1 + length].upper()
+    rc = second.translate(str.maketrans("ACGTN", "TGCAN"))[::-1]
+    if first and first == rc:
+        return "inverted"
+    if first and first == forward:
+        return "direct"
+    return "undetermined"
+
+
 def main() -> int:
     if not ANNOTATION.exists():
         print(f"missing {ANNOTATION}, run `make annotation` first", file=sys.stderr)
         return 1
     rows = load_annotation()
+    # Loaded here rather than after the pairs are built, because each pair's strand
+    # relationship is measured against the sequence as the pair is made.
+    reference_sequence = genbank_sequence(RAW / f"ref_{REFERENCE}.gb").upper()
 
     # 1. Every repeated or structurally ambiguous region.
     regions: list[dict[str, object]] = []
@@ -192,6 +219,8 @@ def main() -> int:
                         "feature_type": type_a,
                         "offset_delta": "partial: lengths differ by "
                                         f"{abs((ext_b[1] - ext_b[0]) - len_a)} bp",
+                    "strand_relationship": strand_relationship(
+                        f"{a}/{b}", ext_a, ext_b, reference_sequence),
                     })
                     break
             if best is not None:
@@ -208,6 +237,8 @@ def main() -> int:
                     "copy_2_end": ext_b[1],
                     "feature_type": type_a,
                     "offset_delta": best_delta,
+                    "strand_relationship": strand_relationship(
+                        f"{a}/{b}", ext_a, ext_b, reference_sequence),
                 })
 
     # Orientation of each copy of a multi-copy region, measured against the sequence
@@ -216,7 +247,7 @@ def main() -> int:
     # nothing was hand-listed, and two mutations to that list changed a hundred live
     # answers with the whole suite green. The orientations are derivable, so they are
     # derived.
-    seq = genbank_sequence(RAW / f"ref_{REFERENCE}.gb").upper()
+    seq = reference_sequence
     comp = str.maketrans("ACGTN", "TGCAN")
 
     def piece(a: int, b: int) -> str:
@@ -254,7 +285,8 @@ def main() -> int:
 
     dpairs = DERIVED / "diploid_pairs.tsv"
     pcols = ["locus", "repeat_pair", "feature_type", "copy_1_name", "copy_1_start",
-             "copy_1_end", "copy_2_name", "copy_2_start", "copy_2_end", "offset_delta"]
+             "copy_1_end", "copy_2_name", "copy_2_start", "copy_2_end",
+             "strand_relationship", "offset_delta"]
     with dpairs.open("w") as fh:
         fh.write("\t".join(pcols) + "\n")
         for p in sorted(pairs, key=lambda p: (str(p["repeat_pair"]), int(p["copy_1_start"]))):
@@ -281,9 +313,14 @@ def main() -> int:
                 x = big[label]
                 fh.write(f"| `{label}` | {int(x['start']):,} | {int(x['end']):,} | "
                          f"{int(x['length']):,} |\n")
-        fh.write("\n`TRL` and `IRL` are the same 9,213 bp of sequence in two copies, and "
-                 "`IRS` and `TRS` likewise at 6,633 bp. A position inside any of them "
-                 "names a place in the linear record but not which copy of the locus is "
+        fh.write("\n`TRL` and `IRL` hold the same 9,213 bp of sequence in two copies, "
+                 "and `IRS` and `TRS` likewise at 6,633 bp. The two copies are "
+                 "**inverted** relative to each other, which is what the I and T in "
+                 "their names mean: the base at an offset from the start of one is the "
+                 "complement of the base at the same offset from the END of the other. "
+                 "Round 10 found this paragraph calling them the same sequence in two "
+                 "copies without saying that. A position inside any of them names a "
+                 "place in the linear record but not which copy of the locus is "
                  "meant.\n\n")
         if pairs:
             fh.write("## Diploid loci\n\n")
@@ -299,9 +336,18 @@ def main() -> int:
                      "the two disagree, and a constant offset between them is wrong by "
                      "that much. Round 9 found this table printing the seven partial "
                      "pairs in the same form as the exact ones, on LAT, which is the "
-                     "locus this repository uses as its worked example.\n\n")
-            fh.write("| Locus | Repeat pair | Type | Copy 1 | Copy 2 | Pairing |\n")
-            fh.write("|---|---|---|---|---|---|\n")
+                     "locus this repository uses as its worked example.\n\n"
+                     "The `Strand` column states whether the two copies read in the "
+                     "same direction. For a pair in the large inverted repeats they do "
+                     "not: the copies are inverted, so the base at a position in one is "
+                     "the complement of the base at the paired position in the other. "
+                     "Round 10 found this table and `diploid_pairs.tsv` giving two "
+                     "copies with no strand at all, beside an explanation saying a "
+                     "position in one maps to the other by the repeat's own "
+                     "arithmetic, without saying that the arithmetic reverses.\n\n")
+            fh.write("| Locus | Repeat pair | Type | Copy 1 | Copy 2 | Strand | "
+                     "Pairing |\n")
+            fh.write("|---|---|---|---|---|---|---|\n")
             for p in sorted(pairs, key=lambda p: int(p["copy_1_start"]))[:40]:
                 len_1 = int(p["copy_1_end"]) - int(p["copy_1_start"]) + 1
                 len_2 = int(p["copy_2_end"]) - int(p["copy_2_start"]) + 1
@@ -313,7 +359,7 @@ def main() -> int:
                 fh.write(f"| `{p['locus']}` | {p['repeat_pair']} | {p['feature_type']} | "
                          f"{int(p['copy_1_start']):,}..{int(p['copy_1_end']):,} | "
                          f"{int(p['copy_2_start']):,}..{int(p['copy_2_end']):,} | "
-                         f"{pairing} |\n")
+                         f"{p['strand_relationship']} | {pairing} |\n")
         kinds = collections.Counter(str(x["kind"]) for x in regions)
         fh.write("\n## Regions by kind\n\n| Kind | Count |\n|---|---|\n")
         for k, n in kinds.most_common():

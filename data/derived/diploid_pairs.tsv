@@ -1,33 +1,33 @@
-locus	repeat_pair	feature_type	copy_1_name	copy_1_start	copy_1_end	copy_2_name	copy_2_start	copy_2_end	offset_delta
-'a' sequence	IRS/TRS	repeat_region	'a' sequence	125975	126373	'a' sequence	151824	152222	0
-'a' sequence reiteration set	IRS/TRS	repeat_region	'a' sequence reiteration set	126054	126276	'a' sequence reiteration set	151921	152143	0
-RS reiteration set 1	IRS/TRS	repeat_region	RS reiteration set 1	126573	126712	RS reiteration set 1	151486	151624	partial: lengths differ by 1 bp
-RS reiteration set 2	IRS/TRS	repeat_region	RS reiteration set 2	126813	127145	RS reiteration set 2	151052	151384	0
-LAT	IRS/TRS	regulatory	LAT	127146	127151	LAT	151046	151051	0
-RS1	IRS/TRS	gene	RS1	127173	131460	RS1	146737	151023	partial: lengths differ by 1 bp
-RS1	IRS/TRS	mRNA	RS1	127173	131431	RS1	146766	151023	partial: lengths differ by 1 bp
-RS1	IRS/TRS	regulatory	RS1	127187	127192	RS1	151005	151010	0
-RS1	IRS/TRS	CDS	RS1	127235	131131	RS1	147066	150962	0
-RS1	IRS/TRS	regulatory	RS1	131455	131460	RS1	146737	146742	0
-oriS palindrome	IRS/TRS	stem_loop	oriS palindrome	131980	132024	oriS palindrome	146173	146217	0
-US1 / US12	IRS/TRS	regulatory	US1	132101	132106	US12	146091	146096	0
-US1 / RS reiteration set 3	IRS/TRS	repeat_region	US1	132391	132516	RS reiteration set 3	145681	145806	0
-'a' sequence	TRL/IRL	repeat_region	'a' sequence	1	399	'a' sequence	125975	126373	0
-LAT	TRL/IRL	gene	LAT	1	7569	LAT	118777	127151	partial: lengths differ by 806 bp
-LAT	TRL/IRL	ncRNA	LAT	1	7569	LAT	118805	127151	partial: lengths differ by 778 bp
-'a' sequence reiteration set	TRL/IRL	repeat_region	'a' sequence reiteration set	98	320	'a' sequence reiteration set	126054	126276	0
-RL1	TRL/IRL	CDS	RL1	513	1259	RL1	125115	125861	0
-RL1	TRL/IRL	gene	RL1	513	1540	RL1	124834	125861	0
-RL1 / RL reiteration set 6	TRL/IRL	repeat_region	RL1	988	1040	RL reiteration set 6	125334	125386	0
-RL1	TRL/IRL	regulatory	RL1	1535	1540	RL1	124834	124839	0
-RL2	TRL/IRL	gene	RL2	2087	5699	RL2	120675	124287	0
-RL2	TRL/IRL	regulatory	RL2	2087	2092	RL2	124282	124287	0
-RL2	TRL/IRL	mRNA	RL2	2114	5699	RL2	120675	124287	partial: lengths differ by 27 bp
-RL2	TRL/IRL	CDS	RL2	2262	5490	RL2	120884	124112	0
-RL2 / RL reiteration set 5	TRL/IRL	repeat_region	RL2	2466	2624	RL reiteration set 5	123750	123908	0
-RL2	TRL/IRL	regulatory	RL2	5677	5682	RL2	120692	120697	0
-RL reiteration set 4	TRL/IRL	repeat_region	RL reiteration set 4	5732	5878	RL reiteration set 4	120496	120642	0
-regulatory@complement(7592..7597) / LAT	TRL/IRL	regulatory	regulatory@complement(7592..7597)	7592	7597	LAT	118777	118782	0
-RL reiteration set 3	TRL/IRL	repeat_region	RL reiteration set 3	8554	8585	RL reiteration set 3	117789	117820	0
-RL reiteration set 2	TRL/IRL	repeat_region	RL reiteration set 2	8806	8826	RL reiteration set 2	117548	117568	0
-RL reiteration set 1	TRL/IRL	repeat_region	RL reiteration set 1	9033	9213	RL reiteration set 1	117160	117341	partial: lengths differ by 1 bp
+locus	repeat_pair	feature_type	copy_1_name	copy_1_start	copy_1_end	copy_2_name	copy_2_start	copy_2_end	strand_relationship	offset_delta
+'a' sequence	IRS/TRS	repeat_region	'a' sequence	125975	126373	'a' sequence	151824	152222	inverted	0
+'a' sequence reiteration set	IRS/TRS	repeat_region	'a' sequence reiteration set	126054	126276	'a' sequence reiteration set	151921	152143	inverted	0
+RS reiteration set 1	IRS/TRS	repeat_region	RS reiteration set 1	126573	126712	RS reiteration set 1	151486	151624	inverted	partial: lengths differ by 1 bp
+RS reiteration set 2	IRS/TRS	repeat_region	RS reiteration set 2	126813	127145	RS reiteration set 2	151052	151384	inverted	0
+LAT	IRS/TRS	regulatory	LAT	127146	127151	LAT	151046	151051	undetermined	0
+RS1	IRS/TRS	gene	RS1	127173	131460	RS1	146737	151023	undetermined	partial: lengths differ by 1 bp
+RS1	IRS/TRS	mRNA	RS1	127173	131431	RS1	146766	151023	undetermined	partial: lengths differ by 1 bp
+RS1	IRS/TRS	regulatory	RS1	127187	127192	RS1	151005	151010	undetermined	0
+RS1	IRS/TRS	CDS	RS1	127235	131131	RS1	147066	150962	inverted	0
+RS1	IRS/TRS	regulatory	RS1	131455	131460	RS1	146737	146742	undetermined	0
+oriS palindrome	IRS/TRS	stem_loop	oriS palindrome	131980	132024	oriS palindrome	146173	146217	inverted	0
+US1 / US12	IRS/TRS	regulatory	US1	132101	132106	US12	146091	146096	undetermined	0
+US1 / RS reiteration set 3	IRS/TRS	repeat_region	US1	132391	132516	RS reiteration set 3	145681	145806	inverted	0
+'a' sequence	TRL/IRL	repeat_region	'a' sequence	1	399	'a' sequence	125975	126373	inverted	0
+LAT	TRL/IRL	gene	LAT	1	7569	LAT	118777	127151	undetermined	partial: lengths differ by 806 bp
+LAT	TRL/IRL	ncRNA	LAT	1	7569	LAT	118805	127151	undetermined	partial: lengths differ by 778 bp
+'a' sequence reiteration set	TRL/IRL	repeat_region	'a' sequence reiteration set	98	320	'a' sequence reiteration set	126054	126276	inverted	0
+RL1	TRL/IRL	CDS	RL1	513	1259	RL1	125115	125861	inverted	0
+RL1	TRL/IRL	gene	RL1	513	1540	RL1	124834	125861	inverted	0
+RL1 / RL reiteration set 6	TRL/IRL	repeat_region	RL1	988	1040	RL reiteration set 6	125334	125386	inverted	0
+RL1	TRL/IRL	regulatory	RL1	1535	1540	RL1	124834	124839	undetermined	0
+RL2	TRL/IRL	gene	RL2	2087	5699	RL2	120675	124287	inverted	0
+RL2	TRL/IRL	regulatory	RL2	2087	2092	RL2	124282	124287	undetermined	0
+RL2	TRL/IRL	mRNA	RL2	2114	5699	RL2	120675	124287	undetermined	partial: lengths differ by 27 bp
+RL2	TRL/IRL	CDS	RL2	2262	5490	RL2	120884	124112	inverted	0
+RL2 / RL reiteration set 5	TRL/IRL	repeat_region	RL2	2466	2624	RL reiteration set 5	123750	123908	inverted	0
+RL2	TRL/IRL	regulatory	RL2	5677	5682	RL2	120692	120697	undetermined	0
+RL reiteration set 4	TRL/IRL	repeat_region	RL reiteration set 4	5732	5878	RL reiteration set 4	120496	120642	inverted	0
+regulatory@complement(7592..7597) / LAT	TRL/IRL	regulatory	regulatory@complement(7592..7597)	7592	7597	LAT	118777	118782	undetermined	0
+RL reiteration set 3	TRL/IRL	repeat_region	RL reiteration set 3	8554	8585	RL reiteration set 3	117789	117820	inverted	0
+RL reiteration set 2	TRL/IRL	repeat_region	RL reiteration set 2	8806	8826	RL reiteration set 2	117548	117568	inverted	0
+RL reiteration set 1	TRL/IRL	repeat_region	RL reiteration set 1	9033	9213	RL reiteration set 1	117160	117341	inverted	partial: lengths differ by 1 bp

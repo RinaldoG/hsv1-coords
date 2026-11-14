@@ -559,6 +559,80 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
             f"marked partial, or the reverse: {wrong[:8]}")
 
 
+class EveryPublishedPairStatesItsStrand(unittest.TestCase):
+    """Round 10: the diploid artefacts gave two copies with no strand.
+
+    `diploid_pairs.tsv` and the table in `repeat_map.md` list Copy 1 and Copy 2 beside an
+    explanation saying a position in one maps to the other by the repeat's own
+    arithmetic. For a pair in the large inverted repeats that arithmetic reverses, and
+    the base at the paired position is the complement. The same file also called TRL and
+    IRL "the same 9,213 bp of sequence in two copies", which omits the inversion their
+    names denote.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = list(csv.DictReader(
+            (DERIVED / "diploid_pairs.tsv").open(), delimiter="\t"))
+        cls.published = (DERIVED / "repeat_map.md").read_text()
+
+    def test_every_pair_states_a_strand_relationship(self):
+        missing = [r["locus"] for r in self.rows
+                   if r.get("strand_relationship") not in
+                   ("inverted", "direct", "undetermined")]
+        self.assertEqual(missing, [],
+                         f"{len(missing)} pairs state no strand relationship: "
+                         f"{missing[:6]}")
+
+    def test_an_equal_length_pair_of_real_size_is_measured_not_undetermined(self):
+        """`undetermined` is allowed only where it cannot be measured.
+
+        That is a shared length under 12 bp, where a match could be chance, or two
+        copies of different length, where no constant offset relates them at all. Any
+        other undetermined row would mean the measurement silently failed.
+        """
+        unexplained = []
+        for r in self.rows:
+            if r["strand_relationship"] != "undetermined":
+                continue
+            length_1 = int(r["copy_1_end"]) - int(r["copy_1_start"]) + 1
+            length_2 = int(r["copy_2_end"]) - int(r["copy_2_start"]) + 1
+            if length_1 != length_2 or min(length_1, length_2) < 12:
+                continue
+            unexplained.append((r["locus"], length_1, length_2))
+        self.assertEqual(
+            unexplained, [],
+            f"{len(unexplained)} pairs are of equal, measurable length and still state "
+            f"an undetermined strand: {unexplained[:6]}")
+
+    def test_the_measurable_pairs_in_the_large_repeats_are_inverted(self):
+        """The biology: the copies in TRL/IRL and IRS/TRS read in opposite directions."""
+        measured = [r for r in self.rows
+                    if r["strand_relationship"] in ("inverted", "direct")]
+        self.assertGreater(len(measured), 10,
+                           f"only {len(measured)} pairs could be measured, so this "
+                           f"proves little")
+        wrong = [(r["locus"], r["repeat_pair"], r["strand_relationship"])
+                 for r in measured if r["strand_relationship"] != "inverted"]
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} pairs in the large inverted repeats are not inverted, which "
+            f"would contradict the repeat structure: {wrong[:6]}")
+
+    def test_the_published_table_carries_the_strand_column(self):
+        self.assertIn("| Strand |", self.published,
+                      "the published diploid table states no strand")
+        self.assertIn("inverted", self.published)
+
+    def test_the_published_text_does_not_call_inverted_copies_the_same_sequence(self):
+        self.assertNotIn("are the same 9,213 bp of sequence in two copies",
+                         self.published,
+                         "the published text still describes the inverted repeats as "
+                         "two copies of the same sequence without saying they are "
+                         "inverted")
+        self.assertIn("inverted", self.published)
+
+
 class EveryQuotedIntervalIsOneTheRecordStates(unittest.TestCase):
     """The documentation gate exempts coordinate ranges. This closes the exemption.
 
@@ -588,8 +662,28 @@ class EveryQuotedIntervalIsOneTheRecordStates(unittest.TestCase):
             cls.extents.add((min(s for s, _ in spans), max(e for _, e in spans)))
             cls.extents.update(spans)
 
-    RANGE = re.compile(r"(\d{1,3}(?:,\d{3})+|\d{4,})\s*\.\.\s*"
-                       r"(\d{1,3}(?:,\d{3})+|\d{4,})")
+    NUMBER = r"(?:\d{1,3}(?:,\d{3})+|\d+)"
+    RANGE = re.compile(rf"({NUMBER})\s*\.\.\s*({NUMBER})")
+    """Any interval, not only four-digit ones.
+
+    Round 10: requiring four or more digits on both sides left six quoted intervals
+    unchecked, including `1..9213`, which is the TRL extent and the first interval the
+    documents state. Changing it to `1..8999` passed. The thousands-separator branch has
+    to be written out, because `[\d,]*` runs across the comma in a joined location such
+    as `join(<1..4953,6910..7569)` and reads it as one 11-digit number.
+    """
+
+    NAMED_FEATURES = {
+        "TRL": (1, 9213), "IRL": (117161, 126373),
+        "IRS": (125975, 132607), "TRS": (145590, 152222),
+    }
+    """The four large repeats, whose extents a reader is most likely to act on.
+
+    Checked for adjacency as well as membership: round 10 replaced the README's IRL
+    interval with the extent of TRS, which is a real interval of the record, and the
+    membership test passed. A wrong boundary on one of these four is the error this
+    repository exists to prevent.
+    """
     DOCS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
 
     def test_every_interval_quoted_in_the_documents_is_in_the_record(self):
@@ -613,6 +707,56 @@ class EveryQuotedIntervalIsOneTheRecordStates(unittest.TestCase):
             f"{len(wrong)} intervals quoted in the documents are not intervals "
             f"{REFERENCE} states, as a feature extent or as a span of a joined "
             f"location: {wrong[:8]}")
+        self.assertGreater(checked, 18,
+                           f"only {checked} intervals were checked; the documents or "
+                           f"the pattern changed")
+
+    def test_an_interval_quoted_beside_a_repeat_name_is_that_repeat_s(self):
+        """Membership is not enough: any real interval passed for any other.
+
+        Round 10 gave IRL the extent of TRS in README.md and the suite stayed green.
+        Both are real intervals of the record, so only adjacency to the name can tell
+        them apart.
+        """
+        mismatched, checked = [], 0
+        for name in self.DOCS:
+            path = ROOT / name
+            if not path.exists():
+                continue
+            body = re.sub(r"\s+", " ", path.read_text())
+            for m in self.RANGE.finditer(body):
+                a = int(m.group(1).replace(",", ""))
+                z = int(m.group(2).replace(",", ""))
+                before = body[max(0, m.start() - 80):m.start()]
+                # The nearest repeat name before the interval, if any is close by.
+                hits = [(before.rfind(label), label)
+                        for label in self.NAMED_FEATURES
+                        if label in before]
+                if not hits:
+                    continue
+                _, label = max(hits)
+                checked += 1
+                if (a, z) != self.NAMED_FEATURES[label]:
+                    # Another of the four named closer still, or a sub-interval of this
+                    # one, are both legitimate; a DIFFERENT repeat's exact extent is not.
+                    if (a, z) in self.NAMED_FEATURES.values():
+                        mismatched.append((name, label, f"{a}..{z}",
+                                           f"which is {self._which(a, z)}"))
+        self.assertGreater(checked, 2,
+                           f"only {checked} intervals sit beside a repeat name, so this "
+                           f"gate is checking almost nothing")
+        self.assertEqual(
+            mismatched, [],
+            f"{len(mismatched)} intervals are quoted beside the name of a different "
+            f"repeat (document, name beside it, interval, what it really is): "
+            f"{mismatched[:6]}")
+
+    @classmethod
+    def _which(cls, start: int, end: int) -> str:
+        for label, extent in cls.NAMED_FEATURES.items():
+            if extent == (start, end):
+                return label
+        return "not one of the four"
 
 
 class ThePublishedTableMarksThePartialPairs(unittest.TestCase):
@@ -687,30 +831,66 @@ class EveryAlternativeCarriesItsStrand(unittest.TestCase):
     def _rc(s: str) -> str:
         return s.translate(str.maketrans("ACGT", "TGCA"))[::-1]
 
+    def _window(self, position: int, alternative: int, inverted: bool,
+                width: int = 20):
+        """Compare the two positions over a window clipped to their own repeats.
+
+        Round 10: the unclipped 20-mer criterion was false at 38 of 32,376 alternatives,
+        all within 20 bp of a repeat edge, where the window runs past the boundary and
+        the flanking sequence legitimately differs. The old test sampled on fixed strides
+        and never landed in either range, so it passed by not looking. Clipping the
+        window to the region makes the criterion true everywhere, and the edges are now
+        sampled at every base.
+        """
+        home_regions = [r for r in self.m.regions if r.contains(position)]
+        alt_regions = [r for r in self.m.regions if r.contains(alternative)]
+        if not home_regions or not alt_regions:
+            return None
+        home_r = max(home_regions, key=lambda r: r.length)
+        alt_r = max(alt_regions, key=lambda r: r.length)
+        if inverted:
+            span = min(width, home_r.end - position + 1,
+                       alternative - alt_r.start + 1)
+            if span < 1:
+                return None
+            here = self.ref[position - 1:position - 1 + span]
+            there = self._rc(self.ref[alternative - span:alternative])
+        else:
+            span = min(width, home_r.end - position + 1, alt_r.end - alternative + 1)
+            if span < 1:
+                return None
+            here = self.ref[position - 1:position - 1 + span]
+            there = self.ref[alternative - 1:alternative - 1 + span]
+        if not here or len(here) != len(there):
+            return None
+        return here == there, span
+
     def test_the_strand_flag_matches_the_sequence(self):
+        edges = (list(range(9150, 9260)) + list(range(117110, 117220))
+                 + list(range(125930, 126420)) + list(range(132540, 132660))
+                 + list(range(145560, 145660)) + list(range(1, 450))
+                 + list(range(151790, GENOME_BP + 1)))
+        positions = sorted(set(list(range(1, GENOME_BP + 1, 7)) + edges))
         wrong, checked, flipped = [], 0, 0
-        for pos in list(range(150, 1500, 97)) + list(range(118800, 127000, 613)) \
-                + list(range(151000, 152200, 89)) + [120000, 126100, 7597]:
-            status = self.m.classify(pos)
-            home = self.ref[pos - 1:pos + 19]
-            if len(home) < 20 or any(c not in "ACGT" for c in home):
+        for position in positions:
+            status = self.m.classify(position)
+            if status.well_defined:
                 continue
-            for alt in status.alternatives:
-                same = self.ref[alt - 1:alt + 19]
-                rev = self._rc(self.ref[max(0, alt - 20):alt])
-                if len(same) < 20 or len(rev) < 20:
+            for alternative in status.alternatives:
+                claims_inverted = alternative in status.inverted_alternatives
+                result = self._window(position, alternative, claims_inverted)
+                if result is None:
                     continue
-                claims_inverted = alt in status.inverted_alternatives
-                flipped += claims_inverted
+                agrees, _span = result
                 checked += 1
-                agrees = rev == home if claims_inverted else same == home
+                flipped += claims_inverted
                 if not agrees:
-                    wrong.append((pos, alt, "opposite" if claims_inverted else "same"))
-        self.assertGreater(checked, 25,
-                           f"only {checked} alternatives were checked, so this proves "
-                           f"little")
-        self.assertGreater(flipped, 10, "no alternative was claimed to be inverted, so "
-                                        "the flag is not being exercised")
+                    wrong.append((position, alternative,
+                                  "opposite" if claims_inverted else "same"))
+        self.assertGreater(checked, 5000,
+                           f"only {checked} alternatives were checked; the sampling or "
+                           f"the repeat map changed")
+        self.assertGreater(flipped, 100, "the inverted flag is not being exercised")
         self.assertLess(flipped, checked,
                         "every alternative was claimed inverted, so the flag is a "
                         "constant and the two terminal copies of the 'a' sequence, "

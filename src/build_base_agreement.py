@@ -128,6 +128,13 @@ def measure(accession: str, sequence: str, reference: str,
             ref_pos = cw.to_reference(dep)
             if ref_pos is None or dep < 1 or dep > len(seq):
                 continue
+            if ref_pos > len(reference):
+                # A block whose target runs past the reference. Counted, not crashed:
+                # round 10 found this raising IndexError, so a corrupted block file
+                # broke the builder instead of being reported by it, which is the same
+                # shape round 9 fixed in the block-tail test.
+                row["scored"] += 1
+                continue
             a = seq[dep - 1]
             if rc:
                 a = a.translate(COMPLEMENT)

@@ -174,14 +174,17 @@ two copies paired to each other, and an interface answering **"is this position 
 defined, and if not, which copies could it be?"**
 
 ```python
-from hsv1coords import RepeatMap, lift_detailed
+from hsv1coords import RepeatMap
+from hsv1coords.liftover import lift_detailed
 
-RepeatMap.load().classify(900)
-# 900: not well defined (inside TRL, which is present in two copies); could equally be 125474
+print(RepeatMap.load().classify(900))
+# 900: not well defined (inside TRL, which is present in two copies); could
+# equally be 125474 (opposite strand, so complement the allele)
 
-lift_detailed(118777, "JQ673480.1", "JQ780693.1")
-# ... 118295, but NOT well defined: inside IRL, which is present in two copies.
-#     The reference position could equally be 7487
+print(lift_detailed(118777, "JQ673480.1", "JQ780693.1"))
+# JQ673480.1 -> JQ780693.1: 118295, but NOT well defined (LAT): inside IRL,
+# which is present in two copies. The reference position could equally be 7487
+# (opposite strand, so complement the allele)
 ```
 
 **Built** (`make repeatmap`): 34 regions covering 32,019 bp of repeated or ambiguous
@@ -275,14 +278,25 @@ handling as data, with its definition quoted from its own paper, and answers whe
 position is present and what its equivalent coordinate is.
 
 ```python
-ConventionSet.load().report(118777)      # the LAT TATA box
-# usable under full_length
-# usable under whisnant2020_masked
-# usable under szpara2014_trimmed
-# NOT usable under lassalle2020_excluded: inside 116,926-132,647, excluded from the analysis
-# NOT usable under morse2017_nr: inside 117,160-125,973, which is not in the
-#     NR-reference (as NC_001806.1 position 118,776, offset -1)
-# caveat: ... not well defined in the reference: inside IRL ... could equally be 7597
+from hsv1coords import ConventionSet, RepeatMap
+
+print(ConventionSet.load().report(118777, RepeatMap.load()))
+# reference position 118777:
+#   usable under full_length
+#   usable under whisnant2020_masked
+#   usable under szpara2014_trimmed
+#   NOT usable under lassalle2020_excluded: inside 116,926-132,647, excluded
+#   from the analysis
+#   NOT usable under morse2017_nr: inside 117,160-125,973, which is not in the
+#   NR-reference (as NC_001806.1 position 118,776, offset -1)
+#   caveat: retained by the conventions above, but the position is not well
+#   defined in the reference: inside IRL, which is present in two copies. It
+#   could equally be 7597 (opposite strand, so complement the allele)
+#   provenance: whisnant2020_masked, szpara2014_trimmed, morse2017_nr print no
+#   coordinates in their own text, so the intervals used are the reference
+#   record's annotation read together with what the source says in words. The
+#   edges are exact to the base; the identification is an inference. See the
+#   source column of data/conventions.tsv
 ```
 
 **Five handlings, each read from its own source**, with the date it was read recorded:
@@ -381,8 +395,10 @@ purely because two papers cited two versions of one accession, with no repeat in
 all. Nothing here could detect that until this existed.
 
 ```python
-VersionCrosswalk.load().to_old(60000)    # 59999, offset -1
-VersionCrosswalk.load().to_old(150000)   # 150039, offset +39
+from hsv1coords.versions import VersionCrosswalk
+
+VersionCrosswalk.load().to_old(60000)    # 59999
+VersionCrosswalk.load().to_old(150000)   # 150039
 ```
 
 **What it unblocked.** `morse2017_nr` is defined on `.1` and was refused outright. It is

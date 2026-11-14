@@ -1210,23 +1210,45 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
     def setUpClass(cls):
         cls.cs = ConventionSet.load()
 
-    def test_the_flag_matches_what_the_source_field_says(self):
-        import re
+    def test_every_inferred_row_quotes_the_words_that_justify_it(self):
+        """The flag is tied to the row's own source text, by a quotation.
+
+        Round 10: this gate matched four phrases of this repository's own prose, so
+        rewording a source field honestly ("The paper gives none of these figures
+        itself") turned the suite red on correct data, and the gate could not see a
+        mislabelled row whose prose had been reworded either. The row quotes its
+        evidence now and the quote has to be in the source.
+        """
         wrong = []
         for c in self.cs.conventions:
             source = (c.source or "") + " " + (c.quote or "")
-            says_not_printed = bool(re.search(
-                r"prints no coordinates|no coordinates|an inference|"
-                r"derived from the paper's stated rule", source, re.I))
-            if says_not_printed and not c.boundaries_are_inferred:
-                wrong.append((c.name, "source says the coordinates were not printed, "
-                                      "but boundaries is 'read'"))
-            if c.boundaries_are_inferred and not says_not_printed:
-                wrong.append((c.name, "marked inferred, but nothing in its source says "
-                                      "the coordinates were not printed"))
+            if c.boundaries_are_inferred:
+                if not c.boundaries_evidence:
+                    wrong.append((c.name, "marked inferred and quotes no evidence"))
+                elif c.boundaries_evidence not in source:
+                    wrong.append((c.name, f"quotes {c.boundaries_evidence!r}, which is "
+                                          f"not in its own source field"))
+            elif c.boundaries_evidence:
+                wrong.append((c.name, "quotes evidence for an inference it does not "
+                                      "claim"))
         self.assertEqual(wrong, [], f"{len(wrong)} conventions disagree with their own "
                                     f"source about where their intervals came from: "
                                     f"{wrong}")
+
+    def test_the_inference_reaches_a_caller_of_usable(self):
+        """Round 10: the docstring said it reaches `usable`. It reached `report` only."""
+        for c in self.cs.conventions:
+            if not c.boundaries_are_inferred:
+                continue
+            with self.subTest(convention=c.name):
+                _, why = self.cs.usable(118777, c.name)
+                self.assertIn("interval inferred", why,
+                              f"{c.name} takes its intervals from the record and "
+                              f"usable() says nothing about it")
+
+    def test_a_read_convention_says_nothing_of_the_kind(self):
+        _, why = self.cs.usable(118777, "full_length")
+        self.assertNotIn("interval inferred", why)
 
     def test_both_kinds_are_present_so_the_flag_is_not_a_constant(self):
         kinds = {c.boundaries for c in self.cs.conventions}

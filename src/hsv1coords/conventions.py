@@ -130,6 +130,19 @@ class Convention:
     Last in the dataclass, as standing rule 22 requires.
     """
 
+    boundaries_evidence: str = ""
+    """The words in this row's own source that justify the `boundaries` flag.
+
+    Round 10: the gate on that flag matched four phrases of this repository's prose, so
+    rewording a source field honestly turned the suite red on correct data, and a
+    reworded row could also have been mislabelled without the gate noticing. The
+    evidence is quoted per row now, and the suite checks that the quote appears in the
+    source column, which ties the flag to the source rather than to a regex over our own
+    writing.
+
+    Last in the dataclass, as standing rule 22 requires.
+    """
+
     @property
     def boundaries_are_inferred(self) -> bool:
         return self.boundaries == "inferred"
@@ -358,6 +371,7 @@ class ConventionSet:
                 applicable=flag == "yes",
                 boundary_uncertainty_bp=int(r.get("boundary_uncertainty_bp") or 0),
                 boundaries=(r.get("boundaries") or "read").strip(),
+                boundaries_evidence=(r.get("boundaries_evidence") or "").strip(),
                 records=_parse_records(r.get("records", "")),
             ))
         return cls(out)
@@ -407,6 +421,16 @@ class ConventionSet:
                                                c.reference_version)
 
     def usable(self, position: int, convention: str) -> tuple[bool, str]:
+        """Is this position present in an analysis under that convention?
+
+        Carries the interval provenance, because this is the answer a caller branches
+        on. `report` uses `usable_plain` instead and states the provenance once for the
+        whole report rather than on every line.
+        """
+        ok, why = self.usable_plain(position, convention)
+        return ok, self._with_provenance(self[convention], why)
+
+    def usable_plain(self, position: int, convention: str) -> tuple[bool, str]:
         """Is this reference position present in an analysis under that convention?
 
         `position` is always in this resolver's base version. Where a convention is
@@ -428,6 +452,21 @@ class ConventionSet:
                            f"an interval boundary that was reconstructed, not read")
             return ok, answer
         return self._usable_native(position, c)
+
+    def _with_provenance(self, c: Convention, answer: str) -> str:
+        """Append the interval provenance to an answer that rests on it.
+
+        Round 10: `Convention.boundaries`' docstring said the inference "reaches the user
+        through `usable` and `report`". It reached them through `report` only, so
+        `usable(118777, "morse2017_nr")` named an interval that is not printed in the
+        source it cites and said nothing about that. A docstring claiming a path exists
+        is not the path.
+        """
+        if not c.boundaries_are_inferred:
+            return answer
+        return (f"{answer} [interval inferred: {c.name} prints no coordinates in its "
+                f"own text, so this interval is the reference record's annotation read "
+                f"with what the source says in words]")
 
     def _warning_for(self, position: int, c: Convention) -> str | None:
         """Any caveat attaching to this convention's answer, usable or not.
@@ -554,7 +593,7 @@ class ConventionSet:
                              f"differs from {self.BASE_VERSION} by a non-constant "
                              f"offset, and no version crosswalk is built"))
                 continue
-            ok, why = self.usable(position, c.name)
+            ok, why = self.usable_plain(position, c.name)
             if c.boundaries_are_inferred:
                 rep.inferred_intervals.append(c.name)
             warning = self._warning_for(position, c)
