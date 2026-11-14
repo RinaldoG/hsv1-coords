@@ -62,6 +62,14 @@ def normalise(name: str) -> str:
     return s
 
 
+# The canonical set mixes two schemes, because the deposited records do: the reference
+# annotates RL1, RL2 and RS1 once each, and the 2020 re-annotation annotates TRL1/IRL1,
+# TRL2/IRL2 and IRS1/TRS1 separately, while also introducing copy-specific decimal names
+# such as IRL2.5 that have no copy-agnostic form. So `resolve("IRL2")` gives `RL2` and
+# drops the copy, and `resolve("IRL2.5")` gives `IRL2.5` and keeps it. Round 10 found
+# that difference invisible to a caller; `Dictionary.copy_kept` now reports it, and the
+# repeat map is what answers "which copy" for a coordinate.
+#
 # A locus inside an inverted repeat exists in two copies, named with a TR (terminal
 # repeat) and an IR (internal repeat) prefix and the same suffix. A name mapping to both
 # is not ambiguous: it is one locus present twice, which is a fact about the genome and
@@ -215,6 +223,42 @@ class Dictionary:
         if not found:
             return ""
         return max(found, key=lambda c: order.get(c, 3))
+
+    COPY_PREFIXES = {"IR": "internal", "TR": "terminal"}
+
+    def copy_named(self, name: str) -> str | None:
+        """Which copy of an inverted repeat the INPUT named, or None.
+
+        Round 10: the canonical set mixes two schemes, because the records do.
+        `resolve("IRL2")` gives `RL2`, which names the locus and not the copy, while
+        `resolve("IRL2.5")` gives `IRL2.5`, which names the copy. Nothing in the answer
+        said which had happened, so a caller asking about the internal copy of ICP0 got
+        a copy-agnostic answer indistinguishable from a copy-specific one.
+
+        This reports what the caller's own string said, which is the part the canonical
+        may have dropped. `copy_kept` says whether the answer still carries it.
+        """
+        bare = name.strip()
+        for prefix, which in self.COPY_PREFIXES.items():
+            if bare.upper().startswith(prefix) and len(bare) > len(prefix):
+                return which
+        return None
+
+    def copy_kept(self, name: str) -> bool | None:
+        """Whether the canonical for `name` still names the copy the input named.
+
+        None when the input named no copy. False is the case worth knowing: the caller
+        said `IRL2` and the answer is `RL2`, so the copy has been dropped and the
+        coordinate question "which copy" is still open. The repeat map answers it.
+        """
+        named = self.copy_named(name)
+        if named is None:
+            return None
+        try:
+            canonical = self.resolve(name)
+        except KeyError:
+            return None
+        return self.copy_named(canonical) is not None
 
     def why_declined(self, name: str) -> str:
         """Why the table refuses to resolve this name, or '' if it does resolve."""
