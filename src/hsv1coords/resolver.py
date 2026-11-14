@@ -7,9 +7,17 @@ source, this module will not produce it.
 Greek letters are a practical problem rather than a biological one. MEDLINE and PubMed
 Central render them as spelled-out words, so the same name reaches a text pipeline as
 `alpha TIF`, `alphaTIF`, `a-TIF` or with the actual character, depending on where it came
-from. `normalise` folds those together so that a lookup works on whichever form arrives.
+from. `normalise` folds case, separators and the Greek characters themselves, and the
+single-letter renderings (`a-TIF` for `alpha-TIF`) are indexed when the dictionary loads,
+where it can be checked that the short form is not already a cited alias of something
+else. Round 9 found this paragraph claiming `normalise` folded `a-TIF` when it raised
+`KeyError`, which would drop a record in a text pipeline that believed it.
+
 It is deliberately conservative: it never merges two names that differ in anything but
-case, separators and Greek rendering.
+case, separators and Greek rendering. Note that a dot is not a separator here: `UL20.6`
+and `UL-20-6` are different keys, because a decimal point inside a systematic name
+carries meaning. An earlier version of this paragraph said dots between a word and a
+digit were folded, which described a behaviour the code does not have and should not.
 """
 from __future__ import annotations
 
@@ -101,7 +109,33 @@ class Dictionary:
         d = cls(entries=entries)
         for e in entries:
             d._by_key.setdefault(normalise(e.alias), set()).add(e.canonical)
+        d._add_single_letter_greek_keys()
         return d
+
+    def _add_single_letter_greek_keys(self) -> None:
+        """Also index `a-TIF` for an alias spelled `alpha-TIF`, and only then.
+
+        Older MEDLINE renderings print a Greek letter as a single Latin letter, so the
+        same name arrives as `a-TIF` and `aTIF`. The module docstring claimed `normalise`
+        folded those with `alpha-TIF`; it did not, and both raised `KeyError`. Round 9.
+
+        Done here rather than in `normalise` because folding a leading `a` to `alpha` in
+        general would merge names that are not the same name. This only ever adds a key
+        that an existing `alpha`, `beta` or `gamma` alias already implies, skips any key
+        that is already in use, and refuses any that would make one key resolve to more
+        than one gene, so it cannot create an ambiguity or override a cited alias.
+        """
+        words = {"alpha": "a", "beta": "b", "gamma": "g"}
+        for key in list(self._by_key):
+            for word, letter in words.items():
+                if not key.startswith(word):
+                    continue
+                short = letter + key[len(word):]
+                if short in self._by_key:
+                    continue    # a cited alias of its own: never overridden
+                targets = self._by_key[key]
+                if len(targets) == 1 or repeat_pair_of(targets) is not None:
+                    self._by_key[short] = set(targets)
 
     @property
     def canonical_names(self) -> set[str]:

@@ -264,5 +264,62 @@ class RepeatPairNamingIsNotGuessed(unittest.TestCase):
         with self.assertRaises(KeyError):
             self.d.resolve("")
 
+class SingleLetterGreekRenderingsResolve(unittest.TestCase):
+    """Round 9: the module docstring said `normalise` folds `a-TIF` with `alpha-TIF`.
+
+    It did not. `a-TIF` and `aTIF` both raised `KeyError`, which is a decline rather
+    than a wrong answer, so the cost was a dropped record in a text pipeline that
+    believed the docstring. Older MEDLINE renderings print a Greek letter as a single
+    Latin letter, so those forms do arrive.
+
+    The short keys are added when the dictionary loads, not by `normalise`, because
+    folding a leading `a` to `alpha` in general would merge names that are not the same
+    name.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.d = Dictionary.load()
+
+    def test_the_single_letter_form_resolves_like_the_spelled_out_form(self):
+        pairs = [("alpha-TIF", "a-TIF"), ("alphaTIF", "aTIF")]
+        checked = 0
+        for long_form, short_form in pairs:
+            with self.subTest(alias=short_form):
+                self.assertEqual(self.d.resolve(short_form),
+                                 self.d.resolve(long_form))
+            checked += 1
+        self.assertGreater(checked, 1)
+
+    def test_it_adds_nothing_that_was_not_already_implied(self):
+        """Every short key must come from a spelled-out alias that is in the table."""
+        from hsv1coords.resolver import normalise
+        spelled = {normalise(e.alias) for e in self.d.entries}
+        words = {"alpha": "a", "beta": "b", "gamma": "g"}
+        implied = {letter + key[len(word):]
+                   for key in spelled for word, letter in words.items()
+                   if key.startswith(word)}
+        extra = sorted(k for k in self.d._by_key if k not in spelled
+                       and k not in implied)
+        self.assertEqual(extra, [],
+                         f"the index holds {len(extra)} keys that no cited alias "
+                         f"implies: {extra[:8]}")
+
+    def test_it_creates_no_ambiguity_and_overrides_no_cited_alias(self):
+        from hsv1coords.resolver import normalise, repeat_pair_of
+        for key, targets in sorted(self.d._by_key.items()):
+            if len(targets) <= 1 or repeat_pair_of(targets) is not None:
+                continue
+            with self.subTest(key=key):
+                self.assertIn(key, {normalise(e.alias) for e in self.d.entries},
+                              f"{key} resolves to {sorted(targets)} and is not a cited "
+                              f"alias, so a derived key created an ambiguity")
+
+    def test_a_name_that_merely_starts_with_a_is_untouched(self):
+        """The control: this must not make every `a` name a Greek rendering."""
+        with self.assertRaises(KeyError):
+            self.d.resolve("a-NOTAGENE")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

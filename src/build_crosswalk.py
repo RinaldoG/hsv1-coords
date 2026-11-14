@@ -292,8 +292,19 @@ def main() -> int:
             rows = align(q_fa, ref_fa)
             orientation = "reverse_complemented"
         blocks: list[tuple[int, int, int]] = []
+        # Alignments on the other strand are dropped. Mostly they are repeat artefacts,
+        # but for a genome deposited as a segmental isomer they are a whole segment, and
+        # dropping them silently is what round 9 objected to: `ON783215.1` has its long
+        # segment forward and its short segment reversed, so 29,764 bp, essentially IRS,
+        # US and TRS, has no reference coordinate at all. A lift of a variant in US6
+        # (gD) or RS1 (ICP4) out of that genome returns None with nothing saying why.
+        # The amount dropped is recorded in the block file's header and the decline says
+        # so. Representing the segment properly needs per-segment orientation, which is
+        # a larger change and is listed as an accepted limitation in ROADMAP.md.
+        reverse_strand_bp = sum(
+            int(f[3]) - int(f[2]) for f in rows if f[4] != "+")
         for f in rows:
-            if f[4] != "+":          # reverse-strand hits are repeat artefacts here
+            if f[4] != "+":
                 continue
             cs = next((x[5:] for x in f[12:] if x.startswith("cs:Z:")), None)
             if not cs:
@@ -310,7 +321,8 @@ def main() -> int:
             # complement while the only record of that sat in a different file, which
             # nothing read, so a lift was wrong by tens of kilobases. A coordinate's
             # frame now travels with the coordinate.
-            fh.write(f"# orientation={orientation} "
+            fh.write(f"# reverse_strand_bp={reverse_strand_bp} "
+                     f"orientation={orientation} "
                      f"deposited_length={deposited_length}\n")
             fh.write("query_start\ttarget_start\tlength\n")
             for qs, ts, ln in blocks:

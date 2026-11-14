@@ -10,7 +10,8 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
 from hsv1coords import Crosswalk, RepeatMap, lift  # noqa: E402
-from hsv1coords.liftover import REFERENCE  # noqa: E402
+from hsv1coords.liftover import REFERENCE, SEGMENT_BP  # noqa: E402
+from hsv1coords import lift_detailed  # noqa: E402
 
 sys.path.insert(0, str(ROOT / "src"))
 from build_crosswalk import genbank_sequence, read_fasta  # noqa: E402
@@ -150,6 +151,56 @@ class Monotonicity(unittest.TestCase):
         self.assertIsNone(
             lift(900, "OP297884.1", REFERENCE, CROSSWALK),
             "position 900 must not resolve to the far copy of the terminal repeat")
+
+
+class ADroppedSegmentSaysSo(unittest.TestCase):
+    """Round 9: `ON783215.1` is deposited as a segmental isomer.
+
+    Its long segment is forward and its short segment reversed. The builder keeps only
+    the forward alignments, so about 30 kb of that genome, essentially IRS, US and TRS,
+    has no reference coordinate at all. A lift of a variant in US6 (gD) or RS1 (ICP4)
+    out of it returned None with the same words as a position in a two-base insertion,
+    and nothing in the documents said a whole segment was absent.
+
+    Representing the segment needs per-segment orientation, which is a larger change and
+    is listed as an accepted limitation. What is fixed here is the silence.
+    """
+
+    def test_the_isomer_is_the_only_genome_with_a_segment_dropped(self):
+        """If this stops being one genome, the wording of the decline is wrong."""
+        big = {acc: Crosswalk.load(acc, CROSSWALK).reverse_strand_bp
+               for acc in Crosswalk.available(CROSSWALK)}
+        over = sorted((bp, acc) for acc, bp in big.items() if bp >= SEGMENT_BP)
+        self.assertEqual([acc for _, acc in over], ["ON783215.1"],
+                         f"genomes with a segment's worth of dropped reverse-strand "
+                         f"alignment: {over}")
+        others = sorted(bp for acc, bp in big.items() if acc != "ON783215.1")
+        self.assertLess(
+            others[-1], SEGMENT_BP,
+            f"the largest repeat artefact is {others[-1]:,} bp, which is not clearly "
+            f"separated from a segment, so the threshold is arbitrary")
+
+    def test_a_position_in_the_dropped_segment_declines_with_the_reason(self):
+        result = lift_detailed(140000, "ON783215.1", REFERENCE, CROSSWALK)
+        self.assertIsNone(result.position)
+        self.assertIn("segmental isomer", result.reason)
+        self.assertIn("segmental isomer", str(result),
+                      "the reason does not reach the printed form, so nobody is told")
+
+    def test_an_ordinary_decline_is_not_dressed_up_as_a_missing_segment(self):
+        """The control: most declines are small insertions and must stay plain."""
+        result = lift_detailed(900, "OP297884.1", REFERENCE, CROSSWALK)
+        self.assertIsNone(result.position)
+        self.assertNotIn("segmental isomer", result.reason)
+
+    def test_every_block_file_states_how_much_it_dropped(self):
+        missing = [acc for acc in Crosswalk.available(CROSSWALK)
+                   if "reverse_strand_bp="
+                   not in (CROSSWALK / f"{acc}.blocks.tsv").read_text()
+                   .splitlines()[0]]
+        self.assertEqual(missing, [],
+                         f"{len(missing)} block files do not state how much alignment "
+                         f"was dropped: {missing[:5]}. Rebuild with `make crosswalk`.")
 
 
 class SequenceAgreement(unittest.TestCase):

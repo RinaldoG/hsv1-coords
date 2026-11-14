@@ -85,7 +85,14 @@ Two things the inventory establishes, both of which the crosswalk has to handle:
   now fixed. Three of those genomes turned out to be deposited on the opposite strand
   with a rotated start, which the build now detects and reverse complements; the one
   genuine segmental isomer in the set is `ON783215.1`, with its long segment forward and
-  its short segment reversed.
+  its short segment reversed. **Accepted limitation, stated plainly after round 9:** the
+  build keeps only the forward alignments, so that genome's short segment has no
+  reference coordinate at all. About 30 kb of it, essentially IRS, US and TRS, is
+  unmapped, which is why it sits at 80.62 per cent mappable while the corpus median is
+  98.84. A lift of a variant in US6 (gD) or RS1 (ICP4) out of it declines, and the
+  decline now names the cause rather than reading like a position in a small insertion.
+  Representing the segment properly needs per-segment orientation in the block files and
+  a strand column on `Block`, which is not built.
 
 **Dependency:** `minimap2` (tested against 2.31-r1302), preset `asm10`. Declared rather
 than hand-rolled: a bespoke aligner is the wrong risk to take in a repository whose purpose

@@ -1,4 +1,4 @@
-# orientation=forward deposited_length=153180
+# reverse_strand_bp=0 orientation=forward deposited_length=153180
 query_start	target_start	length
 419	0	118
 539	118	21

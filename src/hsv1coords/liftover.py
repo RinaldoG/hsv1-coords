@@ -46,8 +46,8 @@ class Crosswalk:
     """
 
     def __init__(self, accession: str, blocks: list[Block],
-                 orientation: str = "forward", deposited_length: int | None = None
-                 ) -> None:
+                 orientation: str = "forward", deposited_length: int | None = None,
+                 reverse_strand_bp: int = 0) -> None:
         if orientation not in ("forward", "reverse_complemented"):
             raise ValueError(f"unknown orientation {orientation!r} for {accession}")
         if orientation == "reverse_complemented" and not deposited_length:
@@ -57,6 +57,15 @@ class Crosswalk:
         self.accession = accession
         self.orientation = orientation
         self.deposited_length = deposited_length
+        self.reverse_strand_bp = reverse_strand_bp
+        """How much of this genome aligned on the other strand and was dropped.
+
+        For most genomes this is a few hundred base pairs of repeat artefact. For a
+        genome deposited as a segmental isomer it is a whole segment: `ON783215.1` has
+        its long segment forward and its short segment reversed, so about 30 kb has no
+        reference coordinate. Round 9: a lift there returned None with nothing saying
+        why, and nothing in the documents told a reader a whole segment was missing.
+        """
         # Tuples, not lists, because `load` is cached and hands the same object to
         # every caller. Round 9: one caller doing `cw.blocks.clear()` changed what every
         # later `load` returned, taking `to_reference(60000)` from 61474 to None for a
@@ -98,7 +107,8 @@ class Crosswalk:
                       for r in csv.DictReader(fh, delimiter="\t")]
         length = meta.get("deposited_length")
         return cls(accession, blocks, meta.get("orientation", ""),
-                   int(length) if length else None)
+                   int(length) if length else None,
+                   int(meta.get("reverse_strand_bp") or 0))
 
     def _to_aligned(self, position: int) -> int:
         """A 1-based deposited position as a 1-based position in the aligned frame."""
@@ -198,7 +208,12 @@ class LiftResult:
         strand = (", ON THE OPPOSITE STRAND, so the base here is the complement of "
                   "the base there" if self.complemented else "")
         if self.position is None:
-            return f"{self.source}:{self.position} does not lift to {self.target}"
+            # The reason, which this dropped. Round 9 added a decline that names a
+            # missing segment and it did not reach the printed form, which is the same
+            # failure as the strand note in round 8: a correct value nobody is told.
+            because = f": {self.reason}" if self.reason else ""
+            return (f"{self.source}:{self.position} does not lift to {self.target}"
+                    f"{because}")
         if self.well_defined:
             return f"{self.source} -> {self.target}: {self.position}{strand}"
         alts = ", ".join(
@@ -240,7 +255,7 @@ def lift_detailed(position: int, source: str, target: str,
         # coordinates and one of them does not exist. Round 9 found it set to True on a
         # declined lift, which reads as a fact about an answer that was never given.
         return LiftResult(None, source, target, None, True, [], [],
-                          "no reference coordinate for this position",
+                          _why_no_coordinate(source, target, position, directory),
                           complemented=False)
 
     out = position if source == target else (
@@ -252,6 +267,41 @@ def lift_detailed(position: int, source: str, target: str,
                       status.alternatives, status.loci, status.reason,
                       complemented=complemented,
                       inverted_alternatives=status.inverted_alternatives)
+
+
+SEGMENT_BP = 5000
+"""Above this much dropped reverse-strand alignment, a genome is a segmental isomer.
+
+A few hundred base pairs on the other strand is repeat artefact. Thirty thousand is a
+segment. The threshold only decides the wording of a decline, never a coordinate.
+"""
+
+
+def _why_no_coordinate(source: str, target: str, position: int,
+                       directory: pathlib.Path | None) -> str:
+    """The reason a lift declined, naming a missing segment where that is the cause.
+
+    Round 9: this said "no reference coordinate for this position" whether the position
+    sat in a small insertion or inside the 30 kb of `ON783215.1` that the crosswalk does
+    not represent at all, because that genome's short segment is deposited inverted and
+    alignments on the other strand are dropped. A user lifting a variant in gD or ICP4
+    out of it got None with no way to tell the difference.
+    """
+    plain = "no reference coordinate for this position"
+    if source == REFERENCE:
+        return plain
+    try:
+        cw = Crosswalk.load(source, directory)
+    except FileNotFoundError:          # pragma: no cover
+        return plain
+    if cw.reverse_strand_bp < SEGMENT_BP:
+        return plain
+    return (f"no reference coordinate for this position. {source} has "
+            f"{cw.reverse_strand_bp:,} bp that aligned to the reference on the opposite "
+            f"strand, which this crosswalk does not represent: it is deposited as a "
+            f"segmental isomer, with one segment inverted relative to the reference. "
+            f"Positions in that segment have no coordinate here at all, rather than "
+            f"having one that could not be placed")
 
 
 def lift(position: int, source: str, target: str,
