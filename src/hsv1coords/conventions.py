@@ -110,6 +110,30 @@ class Convention:
     difference between a usable record and a confidently wrong one.
     """
 
+    boundaries: str = "read"
+    """Whether the intervals were read from the source or reconstructed from the record.
+
+    `read` means the source prints the coordinates, so the only question about them is
+    transcription. `inferred` means the source prints none and the interval comes from
+    the reference record's own annotation together with what the source says in words.
+
+    Round 9 found `boundary_uncertainty_bp` set to 0 on all five conventions, including
+    three whose own source field says the boundaries were not printed, so `near_a_boundary`
+    was False everywhere and the UNRELIABLE path was unreachable on the shipped data. The
+    field was the wrong instrument: Whisnant and Szpara print no coordinates, but the
+    interval taken for them is the record's own TRL and TRS extent, which is exact to the
+    base. What is uncertain there is the identification, not the edge, and a tolerance in
+    base pairs cannot express "this might be the wrong repeat". So the uncertainty that
+    applies is stated as a kind rather than a distance, and it reaches the user through
+    `usable` and `report`.
+
+    Last in the dataclass, as standing rule 22 requires.
+    """
+
+    @property
+    def boundaries_are_inferred(self) -> bool:
+        return self.boundaries == "inferred"
+
     def near_a_boundary(self, position: int) -> bool:
         if not self.boundary_uncertainty_bp:
             return False
@@ -243,6 +267,17 @@ class PositionReport:
     unusable_under: list[tuple[str, str]] = field(default_factory=list)
     refused: list[tuple[str, str]] = field(default_factory=list)
     caveats: list[str] = field(default_factory=list)
+    inferred_intervals: list[str] = field(default_factory=list)
+    """Conventions in this report whose intervals are not printed by their source.
+
+    Round 9: `boundary_uncertainty_bp` was 0 on all five conventions, three of which take
+    their intervals from the reference record's own annotation because the source prints
+    none, and no answer said so. It is listed once per report rather than as a caveat per
+    position, because it is a fact about the convention and attaching it to every
+    position buried the caveats that are about the position.
+
+    Last in the dataclass, as standing rule 22 requires.
+    """
 
     @property
     def comparable_everywhere(self) -> bool:
@@ -264,6 +299,13 @@ class PositionReport:
             lines.append(f"  cannot say for {name}: {why}")
         for c in self.caveats:
             lines.append(f"  caveat: {c}")
+        if self.inferred_intervals:
+            lines.append(
+                f"  provenance: {', '.join(self.inferred_intervals)} print no "
+                f"coordinates in their own text, so the intervals used are the "
+                f"reference record's annotation read together with what the source says "
+                f"in words. The edges are exact to the base; the identification is an "
+                f"inference. See the source column of data/conventions.tsv")
         return "\n".join(lines)
 
 
@@ -315,6 +357,7 @@ class ConventionSet:
                 reference_version=(r.get("reference_version") or "NC_001806.2").strip(),
                 applicable=flag == "yes",
                 boundary_uncertainty_bp=int(r.get("boundary_uncertainty_bp") or 0),
+                boundaries=(r.get("boundaries") or "read").strip(),
                 records=_parse_records(r.get("records", "")),
             ))
         return cls(out)
@@ -512,6 +555,8 @@ class ConventionSet:
                              f"offset, and no version crosswalk is built"))
                 continue
             ok, why = self.usable(position, c.name)
+            if c.boundaries_are_inferred:
+                rep.inferred_intervals.append(c.name)
             warning = self._warning_for(position, c)
             if warning:
                 rep.caveats.append(warning)
@@ -529,7 +574,11 @@ class ConventionSet:
         if repeat_map is not None and rep.usable_under:
             status = repeat_map.classify(position)
             if not status.well_defined:
-                alts = ", ".join(str(a) for a in status.alternatives) or "unknown"
+                # `describe_alternative`, not `str`: every alternative in the large
+                # inverted repeats is on the opposite strand, and this report printed
+                # the bare number. Round 9.
+                alts = ", ".join(status.describe_alternative(a)
+                                 for a in status.alternatives) or "unknown"
                 rep.caveats.append(
                     f"retained by the conventions above, but the position is not well "
                     f"defined in the reference: {status.reason}. It could equally be "

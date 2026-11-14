@@ -1190,6 +1190,93 @@ class TheCachedLoadersCannotBeCorruptedByACaller(unittest.TestCase):
                          "entries reading two different sets of files")
 
 
+class EveryInferredBoundarySaysSo(unittest.TestCase):
+    """Round 9: `boundary_uncertainty_bp` was 0 on all five conventions.
+
+    Three of them say in their own source field that the source prints no coordinates,
+    so `near_a_boundary` returned False everywhere and the UNRELIABLE path was
+    unreachable on the shipped data. The field was the wrong instrument: the intervals
+    taken for Whisnant and Szpara are the record's own TRL and TRS extents, exact to the
+    base, and what is uncertain is which repeat they are rather than where the edge sits.
+    So each convention states whether its intervals were read or inferred, and the
+    inference reaches the user.
+
+    This gate ties the flag to the source text, which is the evidence actually held, so
+    the flag cannot be set to `read` on a row whose source says the coordinates were not
+    printed.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cs = ConventionSet.load()
+
+    def test_the_flag_matches_what_the_source_field_says(self):
+        import re
+        wrong = []
+        for c in self.cs.conventions:
+            source = (c.source or "") + " " + (c.quote or "")
+            says_not_printed = bool(re.search(
+                r"prints no coordinates|no coordinates|an inference|"
+                r"derived from the paper's stated rule", source, re.I))
+            if says_not_printed and not c.boundaries_are_inferred:
+                wrong.append((c.name, "source says the coordinates were not printed, "
+                                      "but boundaries is 'read'"))
+            if c.boundaries_are_inferred and not says_not_printed:
+                wrong.append((c.name, "marked inferred, but nothing in its source says "
+                                      "the coordinates were not printed"))
+        self.assertEqual(wrong, [], f"{len(wrong)} conventions disagree with their own "
+                                    f"source about where their intervals came from: "
+                                    f"{wrong}")
+
+    def test_both_kinds_are_present_so_the_flag_is_not_a_constant(self):
+        kinds = {c.boundaries for c in self.cs.conventions}
+        self.assertEqual(kinds, {"read", "inferred"},
+                         f"the boundaries column holds only {kinds}, so it is a "
+                         f"constant and carries no information")
+
+    def test_an_inferred_convention_is_named_in_the_report(self):
+        """Once per report, not once per convention per position.
+
+        The first version of this attached a caveat per convention, which put three
+        paragraphs of provenance on every position in the genome and buried the caveat
+        that was about the position. Two existing tests caught that, which is what they
+        are for.
+        """
+        inferred = sorted(c.name for c in self.cs.conventions
+                          if c.boundaries_are_inferred)
+        self.assertTrue(inferred, "no convention is marked inferred")
+        report = self.cs.report(9213)
+        self.assertEqual(sorted(report.inferred_intervals), inferred)
+        provenance = [line for line in str(report).splitlines()
+                      if line.strip().startswith("provenance:")]
+        self.assertEqual(len(provenance), 1,
+                         f"the report states its interval provenance {len(provenance)} "
+                         f"times; it should state it once")
+        for name in inferred:
+            with self.subTest(convention=name):
+                self.assertIn(name, provenance[0])
+
+    def test_a_read_convention_is_not_named_as_inferred(self):
+        """The control: the provenance line must not list everything."""
+        report = self.cs.report(9213)
+        for c in self.cs.conventions:
+            if c.boundaries_are_inferred:
+                continue
+            with self.subTest(convention=c.name):
+                self.assertNotIn(c.name, report.inferred_intervals,
+                                 f"{c.name} prints its own coordinates and is listed as "
+                                 f"inferred anyway")
+
+    def test_the_provenance_line_does_not_crowd_out_the_position_caveats(self):
+        """A unique position gets no caveat; an ambiguous one still gets its own."""
+        unique = self.cs.report(60000, RepeatMap.load())
+        self.assertEqual(unique.caveats, [],
+                         f"a well defined position carries caveats: {unique.caveats}")
+        ambiguous = self.cs.report(9213, RepeatMap.load())
+        self.assertTrue(any("not well defined" in c for c in ambiguous.caveats),
+                        f"the ambiguity caveat is missing: {ambiguous.caveats}")
+
+
 class TheIdentityConversionIsBounded(unittest.TestCase):
     """Round 9: `convert(999999, NEW, NEW)` returned 999999, and `convert(-3, ...)` -3.
 
