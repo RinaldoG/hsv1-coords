@@ -177,8 +177,12 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                     # 9,213", is a position that happens to equal a figure, not a
                     # statement of that figure. Deliberately narrow: both ends must be
                     # whole numbers of four digits or more, so "from 98.08 to 98.84 per
-                    # cent" is still checked, and the repeat intervals themselves are
-                    # gated against the reference record in test_m4_repeat_map.py.
+                    # cent" is still checked. The exemption used to be justified by
+                    # saying the repeat intervals are gated against the record, which
+                    # was true of the artefact rows and not of the text: round 9 moved
+                    # the README's IRL boundary by 300 bp with the suite green. The
+                    # ranges themselves are now checked as text, against the record, by
+                    # EveryQuotedIntervalIsOneTheRecordStates in test_m4_repeat_map.py.
                     if before.endswith("..") or after.startswith(".."):
                         continue
                     if ("." not in m.group(0)
