@@ -459,6 +459,152 @@ class CorrectionsFromReview(unittest.TestCase):
         self.assertTrue(outside.well_defined)
         self.assertEqual(outside.alternatives, [])
 
+class EveryIntervalComesFromTheRecord(unittest.TestCase):
+    """Round 9: 30 of the 34 regions and every diploid pair were tied to nothing.
+
+    `test_the_four_inverted_repeats` hard-codes the four large boundaries, and that was
+    the whole of it. A reviewer moved `oriL` 20 kb, moved an ICP0 copy 90 kb, and shortened
+    a LAT copy by one base, each with all 180 tests green, while `repeats.py` claimed
+    "every region, every pair and every copy's orientation is derived from the reference
+    record's own feature table and sequence". The claim was true of the builder and
+    untrue of the artefact, which is the file the library actually reads.
+
+    This ties each interval back to a feature in the record. It is not a reimplementation
+    of the builder's matching logic, which would drift from it (root cause 13): it asks
+    only whether every interval in the artefact is an interval the record states, and
+    whether each pair's two copies sit in the two copies of their repeat.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "src"))
+        from extract_names import parse_genbank
+        from build_repeat_map import spans_of
+        record = require_reference()
+        cls.spans = spans_of
+        cls.features = parse_genbank(record)
+        cls.extents = set()
+        for f in cls.features:
+            spans = spans_of(f.get("_location", ""))
+            if not spans:
+                continue
+            cls.extents.add((min(s for s, _ in spans), max(e for _, e in spans)))
+            for span in spans:
+                cls.extents.add(span)
+        cls.m = RepeatMap.load(DERIVED)
+
+    def test_every_region_interval_is_one_the_record_states(self):
+        strays = [(r.name, r.start, r.end) for r in self.m.regions
+                  if (r.start, r.end) not in self.extents]
+        self.assertEqual(
+            strays, [],
+            f"{len(strays)} regions in repeat_map.tsv have an interval that is not a "
+            f"feature extent in {REFERENCE}: {strays[:8]}. Either the artefact was "
+            f"edited or the record changed; rebuild with `make repeatmap`.")
+        self.assertGreaterEqual(len(self.m.regions), 30,
+                                "the region count collapsed, so this gate is checking "
+                                "almost nothing")
+
+    def test_every_diploid_copy_interval_is_one_the_record_states(self):
+        strays = []
+        for pair in self.m.pairs:
+            for label, copy in (("copy_1", pair.copy_1), ("copy_2", pair.copy_2)):
+                if tuple(copy) not in self.extents:
+                    strays.append((pair.locus, label, tuple(copy)))
+        self.assertEqual(
+            strays, [],
+            f"{len(strays)} diploid-pair copies have an interval that is not a feature "
+            f"extent in {REFERENCE}: {strays[:8]}")
+        self.assertGreaterEqual(len(self.m.pairs), 25,
+                                "the pair count collapsed, so this gate is checking "
+                                "almost nothing")
+
+    def test_each_pair_sits_in_the_two_copies_of_its_repeat(self):
+        """A copy that moved out of its repeat is the 90 kb mutation the reviewer made."""
+        repeats = {label: next(r for r in self.m.regions
+                               if r.name.startswith(label)
+                               and r.kind == "repeat_region")
+                   for label in ("TRL", "IRL", "IRS", "TRS")}
+        misplaced = []
+        for pair in self.m.pairs:
+            first, second = pair.repeat_pair.split("/")
+            for copy, label in ((pair.copy_1, first), (pair.copy_2, second)):
+                r = repeats.get(label)
+                if r is None:
+                    continue
+                # Overlap, not containment: the LAT copy in the long repeat runs 778 bp
+                # past the end of IRL, which is why containment is the wrong test here.
+                if not (copy[0] <= r.end and copy[1] >= r.start):
+                    misplaced.append((pair.locus, label, tuple(copy),
+                                      (r.start, r.end)))
+        self.assertEqual(
+            misplaced, [],
+            f"{len(misplaced)} diploid copies sit outside the repeat they are recorded "
+            f"against (locus, repeat, copy, repeat interval): {misplaced[:8]}")
+
+    def test_the_two_copies_of_a_pair_are_equal_length_unless_marked_partial(self):
+        wrong = []
+        for pair in self.m.pairs:
+            a = pair.copy_1[1] - pair.copy_1[0]
+            b = pair.copy_2[1] - pair.copy_2[0]
+            partial = "partial" in (pair.note or "").lower()
+            if a != b and not partial:
+                wrong.append((pair.locus, a + 1, b + 1))
+            if a == b and partial:
+                wrong.append((pair.locus, "marked partial but equal length", a + 1))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} pairs state two copies of different length without being "
+            f"marked partial, or the reverse: {wrong[:8]}")
+
+
+class ThePublishedTableMarksThePartialPairs(unittest.TestCase):
+    """Round 9: `repeat_map.md` printed the seven partial pairs as if they were exact.
+
+    The published table is the artefact a reader opens without the TSV beside it, and it
+    omitted the `offset_delta` column and said nothing about length. So it printed LAT at
+    1..7,569 against 118,777..127,151, two copies differing by 806 bp, in the same form
+    as an exact pair. A reader transfers a LAT coordinate between them by a constant
+    offset, which is the error this repository exists to prevent, on its own worked
+    example.
+    """
+
+    def test_every_partial_pair_is_marked_partial_in_the_published_table(self):
+        published = (DERIVED / "repeat_map.md").read_text()
+        rows = [line for line in published.splitlines()
+                if line.startswith("| `") and line.count("|") >= 6
+                and ".." in line]
+        self.assertGreater(len(rows), 20,
+                           f"only {len(rows)} diploid rows found in repeat_map.md, so "
+                           f"this gate is reading the wrong table")
+        wrong = []
+        for line in rows:
+            cells = [c.strip() for c in line.strip("|").split("|")]
+            try:
+                a = [int(x.replace(",", "")) for x in cells[3].split("..")]
+                b2 = [int(x.replace(",", "")) for x in cells[4].split("..")]
+            except (ValueError, IndexError):
+                continue
+            differs = (a[1] - a[0]) != (b2[1] - b2[0])
+            marked = "partial" in line.lower()
+            if differs != marked:
+                wrong.append((cells[0], a, b2, "marked" if marked else "unmarked"))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} published rows state two copies of unequal length without "
+            f"the word partial, or the reverse: {wrong[:6]}")
+
+    def test_the_partial_pairs_are_still_there_to_be_marked(self):
+        """The control: if nothing is partial, the test above passes on an empty set."""
+        partial = [p for p in RepeatMap.load(DERIVED).pairs if not p.exact]
+        self.assertGreaterEqual(
+            len(partial), 5,
+            f"only {len(partial)} partial pairs, so the gate above has almost nothing "
+            f"to check and the LAT case may have been dropped")
+        self.assertTrue(any(p.locus == "LAT" for p in partial),
+                        "LAT is the partial pair that matters and it is not in the set")
+
+
 class EveryAlternativeCarriesItsStrand(unittest.TestCase):
     """Round 9's blocker: the alternatives were on the opposite strand and said nothing.
 

@@ -289,12 +289,31 @@ def main() -> int:
             fh.write("## Diploid loci\n\n")
             fh.write("Features present in both copies of a repeat, matched by feature "
                      "type, equal length and offset within the repeat.\n\n")
-            fh.write("| Locus | Repeat pair | Type | Copy 1 | Copy 2 |\n")
-            fh.write("|---|---|---|---|---|\n")
+            fh.write("The `Pairing` column is the one to read before transferring a "
+                     "coordinate. `exact` means the two copies have the same length and "
+                     "the same offset within their repeat, so a position in one maps to "
+                     "the other by the repeat's own arithmetic. `partial` means the same "
+                     "locus is named in both copies and the two differ in length, which "
+                     "happens where a copy is truncated by the end of the linear record "
+                     "or runs past the repeat: the stated length difference is how far "
+                     "the two disagree, and a constant offset between them is wrong by "
+                     "that much. Round 9 found this table printing the seven partial "
+                     "pairs in the same form as the exact ones, on LAT, which is the "
+                     "locus this repository uses as its worked example.\n\n")
+            fh.write("| Locus | Repeat pair | Type | Copy 1 | Copy 2 | Pairing |\n")
+            fh.write("|---|---|---|---|---|---|\n")
             for p in sorted(pairs, key=lambda p: int(p["copy_1_start"]))[:40]:
+                len_1 = int(p["copy_1_end"]) - int(p["copy_1_start"]) + 1
+                len_2 = int(p["copy_2_end"]) - int(p["copy_2_start"]) + 1
+                if len_1 == len_2:
+                    pairing = f"exact, offset delta {int(p['offset_delta'])}"
+                else:
+                    pairing = (f"**partial**, lengths differ by "
+                               f"{abs(len_1 - len_2):,} bp")
                 fh.write(f"| `{p['locus']}` | {p['repeat_pair']} | {p['feature_type']} | "
                          f"{int(p['copy_1_start']):,}..{int(p['copy_1_end']):,} | "
-                         f"{int(p['copy_2_start']):,}..{int(p['copy_2_end']):,} |\n")
+                         f"{int(p['copy_2_start']):,}..{int(p['copy_2_end']):,} | "
+                         f"{pairing} |\n")
         kinds = collections.Counter(str(x["kind"]) for x in regions)
         fh.write("\n## Regions by kind\n\n| Kind | Count |\n|---|---|\n")
         for k, n in kinds.most_common():
