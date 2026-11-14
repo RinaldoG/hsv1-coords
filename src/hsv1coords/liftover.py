@@ -57,18 +57,28 @@ class Crosswalk:
         self.accession = accession
         self.orientation = orientation
         self.deposited_length = deposited_length
-        self.blocks = sorted(blocks, key=lambda b: b.query_start)
+        # Tuples, not lists, because `load` is cached and hands the same object to
+        # every caller. Round 9: one caller doing `cw.blocks.clear()` changed what every
+        # later `load` returned, taking `to_reference(60000)` from 61474 to None for a
+        # caller that did nothing wrong. The docstrings said the objects were "treated
+        # as immutable within a run", which is a request, not a guarantee.
+        self.blocks = tuple(sorted(blocks, key=lambda b: b.query_start))
         self._q_starts = [b.query_start for b in self.blocks]
-        self._by_target = sorted(blocks, key=lambda b: b.target_start)
+        self._by_target = tuple(sorted(blocks, key=lambda b: b.target_start))
         self._t_starts = [b.target_start for b in self._by_target]
 
     @classmethod
-    @functools.lru_cache(maxsize=64)
+    @functools.lru_cache(maxsize=256)   # > 183 genomes: at 64 a corpus-wide
     def load(cls, accession: str, directory: pathlib.Path | None = None) -> "Crosswalk":
         """Cached: a genome-to-genome lift loads two crosswalks, twice over.
 
         Round 8 counted four `load` calls per cross-genome lift, each re-reading and
-        re-sorting up to 1088 blocks. Same immutability assumption as `RepeatMap.load`.
+        re-sorting up to 1088 blocks.
+
+        Round 9 measured the cache thrashing at `maxsize=64` against 183 genomes: a
+        sweep over the corpus gave 6 hits and 185 misses, so the speed-up held only for
+        a working set smaller than the corpus. The blocks are tuples, so the shared
+        object cannot be mutated by one caller and seen by another.
         """
         directory = directory or DEFAULT_DIR
         path = pathlib.Path(directory) / f"{accession}.blocks.tsv"

@@ -12,6 +12,7 @@ from hsv1coords import ConventionSet, RepeatMap, UnverifiedConvention  # noqa: E
 from hsv1coords.conventions import GENOME_BP  # noqa: E402
 
 DERIVED = ROOT / "data" / "derived"
+CROSSWALK_DIR = DERIVED / "crosswalk"
 
 
 class EveryDefinitionIsSourced(unittest.TestCase):
@@ -1140,6 +1141,131 @@ class TheGenomeLengthsAreNotJustTypedIn(unittest.TestCase):
                   (repeats, conventions, build_repeat_map, check_inputs)}
         self.assertEqual(len(set(values.values())), 1,
                          f"the declared genome lengths disagree: {values}")
+
+
+class TheCachedLoadersCannotBeCorruptedByACaller(unittest.TestCase):
+    """Round 9: `load` is cached, so every caller holds the same object.
+
+    Nothing in the repository tested the caching at all. `Crosswalk.blocks` and
+    `RepeatMap.regions` were plain lists, so one caller clearing or sorting one changed
+    what every later `load` returned: `to_reference(60000)` went from 61474 to None for
+    a caller that did nothing wrong. The docstrings said the objects were "treated as
+    immutable within a run", which is a request rather than a guarantee, and this is the
+    guarantee.
+    """
+
+    def test_a_cached_crosswalk_cannot_be_mutated_through_its_blocks(self):
+        from hsv1coords import Crosswalk
+        cw = Crosswalk.load("JQ673480.1", CROSSWALK_DIR)
+        before = cw.to_reference(60000)
+        self.assertIsNotNone(before)
+        with self.assertRaises(AttributeError):
+            cw.blocks.clear()
+        self.assertEqual(Crosswalk.load("JQ673480.1", CROSSWALK_DIR)
+                         .to_reference(60000), before)
+
+    def test_a_cached_repeat_map_cannot_be_mutated_through_its_regions(self):
+        from hsv1coords import RepeatMap
+        m = RepeatMap.load()
+        before = len(m.regions)
+        with self.assertRaises(AttributeError):
+            m.regions.clear()
+        with self.assertRaises(AttributeError):
+            m.pairs.clear()
+        self.assertEqual(len(RepeatMap.load().regions), before)
+
+    def test_the_crosswalk_cache_holds_the_whole_corpus(self):
+        """At `maxsize=64` a sweep over 183 genomes gave 6 hits and 185 misses."""
+        from hsv1coords import Crosswalk
+        from hsv1coords.liftover import DEFAULT_DIR
+        available = Crosswalk.available(CROSSWALK_DIR)
+        self.assertGreaterEqual(
+            Crosswalk.__dict__["load"].__func__.cache_parameters()["maxsize"],
+            len(available),
+            f"the cache holds fewer entries than the {len(available)} genomes in the "
+            f"corpus, so a corpus-wide sweep evicts what it is about to need")
+        self.assertEqual(DEFAULT_DIR.resolve(), CROSSWALK_DIR.resolve(),
+                         "the default crosswalk directory is not the one the tests "
+                         "pass, so `load(acc)` and `load(acc, CROSSWALK)` are two cache "
+                         "entries reading two different sets of files")
+
+
+class TheIdentityConversionIsBounded(unittest.TestCase):
+    """Round 9: `convert(999999, NEW, NEW)` returned 999999, and `convert(-3, ...)` -3.
+
+    The version names were validated before the identity short-circuit, which is round
+    7's fix for the same function, and the position was not validated at all. Fixing the
+    lines a blocker quoted rather than the whole function is PITFALLS root cause 14.
+
+    Written after the fix, because reverting the fix left the suite green: a fix with no
+    test is a fix that will be reverted by the next person who tidies the branch.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from hsv1coords.versions import VersionCrosswalk
+        cls.v = VersionCrosswalk.load()
+
+    def test_a_position_past_the_end_does_not_survive_the_identity_case(self):
+        from hsv1coords.conventions import VERSION_LENGTHS
+        for version, length in sorted(VERSION_LENGTHS.items()):
+            with self.subTest(version=version):
+                self.assertIsNone(self.v.convert(length + 1, version, version))
+                self.assertIsNone(self.v.convert(999999, version, version))
+                self.assertIsNone(self.v.convert(0, version, version))
+                self.assertIsNone(self.v.convert(-3, version, version))
+                self.assertEqual(self.v.convert(length, version, version), length,
+                                 "the last base of the version must still convert")
+
+    def test_a_fractional_or_boolean_position_is_refused(self):
+        with self.assertRaises(TypeError):
+            self.v.convert(1.5, "NC_001806.2", "NC_001806.2")
+        with self.assertRaises(TypeError):
+            self.v.convert(True, "NC_001806.2", "NC_001806.2")
+
+
+class TheOutOfRangeGuardIsTested(unittest.TestCase):
+    """Round 9: removing the bounds check in `_usable_native` left the suite green.
+
+    The mutant answered `usable(999999, 'full_length')` with "not in any affected
+    region", which is True, and reported a position 847,777 bp past the end of the
+    genome as usable under four conventions. The shipped code was right; only the guard
+    was uncovered.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.cs = ConventionSet.load()
+
+    def test_a_position_past_the_end_is_refused_under_every_convention(self):
+        for name in sorted(c.name for c in self.cs.conventions):
+            with self.subTest(convention=name):
+                ok, why = self.cs.usable(999999, name)
+                self.assertFalse(ok, f"{name} called 999999 usable: {why}")
+                # `morse2017_nr` is defined against NC_001806.1, so the version
+                # conversion declines before the bounds check is reached. Both are
+                # refusals; only the wording differs.
+                self.assertRegex(why, r"outside|no coordinate in")
+
+    def test_zero_and_negative_positions_are_refused(self):
+        for position in (0, -1, -152222):
+            with self.subTest(position=position):
+                ok, why = self.cs.usable(position, "full_length")
+                self.assertFalse(ok)
+                self.assertIn("outside", why)
+
+    def test_the_last_base_of_each_version_is_still_accepted(self):
+        """The control: the guard must not refuse the genome's own last base."""
+        ok, why = self.cs.usable(152222, "full_length")
+        self.assertTrue(ok, f"152222 is the last base of NC_001806.2: {why}")
+
+    def test_the_report_does_not_list_an_impossible_position_as_usable(self):
+        report = str(self.cs.report(999999))
+        offending = [line.strip() for line in report.splitlines()
+                     if "usable under" in line and "NOT usable" not in line]
+        self.assertEqual(offending, [],
+                         f"the report calls an impossible position usable: {offending}")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

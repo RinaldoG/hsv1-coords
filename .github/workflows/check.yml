@@ -22,8 +22,13 @@ jobs:
           sudo apt-get install -y minimap2
           minimap2 --version
 
-      - name: Install Python dependencies
-        run: pip install -r requirements.txt
+      - name: Check the library needs nothing installed
+        # Round 9: requirements.txt pinned openpyxl, which nothing in src/ or tests/
+        # imports, and CI installed it on every run. The library is standard library
+        # only, and this asserts that rather than leaving it to be noticed again.
+        run: |
+          test ! -f requirements.txt
+          python3 -c "import hsv1coords" 2>/dev/null || PYTHONPATH=src python3 -c "import hsv1coords; print('stdlib only')"
 
       - name: Fetch inputs
         run: make inputs

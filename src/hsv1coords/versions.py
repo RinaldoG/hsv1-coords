@@ -92,6 +92,17 @@ class VersionCrosswalk:
                 raise ValueError(
                     f"unknown reference version {name!r}; this maps "
                     f"{OLD} against {NEW} only")
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         if source == target:
-            return position
+            # Round 9: the identity case returned the position unchecked, so
+            # convert(999999, NEW, NEW) gave 999999 and convert(-3, ...) gave -3. The
+            # docstring above records fixing exactly this shape for the version names
+            # and left the bounds open, which is root cause 14, fixing the lines the
+            # blocker quoted rather than the file.
+            # Imported here, not copied: the lengths are declared once and gated
+            # against the records by TheGenomeLengthsAreNotJustTypedIn.
+            from .conventions import VERSION_LENGTHS
+            limit = VERSION_LENGTHS[source]
+            return position if 1 <= position <= limit else None
         return self.to_new(position) if source == OLD else self.to_old(position)

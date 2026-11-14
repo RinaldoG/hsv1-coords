@@ -135,8 +135,10 @@ class CoordinateStatus:
 
 class RepeatMap:
     def __init__(self, regions: list[Region], pairs: list[DiploidPair]) -> None:
-        self.regions = regions
-        self.pairs = pairs
+        # Tuples: `load` is cached and shares one object between all callers. See the
+        # note in `Crosswalk.__init__`.
+        self.regions = tuple(regions)
+        self.pairs = tuple(pairs)
         self._by_name = {r.name: r for r in regions}
         self.inverted_pairs = self._derive_inverted_pairs()
         self.multi_copy = self._derive_multi_copy()
