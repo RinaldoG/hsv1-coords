@@ -1,4 +1,4 @@
-file	source	bytes	sha256	fetched	why
+file	source	bytes	sha256	first_recorded	why
 ref_NC_001806.2.gb	NC_001806.2	330122	aaee9fc6ea1903632264f05cafb9cbbebb050bbc2d138b01dacb19abfa26a222	2026-11-13	RefSeq reference, 77 CDS, provisional, 2018
 alt_BK012101.1.gb	BK012101.1	417376	442e722bf3e534a1d1071b5f0c796e53ded02a47fbb1bacc7cbe9e48dbab3314	2026-11-13	300 CDS over the identical 152,222 bases
 base_JN555585.1.gb	JN555585.1	310555	3365b45ef91a294c2443b8069f300d115fa32d555352d9344eddff1eff20d44f	2026-11-13	coordinate base of the Whisnant 2020 annotation

@@ -239,21 +239,76 @@ class TheBlocksComeFromTheAlignment(unittest.TestCase):
         machine would fail the re-alignment gate across 183 files with no way to tell an
         aligner change from a data change.
 
-        A mismatch is reported, not failed: a newer aligner is a legitimate state to be
-        in, and the useful behaviour is to say so rather than to block the suite.
+        A version mismatch is reported, not failed: a newer aligner is a legitimate
+        state to be in, and the useful behaviour is to say so rather than to block the
+        suite. Round 12: only `fields[0] == "minimap2"` was asserted, so the version,
+        the preset and the flags could all be anything (`0.0-not-a-real-version` passed
+        with one printed note). The two fields that CAN be verified against what built
+        the blocks now are, against the constants themselves rather than against a
+        string typed into this test, and the version is checked for being a version.
         """
+        import re as _re
         import subprocess
-        recorded = ROOT / "data" / "derived" / "aligner.txt"
+        from build_crosswalk import ALIGN_FLAGS, PRESET
+        recorded = ROOT / "data" / "aligner.txt"
         self.assertTrue(recorded.exists(),
-                        "data/derived/aligner.txt is missing, so the blocks do not say "
-                        "what aligned them")
+                        "data/aligner.txt is missing, so the blocks do not say what "
+                        "aligned them")
         fields = recorded.read_text().strip().split("\t")
         self.assertEqual(fields[0], "minimap2")
+        self.assertRegex(
+            fields[1], r"^\d+\.\d+(\.\d+)?(-r\d+)?$",
+            f"{fields[1]!r} is not a minimap2 version, so the pin records nothing a "
+            f"reader could reproduce the blocks with")
+        self.assertEqual(fields[2], f"preset {PRESET}",
+                         "the recorded preset is not the preset the builder uses, so "
+                         "the provenance beside the blocks describes another run")
+        self.assertEqual(fields[3], " ".join(ALIGN_FLAGS),
+                         "the recorded flags are not the flags the builder passes")
         installed = subprocess.run(["minimap2", "--version"], capture_output=True,
                                    text=True, check=False).stdout.strip()
         if installed and installed != fields[1]:
             print(f"\n    NOTE: blocks were built with minimap2 {fields[1]} and this "
                   f"machine has {installed}; a block difference may be the aligner")
+
+    def test_the_version_crosswalk_is_the_blocks_an_alignment_gives(self):
+        """Round 12: `version_crosswalk.tsv` was checked against no alignment at all.
+
+        The strain crosswalk got this check in round 10, after a block moved inside a
+        tandem array put 3,868 positions wrong with the suite green. The version
+        crosswalk is built from the same code path, by the same three functions, and
+        never got one. Its 18/19 junction sits inside a 22 bp tandem array, so a
+        reviewer shrank one block by 800 bp and extended its neighbour into the vacated
+        space: total coverage, block count, the nine distinct offsets, the round trip,
+        in-bounds and non-overlap were all preserved, boundary identity read 99.803 per
+        cent either way, and 844 of the 152,261 positions changed answer. 756 returned a
+        coordinate 44 bp too low, 44 that map became unmapped, and 44 that the true
+        crosswalk declines got a confident wrong answer.
+
+        One alignment of 152 kb against 152 kb, about 0.1 s, so it runs every time
+        rather than on a rotation.
+        """
+        import tempfile
+        from build_version_crosswalk import derive_blocks as derive_version_blocks
+        old_record = ROOT / "data" / "raw" / "ref_NC_001806.1.gb"
+        if not old_record.exists():
+            self.skipTest("ref_NC_001806.1.gb is fetched, not committed")
+        from build_crosswalk import genbank_sequence
+        committed = ROOT / "data" / "derived" / "version_crosswalk.tsv"
+        stored = sorted(
+            tuple(int(x) for x in line.split("\t")[:3])
+            for line in committed.read_text().splitlines()[1:] if line.strip())
+        derived, _, _ = derive_version_blocks(
+            genbank_sequence(old_record), self.ref, pathlib.Path(tempfile.mkdtemp()))
+        self.assertEqual(
+            sorted(derived), stored,
+            f"the committed version crosswalk is not what an alignment of the two "
+            f"reference versions gives: {len(derived)} blocks derived against "
+            f"{len(stored)} stored, only in the alignment "
+            f"{sorted(set(derived) - set(stored))[:3]}, only in the file "
+            f"{sorted(set(stored) - set(derived))[:3]}")
+        print(f"\n    re-aligned the two reference versions; all {len(stored)} version "
+              f"blocks identical to the alignment")
 
     def test_the_stored_blocks_are_the_blocks_an_alignment_gives(self):
         import tempfile

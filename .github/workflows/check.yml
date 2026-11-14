@@ -45,6 +45,10 @@ jobs:
         run: make check
 
       - name: Fetch the pinned genome set
+        # `make genomes` now COMPARES the FASTA against data/genomes.sha256 and fails
+        # rather than rewriting it. Round 12: it rewrote the pin on every run, so one
+        # flipped base in 27.9 Mb healed itself and the suite went green again. The pin
+        # is also in the diff list below, as a second line of defence.
         run: make genomes
 
       - name: Check the COMMITTED crosswalk against a fresh alignment
@@ -73,10 +77,11 @@ jobs:
         # `git status --porcelain` catches a NEW or untracked file, which `git diff`
         # alone cannot see.
         run: |
-          git diff --exit-code -- data/derived tests/testcases_synonymy.tsv data/accessions.txt
-          if [ -n "$(git status --porcelain -- data/derived tests data/accessions.txt)" ]; then
+          git diff --exit-code -- data/derived tests/testcases_synonymy.tsv \
+            data/accessions.txt data/genomes.sha256 data/raw/MANIFEST.tsv
+          if [ -n "$(git status --porcelain -- data/derived tests data/accessions.txt data/genomes.sha256)" ]; then
             echo "Untracked or modified files after rebuild:"
-            git status --porcelain -- data/derived tests data/accessions.txt
+            git status --porcelain -- data/derived tests data/accessions.txt data/genomes.sha256
             exit 1
           fi
 

@@ -1,5 +1,5 @@
 accession	strain	strain_group	length_bp	ambiguous_bases	gc_percent	description
-X14112.1	(unlabelled)	UNLABELLED	152261	0	68.28	X14112.1 Human herpesvirus 1 complete genome
+X14112.1	(unlabelled)	(UNLABELLED)	152261	0	68.28	X14112.1 Human herpesvirus 1 complete genome
 BK012101.1	17	17	152222	0	68.30	BK012101.1 TPA_asm: Human alphaherpesvirus 1 strain 17, complete genome
 JN555585.1	17	17	152222	0	68.30	JN555585.1 Human herpesvirus 1 strain 17, complete genome
 NC_001806.2	17	17	152222	0	68.30	NC_001806.2 Human herpesvirus 1 strain 17, complete genome
@@ -152,7 +152,7 @@ MN136523.1	MacIntyre	MACINTYRE	152476	0	68.21	MN136523.1 Human alphaherpesvirus 
 MN136524.1	McKrae	MCKRAE	152361	0	68.21	MN136524.1 Human alphaherpesvirus 1 strain McKrae, complete genome
 PX763612.1	Mutant  clone GFP-McKrae_v27	GFP-MCKRAE_V27	153693	223	68.01	PX763612.1 Mutant Human alphaherpesvirus 1 clone GFP-McKrae_v27, complete genome
 PX969520.1	Mutant  clone McKrae-dsncRNA2	MCKRAE-DSNCRNA2	152247	230	68.13	PX969520.1 Mutant Human alphaherpesvirus 1 clone McKrae-dsncRNA2, complete genome
-OR405519.1	Mutant  clone recombinant UL34(CL13) SUP7	RECOMBINANT	157769	0	67.26	OR405519.1 Mutant Human alphaherpesvirus 1 clone recombinant UL34(CL13) SUP7, complete genome
+OR405519.1	Mutant  clone recombinant UL34(CL13) SUP7	UL34(CL13)	157769	0	67.26	OR405519.1 Mutant Human alphaherpesvirus 1 clone recombinant UL34(CL13) SUP7, complete genome
 OR723971.1	Mutant  isolate dsncRNA12	DSNCRNA12	152106	0	68.21	OR723971.1 Mutant Human alphaherpesvirus 1 isolate dsncRNA12, complete genome
 MH319852.1	NIV1613762	NIV1613762	147898	0	67.98	MH319852.1 Human alphaherpesvirus 1 strain NIV1613762, complete genome
 AB618031.1	RH2	RH2	149643	2932	65.84	AB618031.1 Herpes simplex virus (type 1 /strain RH2) DNA, nearly complete genome

@@ -1,6 +1,6 @@
 # Complete HSV-1 genomes: strain inventory
 
-Fetched 2026-11-14 by `src/fetch_genomes.py`, NCBI nuccore query:
+Built by `src/fetch_genomes.py` from the 183 sequences pinned in `data/genomes.sha256` (sha256 `1e6370b73f4f7749...`), NCBI nuccore query:
 
 ```
 "Human alphaherpesvirus 1"[Organism] AND complete genome[Title] AND 140000:160000[SLEN]

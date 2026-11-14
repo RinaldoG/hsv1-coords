@@ -1,7 +1,12 @@
 .PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap agreement verify-crosswalk package-data testcases check test clean
 
-all: inputs genomes names aliases annotation crosswalk versions repeatmap \
-     agreement package-data testcases check verify-crosswalk test
+# Order matters twice over. `check` validates the inputs, so it runs before anything is
+# built from them. `verify-crosswalk` checks the COMMITTED block files against a fresh
+# alignment, so it runs BEFORE `crosswalk` overwrites them: round 12 measured a moved
+# block failing the verifier standalone and passing `make all`, because the rebuild
+# silently restored the file first. CI has always had this order; this target did not.
+all: inputs genomes check verify-crosswalk names aliases annotation crosswalk versions \
+     repeatmap agreement package-data testcases test
 
 inputs:        ## fetch and checksum every input into data/raw
 	python3 -I src/fetch_inputs.py
@@ -46,6 +51,9 @@ test:          ## run the milestone gates
 	python3 -I -m unittest discover -s tests -v
 
 clean:
-	rm -rf data/raw/* data/derived/names_by_source.tsv data/derived/name_reconciliation.tsv \
-	       data/derived/mechanical_report.md
-	touch data/raw/.gitkeep
+	# MANIFEST.tsv is tracked and is the only committed pin of the inputs: deleting it
+	# meant `make inputs` re-pinned silently to whatever upstream served, with the CI
+	# diff as the only guard. It is kept, and so is the directory marker.
+	find data/raw -mindepth 1 ! -name .gitkeep ! -name MANIFEST.tsv -delete
+	rm -f data/derived/names_by_source.tsv data/derived/name_reconciliation.tsv \
+	      data/derived/mechanical_report.md

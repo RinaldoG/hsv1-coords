@@ -39,10 +39,9 @@ lift(60000, "JQ673480.1", "JQ780693.1")                  # 59722
 # One inside a repeat returns None, because there is no single honest answer.
 lift(118777, "NC_001806.2", "JQ780693.1")                # None
 print(lift_detailed(118777, "NC_001806.2", "JQ780693.1"))
-# NC_001806.2 -> JQ780693.1: 118185, but NOT well defined (LAT,
-# regulatory@complement(7592..7597) / LAT): inside IRL, which is present in two
-# copies. The reference position could equally be 7597 (opposite strand, so
-# complement the allele)
+# NC_001806.2 -> JQ780693.1: 118185, but NOT well defined (LAT, TATA_box /
+# LAT): inside IRL, which is present in two copies. The reference position could
+# equally be 7597 (opposite strand, so complement the allele)
 
 # Three deposits are on the opposite strand, and a lift says so.
 

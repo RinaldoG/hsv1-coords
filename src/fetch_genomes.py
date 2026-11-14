@@ -21,7 +21,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import collections
-import datetime as dt
 import pathlib
 import re
 import sys
@@ -108,8 +107,30 @@ genome", so `AB618031.1`'s label became its whole 69-character description and
 `X14112.1`'s became "complete genome". 41 of the 183 headers were mis-parsed.
 """
 
-QUALIFIERS = re.compile(r"^(?:isolate|clone|mutant|variant|sub-?strain|str\.?)\s+",
-                        re.I)
+QUALIFIER_WORDS = ("isolate", "clone", "mutant", "variant", "sub-?strain", "str\\.?",
+                   "recombinant")
+"""The leading words that qualify a strain label rather than naming a strain.
+
+Round 11 added the first six after three unrelated mutant clones were grouped together
+as `CLONE`. Round 12 found `recombinant` live in the data and missing from the list:
+`OR405519.1` ("Mutant Human alphaherpesvirus 1 clone recombinant UL34(CL13) SUP7") was
+grouped as `RECOMBINANT`, and the test written for the round 11 fix named the four words
+that fix handled, so it could not see the fifth. One record today, so no published figure
+is wrong, but a second recombinant deposit reproduces exactly the false figure round 11
+fixed for `CLONE`.
+
+The gate in `tests/test_m5_conventions.py` now derives what it forbids from this tuple,
+so a word added here cannot be left out of the test.
+"""
+
+QUALIFIERS = re.compile(r"^(?:" + "|".join(QUALIFIER_WORDS) + r")\s+", re.I)
+UNLABELLED = "(UNLABELLED)"
+"""The group for a record whose defline names no strain at all.
+
+One constant, used by `strain_group` and by the two counts that exclude it, so the
+exclusion cannot be checking a string the grouping never produces.
+"""
+
 TRAILING = re.compile(r"\s+(?:genome\s+assembly|genome|assembly|DNA|sequence)$", re.I)
 
 
@@ -135,8 +156,15 @@ def strain_group(label: str) -> str:
         if stripped == bare:
             break
         bare = stripped
+    if bare.strip().lower() == UNLABELLED.lower():
+        return UNLABELLED
     token = bare.split()[0] if bare.split() else bare
-    return token.strip(",;:()").upper() or "(UNLABELLED)"
+    # Only sentence punctuation is stripped, not brackets. Round 12: stripping `()` as
+    # well turned `UL34(CL13)` into the malformed group `UL34(CL13`, published in the
+    # TSV, and turned the unlabelled sentinel `(unlabelled)` into `UNLABELLED`, which is
+    # not the string the two counts below exclude, so the exclusion was inert. The
+    # sentinel is now returned as itself, above, rather than falling out of a strip.
+    return token.strip(",;:").upper() or UNLABELLED
 
 
 def strain_of(header: str) -> str:
@@ -166,6 +194,9 @@ def main() -> int:
                     help="re-download even if the FASTA is present")
     ap.add_argument("--refresh", action="store_true",
                     help="re-query NCBI and rewrite the pinned accession list")
+    ap.add_argument("--repin", action="store_true",
+                    help="rewrite data/genomes.sha256 to match the FASTA on disk; a "
+                         "deliberate act, for when upstream genuinely changed")
     args = ap.parse_args()
 
     RAW.mkdir(parents=True, exist_ok=True)
@@ -204,9 +235,33 @@ def main() -> int:
     # Written to data/, not data/raw/, because data/raw is gitignored: a digest nobody
     # can see after a clone pins nothing.
     digest = hashlib.sha256(fasta.read_bytes()).hexdigest()
-    (ACCESSION_LIST.parent / "genomes.sha256").write_text(
-        f"{digest}\t{len(records)}\tgenomes.fasta\n")
-    print(f"  genomes.fasta: {len(records)} sequences, sha256 {digest[:16]}...")
+    pin = ACCESSION_LIST.parent / "genomes.sha256"
+    line = f"{digest}\t{len(records)}\tgenomes.fasta\n"
+    # Round 12: this rewrote the pin unconditionally, on every run, including the run
+    # that downloads nothing. So flipping one base in genomes.fasta and running
+    # `make genomes` healed the pin to match the corrupted file, exit 0, no warning, and
+    # the suite went green again over 27.9 Mb of sequence that nothing pinned any more.
+    # That is this project's own root cause 41 ("a check never compares two things the
+    # same step just wrote") committed inside the fix written for root cause 41.
+    # A fetch now COMPARES. Re-pinning is a separate, deliberate act.
+    if pin.exists() and not args.repin:
+        was = pin.read_text()
+        if was != line:
+            print(f"\n{pin.relative_to(ROOT)} does not match the FASTA.\n"
+                  f"  committed: {was.strip()}\n"
+                  f"  measured:  {line.strip()}\n"
+                  f"The sequences this repository is built from are not the ones it was "
+                  f"built from when that pin was committed. If upstream genuinely "
+                  f"changed, re-pin deliberately with `--repin` and commit the diff, "
+                  f"which is the record of what changed. Nothing else should rewrite "
+                  f"this file.", file=sys.stderr)
+            return 1
+        print(f"  genomes.fasta matches its committed pin ({digest[:16]}..., "
+              f"{len(records)} sequences)")
+    else:
+        pin.write_text(line)
+        print(f"  {'re-pinned' if pin.exists() else 'pinned'} genomes.fasta: "
+              f"{len(records)} sequences, sha256 {digest[:16]}...")
 
     rows = []
     for header, seq in records:
@@ -240,7 +295,7 @@ def main() -> int:
         by_strain[r["strain_group"]].append(r)
     disputed = {s: rs for s, rs in by_strain.items()
                 if len(rs) > 1 and len({r["length_bp"] for r in rs}) > 1
-                and s != "(UNLABELLED)"}
+                and s != UNLABELLED}
     by_label: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
     for r in rows:
         by_label[r["strain"]].append(r)
@@ -248,14 +303,21 @@ def main() -> int:
     report = DERIVED / "strain_inventory.md"
     with report.open("w") as fh:
         fh.write("# Complete HSV-1 genomes: strain inventory\n\n")
-        fh.write(f"Fetched {dt.date.today().isoformat()} by `src/fetch_genomes.py`, "
+        # No run date. Round 12: this wrote today's date into a file that CI diffs
+        # against the committed copy after the rebuild, so the step failed on the clock
+        # alone from the day after the last commit, the same defect round 11 fixed in
+        # MANIFEST.tsv and left in its sibling. The provenance a reader needs is which
+        # sequences this was built from, which is the pin, and the pin moves only when
+        # the content moves.
+        fh.write(f"Built by `src/fetch_genomes.py` from the {len(rows)} sequences "
+                 f"pinned in `data/genomes.sha256` (sha256 `{digest[:16]}...`), "
                  f"NCBI nuccore query:\n\n```\n{QUERY}\n```\n\n")
         fh.write(f"- Records: **{len(rows)}**\n")
         fh.write(f"- Distinct strain labels, as deposited: **{len(by_label)}**\n")
         fh.write(f"- Distinct laboratory strains, after dropping qualifiers such as "
                  f"`isolate` and `clone`: **{len(by_strain)}**\n")
         fh.write(f"- Laboratory strains deposited more than once: "
-                 f"**{sum(1 for s, rs in by_strain.items() if len(rs) > 1 and s != '(UNLABELLED)')}**\n")
+                 f"**{sum(1 for s, rs in by_strain.items() if len(rs) > 1 and s != UNLABELLED)}**\n")
         fh.write(f"- Of those, strains whose records **disagree on length**: "
                  f"**{len(disputed)}**\n\n")
         fh.write("The two counts differ because a depositor may write `KOS`, `isolate "

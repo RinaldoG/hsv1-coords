@@ -577,33 +577,105 @@ class EveryPublishedPairStatesItsStrand(unittest.TestCase):
         cls.published = (DERIVED / "repeat_map.md").read_text()
 
     def test_every_pair_states_a_strand_relationship(self):
-        missing = [r["locus"] for r in self.rows
-                   if r.get("strand_relationship") not in
-                   ("inverted", "direct", "undetermined")]
-        self.assertEqual(missing, [],
-                         f"{len(missing)} pairs state no strand relationship: "
-                         f"{missing[:6]}")
+        """And states which of the three reasons an unmeasured one has.
 
-    def test_an_equal_length_pair_of_real_size_is_measured_not_undetermined(self):
-        """`undetermined` is allowed only where it cannot be measured.
-
-        That is a shared length under 12 bp, where a match could be chance, or two
-        copies of different length, where no constant offset relates them at all. Any
-        other undetermined row would mean the measurement silently failed.
+        Round 12: the vocabulary was `inverted`, `direct` and `undetermined`, and
+        `undetermined` covered a feature too short to measure, two copies of different
+        length, and a measurement that disagreed with both directions. Twelve of the 32
+        pairs carried it, nine of them only because the feature is 6 bp against a floor
+        of 12, so a real disagreement would have been indistinguishable from a polyA
+        signal.
         """
-        unexplained = []
+        allowed = ("inverted", "direct", "no match in either direction",
+                   "unmeasured: the copies are of different length",
+                   "unmeasured: no sequence")
+        missing = [(r["locus"], r.get("strand_relationship")) for r in self.rows
+                   if r.get("strand_relationship") not in allowed
+                   and not r.get("strand_relationship", "").startswith(
+                       "too short to measure: ")]
+        self.assertEqual(missing, [],
+                         f"{len(missing)} pairs state no strand relationship this "
+                         f"project defines: {missing[:6]}")
+
+    def test_an_unmeasured_pair_states_a_reason_that_holds(self):
+        """Each stated reason is checked against the pair's own coordinates.
+
+        A row saying "too short to measure" whose copies are 4 kb long, or saying the
+        copies differ in length when they do not, would be the measurement failing
+        quietly under a plausible label, which is what the single `undetermined` value
+        allowed.
+        """
+        wrong = []
         for r in self.rows:
-            if r["strand_relationship"] != "undetermined":
-                continue
+            said = r["strand_relationship"]
             length_1 = int(r["copy_1_end"]) - int(r["copy_1_start"]) + 1
             length_2 = int(r["copy_2_end"]) - int(r["copy_2_start"]) + 1
-            if length_1 != length_2 or min(length_1, length_2) < 12:
-                continue
-            unexplained.append((r["locus"], length_1, length_2))
+            shared = min(length_1, length_2)
+            if said.startswith("too short to measure: "):
+                stated_bp = int(said.split(":")[1].strip().split()[0])
+                if shared >= 12 or stated_bp != shared:
+                    wrong.append((r["locus"], said, shared))
+            elif said == "unmeasured: the copies are of different length":
+                if length_1 == length_2:
+                    wrong.append((r["locus"], said, length_1, length_2))
+            elif said == "no match in either direction":
+                if length_1 != length_2 or shared < 12:
+                    wrong.append((r["locus"], said, length_1, length_2))
         self.assertEqual(
-            unexplained, [],
-            f"{len(unexplained)} pairs are of equal, measurable length and still state "
-            f"an undetermined strand: {unexplained[:6]}")
+            wrong, [],
+            f"{len(wrong)} pairs state a reason their own coordinates contradict: "
+            f"{wrong[:6]}")
+        measurable = [r for r in self.rows
+                      if min(int(r["copy_1_end"]) - int(r["copy_1_start"]),
+                             int(r["copy_2_end"]) - int(r["copy_2_start"])) + 1 >= 12
+                      and (int(r["copy_1_end"]) - int(r["copy_1_start"])
+                           == int(r["copy_2_end"]) - int(r["copy_2_start"]))]
+        self.assertGreater(len(measurable), 15,
+                           f"only {len(measurable)} pairs are measurable at all, so "
+                           f"this proves little")
+
+    def test_no_locus_name_is_a_location_or_a_gene_the_repeat_sits_inside(self):
+        """Round 12: round 8's fix was applied to one artefact and not its sibling.
+
+        `regions` preferred a repeat's own `/note` over its `/gene` qualifier, with a
+        comment recording that joining the gene name against the dictionary returned a
+        53 bp interval for ICP34.5. The pairing loop read `name` raw, so this file
+        published `RL1 / RL reiteration set 6` (53 bp inside ICP34.5 under the gene's
+        name), `RL2 / RL reiteration set 5` (159 bp inside ICP0), `US1 / RS reiteration
+        set 3` (126 bp inside ICP22) and `regulatory@complement(7592..7597) / LAT`, a
+        GenBank location string as a locus name. `RepeatMap.loci_at` returns these,
+        `classify` puts them in `CoordinateStatus.loci` and `LiftResult.__str__` prints
+        them, so about 700 reference positions carried a wrong or malformed locus name,
+        the worked example at 118,777 among them.
+        """
+        import re as _re
+        names = [(r["locus"], n) for r in self.rows
+                 for n in (r["locus"], r["copy_1_name"], r["copy_2_name"])]
+        location_shaped = sorted({(locus, n) for locus, n in names
+                                  if "@" in n or _re.search(r"\d+\.\.\d+", n)
+                                  or "complement(" in n})
+        self.assertEqual(
+            location_shaped, [],
+            f"{len(location_shaped)} published names are location strings rather than "
+            f"names: {location_shaped[:6]}")
+        # A repeat feature named after the gene it sits inside is the round 8 defect.
+        # It shows as a repeat_region whose name is a gene in the dictionary and whose
+        # length is a small fraction of that gene's.
+        from hsv1coords import Dictionary
+        genes = {e.canonical for e in Dictionary.load().entries}
+        suspect = []
+        for r in self.rows:
+            if r["feature_type"] != "repeat_region":
+                continue
+            for side in ("copy_1", "copy_2"):
+                name = r[f"{side}_name"]
+                span = int(r[f"{side}_end"]) - int(r[f"{side}_start"]) + 1
+                if name in genes and span < 400:
+                    suspect.append((r["locus"], name, span))
+        self.assertEqual(
+            suspect, [],
+            f"{len(suspect)} repeat features are published under the name of a gene "
+            f"they merely sit inside: {suspect[:6]}")
 
     def test_the_measurable_pairs_in_the_large_repeats_are_inverted(self):
         """The biology: the copies in TRL/IRL and IRS/TRS read in opposite directions."""

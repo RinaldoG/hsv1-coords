@@ -1153,6 +1153,103 @@ class TheGenomeLengthsAreNotJustTypedIn(unittest.TestCase):
                          f"the declared genome lengths disagree: {values}")
 
 
+class TheInputGateIsActuallyRun(unittest.TestCase):
+    """Round 12: nothing in the suite executed `src/check_inputs.py`.
+
+    It ran only via `make check` in CI, and the suite imported it for one constant. So
+    every assumption in the M0 gate could be made inert without a test noticing:
+    changing `ref_cds == 77` to `ref_cds == ref_cds` left the suite green AND left
+    `make check` printing "ok   reference carries 77 CDS" and "all inputs and
+    assumptions verified", exit 0. The gate that exists to catch an input moving
+    reported success while asserting nothing, and the same edit worked on any of the
+    eight assumptions.
+
+    The gate is now built as two tables, a measurement per assumption and a literal per
+    assumption, with one comparison between them, and this runs it.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        sys.path.insert(0, str(ROOT / "src"))
+        for name in ("ref_NC_001806.2.gb", "alt_BK012101.1.gb", "base_JN555585.1.gb"):
+            if not (ROOT / "data" / "raw" / name).exists():
+                raise unittest.SkipTest(f"{name} is fetched, not committed; "
+                                        f"run `make inputs` first")
+
+    def test_the_gate_passes_on_the_committed_inputs(self):
+        import check_inputs
+        failures = [a for a in check_inputs.assumptions() if not a.ok]
+        self.assertEqual(
+            [(a.key, a.got, a.want) for a in failures], [],
+            f"{len(failures)} of the M0 assumptions do not hold on the inputs in "
+            f"data/raw")
+
+    def test_every_expectation_is_a_literal_and_not_a_measurement(self):
+        """The split is the fix, so the split itself is asserted.
+
+        An expectation that is anything but a plain number, string or boolean could be
+        a function of the measurement, which is how a tautology gets written.
+        """
+        import check_inputs
+        for key, (want, label) in check_inputs.EXPECTED.items():
+            with self.subTest(key=key):
+                self.assertIsInstance(want, (int, str, bool),
+                                      f"{key}'s expectation is a {type(want).__name__}")
+                self.assertTrue(label.strip(), f"{key} states no sentence")
+        self.assertEqual(set(check_inputs.EXPECTED), set(check_inputs.MEASUREMENTS))
+        # And the other direction: a measurement that reads the expectation table would
+        # pass every comparison while reading no record at all.
+        import inspect
+        for key, measure in check_inputs.MEASUREMENTS.items():
+            with self.subTest(key=key):
+                source = inspect.getsource(measure)
+                self.assertNotIn(
+                    "EXPECTED", source,
+                    f"{key}'s measurement reads the expectation table, so the gate "
+                    f"compares the answer with itself")
+        self.assertGreaterEqual(
+            len(check_inputs.EXPECTED), 8,
+            "the M0 gate asserts fewer assumptions than it did when this was written")
+
+    def test_every_measurement_is_sensitive(self):
+        """Each measurement must disagree with a wrong expectation.
+
+        A measurement that cannot disagree with anything is the tautology this class
+        exists for. Perturbing the expectation rather than the record keeps this cheap
+        enough to run every time.
+        """
+        import check_inputs
+        inert = []
+        for a in check_inputs.assumptions():
+            wrong = (not a.want) if isinstance(a.want, bool) else (
+                a.want + 1 if isinstance(a.want, int) else str(a.want) + "x")
+            if check_inputs.Assumption(a.key, a.label, a.got, wrong).ok:
+                inert.append((a.key, a.got, wrong))
+        self.assertEqual(
+            inert, [],
+            f"{len(inert)} assumptions hold against a deliberately wrong expectation, "
+            f"so they are not comparing the record to anything: {inert}")
+
+    def test_a_file_in_data_raw_that_nothing_pins_is_named(self):
+        """Round 12: the manifest loop iterated the manifest's own rows.
+
+        So a file sitting in `data/raw` with no row was never checksummed and never
+        missed, which is how `genomes.fasta` came to be outside this gate entirely
+        until round 11 pinned it elsewhere. The other direction is checked now, and
+        what pins each exception is stated.
+        """
+        import check_inputs
+        self.assertEqual(check_inputs.check_manifest(), [],
+                         "the M0 manifest check does not pass on the committed inputs")
+        self.assertIn("genomes.fasta", check_inputs.PINNED_ELSEWHERE,
+                      "genomes.fasta is in data/raw and in no manifest row, so it must "
+                      "state what pins it")
+        for name, pin in check_inputs.PINNED_ELSEWHERE.items():
+            with self.subTest(name=name):
+                self.assertTrue((ROOT / pin).exists(),
+                                f"{name} says it is pinned by {pin}, which is missing")
+
+
 class TheCachedLoadersCannotBeCorruptedByACaller(unittest.TestCase):
     """Round 9: `load` is cached, so every caller holds the same object.
 

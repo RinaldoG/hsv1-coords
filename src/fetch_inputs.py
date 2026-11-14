@@ -2,8 +2,9 @@
 """Fetch and checksum the HSV1-coords inputs.
 
 Every input is recorded in data/raw/MANIFEST.tsv with its sha256, byte count and the
-date fetched, so a release can state exactly what it was built from. Re-running is
-idempotent: an input whose checksum already matches the manifest is not re-downloaded.
+date this content was first recorded, so a release can state exactly what it was built
+from. Re-running is idempotent: an input already present is not re-downloaded, and a row
+changes only when the content behind it changes, never because the script ran again.
 """
 from __future__ import annotations
 
@@ -67,8 +68,8 @@ def get(url: str, dest: pathlib.Path, tries: int = 3) -> None:
             time.sleep(2 * attempt)
 
 
-def recorded_dates() -> dict[str, str]:
-    """The `fetched` date already in the manifest, per file.
+def recorded() -> dict[str, tuple[str, str]]:
+    """What the committed manifest already says about each file: (sha256, date).
 
     Round 11: this script wrote today's date into every row whether or not it downloaded
     anything, so the manifest changed on the clock alone. CI's step "Fail if any input
@@ -78,52 +79,63 @@ def recorded_dates() -> dict[str, str]:
     test suite, would never have run. An actual upstream change would also have been
     indistinguishable from the date moving.
 
-    A date is now kept as it was recorded unless the file is genuinely fetched, which is
-    also what the column means: when this content was obtained, not when the script last
-    ran.
+    Round 11's fix keyed the date on whether the file was downloaded, and round 12 found
+    that this does not help where it was needed. `data/raw/` is gitignored, so a CI
+    checkout has no inputs at all, so every input IS genuinely fetched, so every row got
+    today's date and the diff gate still failed on the clock. Measured on a fresh clone
+    with the network stubbed: all nine rows rewritten, `git diff --exit-code` exit 1.
+
+    The date is therefore keyed on the CONTENT, not on whether a download happened: a
+    file whose checksum matches the committed row keeps that row's date, whoever fetched
+    it and whenever. A file whose checksum differs is new content, so it gets today and
+    the row changes, which is exactly the upstream change the gate exists to catch. The
+    column's meaning is now the date this content was first recorded.
     """
     manifest = RAW / "MANIFEST.tsv"
     if not manifest.exists():
         return {}
-    dates: dict[str, str] = {}
+    out: dict[str, tuple[str, str]] = {}
     for line in manifest.read_text().splitlines()[1:]:
         cells = line.split("\t")
         if len(cells) >= 5:
-            dates[cells[0]] = cells[4]
-    return dates
+            out[cells[0]] = (cells[3], cells[4])
+    return out
 
 
 def fetch_all(force: bool = False) -> list[tuple[str, str, int, str, str]]:
     RAW.mkdir(parents=True, exist_ok=True)
     rows: list[tuple[str, str, int, str, str]] = []
     today = dt.date.today().isoformat()
-    known = recorded_dates()
+    known = recorded()
+
+    def first_recorded(fname: str, digest: str) -> str:
+        """Today only if this content is not what the committed manifest already holds."""
+        was = known.get(fname)
+        return was[1] if was and was[0] == digest else today
 
     for acc, (fname, why) in GENBANK.items():
         dest = RAW / fname
         if dest.exists() and not force:
             print(f"  have {fname}")
-            fetched = known.get(fname, today)
         else:
             print(f"  fetching {acc}")
             url = f"{EUTILS}?db=nuccore&id={acc}&rettype=gbwithparts&retmode=text"
             get(url, dest)
             time.sleep(0.4)  # courtesy rate limit for E-utilities
-            fetched = today
-        rows.append((fname, acc, dest.stat().st_size, sha256(dest),
-                     f"{fetched}\t{why}"))
+        digest = sha256(dest)
+        rows.append((fname, acc, dest.stat().st_size, digest,
+                     f"{first_recorded(fname, digest)}\t{why}"))
 
     for fname, (url, why) in ZENODO.items():
         dest = RAW / fname
         if dest.exists() and not force:
             print(f"  have {fname}")
-            fetched = known.get(fname, today)
         else:
             print(f"  fetching {fname}")
             get(url, dest)
-            fetched = today
-        rows.append((fname, url, dest.stat().st_size, sha256(dest),
-                     f"{fetched}\t{why}"))
+        digest = sha256(dest)
+        rows.append((fname, url, dest.stat().st_size, digest,
+                     f"{first_recorded(fname, digest)}\t{why}"))
 
     return rows
 
@@ -135,7 +147,7 @@ def main() -> int:
 
     rows = fetch_all(force=args.force)
     with MANIFEST.open("w") as fh:
-        fh.write("file\tsource\tbytes\tsha256\tfetched\twhy\n")
+        fh.write("file\tsource\tbytes\tsha256\tfirst_recorded\twhy\n")
         for name, src, size, digest, tail in rows:
             fh.write(f"{name}\t{src}\t{size}\t{digest}\t{tail}\n")
     print(f"\n{len(rows)} inputs, manifest written to {MANIFEST}")

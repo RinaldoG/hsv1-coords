@@ -34,6 +34,51 @@ from build_crosswalk import (  # noqa: E402
 OLD, NEW = "NC_001806.1", "NC_001806.2"
 
 
+def derive_blocks(old_seq: str, new_seq: str,
+                  tmp: pathlib.Path) -> tuple[list[tuple[int, int, int]], int, int]:
+    """Align the two reference versions and reduce to monotonic ungapped blocks.
+
+    Extracted so that `src/verify_crosswalk.py` can re-derive this and compare it
+    against the committed file. Round 12: nothing re-aligned the version crosswalk, and
+    the 18/19 junction sits inside a 22 bp tandem repeat, so a reviewer shrank one block
+    by 800 bp and extended its neighbour into the vacated space with total coverage,
+    block count, the nine distinct offsets, the round trip, in-bounds and non-overlap all
+    preserved and the whole suite green. 844 of the 152,261 positions changed answer: 756
+    returned a coordinate 44 bp too low, 44 that map became unmapped, and 44 that the
+    true crosswalk declines got a confident wrong answer. Boundary identity read 99.803
+    per cent either way, which is why the floor cannot catch it: inside a periodic region
+    the bases still match at the wrong place. The only check that can is the alignment
+    itself, which is the lesson round 10 already learnt for the strain crosswalk and
+    which this artefact, built from the same code path, never got.
+    """
+    (tmp / "old.fa").write_text(f">{OLD}\n{old_seq}\n")
+    (tmp / "new.fa").write_text(f">{NEW}\n{new_seq}\n")
+    proc = subprocess.run(
+        ["minimap2", "-cx", PRESET, "--cs", "-t", "4", "--secondary=no",
+         str(tmp / "new.fa"), str(tmp / "old.fa")],
+        capture_output=True, text=True, check=False)
+    if proc.returncode != 0:
+        raise RuntimeError(f"minimap2 failed: {proc.stderr[-300:]}")
+
+    blocks: list[tuple[int, int, int]] = []
+    for line in proc.stdout.splitlines():
+        f = line.split("\t")
+        if f[4] != "+":
+            continue
+        cs = next((x[5:] for x in f[12:] if x.startswith("cs:Z:")), None)
+        if cs:
+            blocks.extend(blocks_from_cs(int(f[2]), int(f[7]), cs))
+    blocks.sort()
+    blocks, dropped_amb = drop_ambiguous(blocks)
+    blocks, dropped_mono = drop_non_monotonic(blocks)
+    return blocks, dropped_amb, dropped_mono
+
+
+def reference_sequences() -> tuple[str, str]:
+    return (genbank_sequence(RAW / "ref_NC_001806.1.gb"),
+            genbank_sequence(RAW / "ref_NC_001806.2.gb"))
+
+
 def main() -> int:
     if not shutil.which("minimap2"):
         print("minimap2 not found; it is a declared dependency", file=sys.stderr)
@@ -48,27 +93,7 @@ def main() -> int:
     print(f"  {NEW}: {len(new_seq):,} bp  (difference {len(old_seq) - len(new_seq):+d})")
 
     tmp = pathlib.Path(tempfile.mkdtemp())
-    (tmp / "old.fa").write_text(f">{OLD}\n{old_seq}\n")
-    (tmp / "new.fa").write_text(f">{NEW}\n{new_seq}\n")
-    proc = subprocess.run(
-        ["minimap2", "-cx", PRESET, "--cs", "-t", "4", "--secondary=no",
-         str(tmp / "new.fa"), str(tmp / "old.fa")],
-        capture_output=True, text=True, check=False)
-    if proc.returncode != 0:
-        print(f"minimap2 failed: {proc.stderr[-300:]}", file=sys.stderr)
-        return 1
-
-    blocks: list[tuple[int, int, int]] = []
-    for line in proc.stdout.splitlines():
-        f = line.split("\t")
-        if f[4] != "+":
-            continue
-        cs = next((x[5:] for x in f[12:] if x.startswith("cs:Z:")), None)
-        if cs:
-            blocks.extend(blocks_from_cs(int(f[2]), int(f[7]), cs))
-    blocks.sort()
-    blocks, dropped_amb = drop_ambiguous(blocks)
-    blocks, dropped_mono = drop_non_monotonic(blocks)
+    blocks, dropped_amb, dropped_mono = derive_blocks(old_seq, new_seq, tmp)
 
     out = DERIVED / "version_crosswalk.tsv"
     with out.open("w") as fh:

@@ -352,41 +352,72 @@ class StrandSurvivesEverySource(unittest.TestCase):
 
         This checks each GenBank-sourced location against the record's own feature
         table, which is the only independent source for it.
+
+        Round 12: it checked the location and not the name. A row whose `(type,
+        location)` pair existed anywhere in the record passed through a blanket
+        fallback, so the name beside the location was never confirmed: rotating the
+        `name` column of all 77 reference CDS rows by one position left the suite green
+        with 74 of 77 gene names pointing at another gene's start, a median displacement
+        of 1,742 bp and 128,676 bp of CDS span relabelled. A two-row swap passed too,
+        and the companion count test cannot see a permutation.
+
+        So the name is checked as well, against the only places a name can honestly
+        come from: the feature's own `/gene` qualifier, its `/note`, or the first
+        `;`-delimited clause of that note (`TRL; inverted repeat flanking UL` is written
+        `TRL`). That holds for 868 of the 869 GenBank rows. The one row it does not hold
+        for is a TATA box the record names at all, which the builder calls
+        `regulatory@complement(7592..7597)`, and that placeholder is allowed only in the
+        exact form `{type}@{location}` and counted, rather than waved through by a rule
+        that also admits a rotation.
         """
+        import collections
         from extract_names import parse_genbank
         records = {"NC_001806.2": "ref_NC_001806.2.gb",
                    "BK012101.1": "alt_BK012101.1.gb"}
-        checked, wrong = 0, []
+        checked, wrong, placeholders = 0, [], []
         for source, filename in sorted(records.items()):
             path = ROOT / "data" / "raw" / filename
             if not path.exists():
                 continue
-            stated = set()
+            names: dict[tuple[str, str], set[str]] = collections.defaultdict(set)
             for f in parse_genbank(path):
                 location = (f.get("_location") or "").strip()
-                if location:
-                    stated.add((f.get("gene", "").strip(), f["_type"], location))
+                if not location:
+                    continue
+                key = (f["_type"], location)
+                names[key]  # a feature the record names at all is still a feature
+                note = (f.get("note") or "").strip()
+                for value in (f.get("gene"), note, note.split(";")[0]):
+                    if value and value.strip():
+                        names[key].add(value.strip())
             for r in rows():
                 if r["source"] != source:
                     continue
-                key = (r["name"], r["feature_type"], r["location"])
                 checked += 1
-                if key in stated:
+                key = (r["feature_type"], r["location"])
+                if key not in names:
+                    wrong.append((source, r["name"], r["feature_type"], r["location"],
+                                  "the record states no such feature there"))
+                elif r["name"] in names[key]:
                     continue
-                # A row whose name came from a note rather than a `/gene` qualifier, or
-                # a composite name, will not match on the name. The location and type
-                # still must.
-                if any(t == r["feature_type"] and loc == r["location"]
-                       for _, t, loc in stated):
-                    continue
-                wrong.append((source, r["name"], r["feature_type"], r["location"]))
+                elif r["name"] == f"{r['feature_type']}@{r['location']}":
+                    placeholders.append((source, r["name"]))
+                else:
+                    wrong.append((source, r["name"], r["feature_type"], r["location"],
+                                  f"the record calls it {sorted(names[key])}"))
         self.assertGreater(checked, 400,
                            f"only {checked} GenBank rows were checked against their "
                            f"records")
         self.assertEqual(
             wrong, [],
-            f"{len(wrong)} rows state a location the record does not "
-            f"(source, name, type, location): {wrong[:6]}")
+            f"{len(wrong)} rows state a name or a location the record does not "
+            f"(source, name, type, location, what the record says): {wrong[:6]}")
+        self.assertEqual(
+            len(placeholders), 1,
+            f"{len(placeholders)} rows carry a synthesised placeholder name rather than "
+            f"a name the record states: {placeholders}. One is expected (the TATA box "
+            f"at complement(7592..7597), which the record leaves unnamed); more means "
+            f"names are being generated where the record has them.")
 
     def test_the_complement_count_matches_the_records(self):
         """A count, so a wholesale strip fails even if a row still matches by type."""

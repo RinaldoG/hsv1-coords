@@ -50,6 +50,12 @@ REFERENCE = "NC_001806.2"
 # fraction from 98.08 to 98.84 per cent and takes the genomes below 95 per cent from 13
 # to 8.
 PRESET = "asm10"
+ALIGN_FLAGS = ("--cs", "--secondary=no")
+"""The flags every alignment in this repository runs with.
+
+One tuple, used by the invocation and recorded in the aligner file, so what is recorded
+beside the artefacts cannot drift from what produced them.
+"""
 
 
 def read_fasta(path: pathlib.Path) -> dict[str, str]:
@@ -255,7 +261,7 @@ def drop_non_monotonic(blocks: list[tuple[int, int, int]]) -> tuple[list[tuple[i
 
 def align(query_fa: pathlib.Path, ref_fa: pathlib.Path) -> list[list[str]]:
     proc = subprocess.run(
-        ["minimap2", "-cx", PRESET, "--cs", "-t", "4", "--secondary=no",
+        ["minimap2", "-cx", PRESET, "-t", "4", *ALIGN_FLAGS,
          str(ref_fa), str(query_fa)],
         capture_output=True, text=True, check=False)
     if proc.returncode != 0:
@@ -318,10 +324,16 @@ def main() -> int:
     # Two of the three were pinned and the version was recorded nowhere, so round 11
     # could not tell an aligner change from a data change. It is written beside the
     # artefacts now, and the suite reports when the installed version differs.
+    # Written to data/, not data/derived/. Round 12: in data/derived it sits inside the
+    # directory CI diffs after the rebuild, so any runner whose minimap2 is not
+    # byte-identical to the pinned one failed that step on the version string alone,
+    # turning a deliberate "report, do not fail" design into a hard CI failure over a
+    # line of provenance. The preset and the flags beside it ARE asserted by the suite,
+    # against the constants that produced the blocks.
     aligner = subprocess.run(["minimap2", "--version"], capture_output=True,
                              text=True, check=False).stdout.strip()
-    (DERIVED / "aligner.txt").write_text(
-        f"minimap2\t{aligner}\tpreset {PRESET}\t--cs --secondary=no\n")
+    (ROOT / "data" / "aligner.txt").write_text(
+        f"minimap2\t{aligner}\tpreset {PRESET}\t{' '.join(ALIGN_FLAGS)}\n")
     print(f"  aligner: minimap2 {aligner}, preset {PRESET}")
 
     ref_seq = genbank_sequence(RAW / "ref_NC_001806.2.gb")

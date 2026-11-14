@@ -62,6 +62,42 @@ def load_annotation() -> list[dict[str, str]]:
                 if r["source"] == REFERENCE]
 
 
+def feature_name(r: dict[str, str]) -> tuple[str, str]:
+    """What to call an annotation row here, and the gene it sits inside if any.
+
+    The `/gene` qualifier wins in M2's name column, so three reiteration sets arrive
+    called `RL1`, `RL2` and `US1`: those are ICP34.5, ICP0 and ICP22, whole genes of up
+    to 3.6 kb, and the row is a 53 to 159 bp repeat inside one. Round 8 found that
+    joining that column against the gene dictionary returned a 53 bp interval for
+    ICP34.5. The repeat's own note names it, so where a note exists for such a feature
+    it is preferred and the gene qualifier is kept beside it.
+
+    Round 12: that rule was applied when building `regions` and NOT in the pairing loop
+    below, which read `r["name"]` raw. So round 8's defect was still live in the sibling
+    artefact: `diploid_pairs.tsv` published `RL1 / RL reiteration set 6` (a 53 bp repeat
+    inside ICP34.5, under the gene's name), `RL2 / RL reiteration set 5` (159 bp inside
+    ICP0), `US1 / RS reiteration set 3` (126 bp inside ICP22), and a GenBank location
+    string as a locus name. Those names are not confined to the TSV: `RepeatMap.loci_at`
+    returns them, `classify` puts them in `CoordinateStatus.loci` and `LiftResult.__str__`
+    prints them, so about 700 reference positions carried a wrong or malformed locus
+    name, including the repository's own worked example at 118,777. One function now,
+    used in both places.
+    """
+    name = r["name"].split(";")[0].strip()
+    note_name = r["notes"].split(";")[0].strip()
+    within_gene = ""
+    if note_name and note_name != name and (
+            "reiteration" in note_name or "sequence" in note_name
+            or "palindrome" in note_name):
+        within_gene, name = name, note_name
+    # A feature the record leaves unnamed gets a synthesised name from M2
+    # (`{type}@{location}`). Published as a locus that reads as a parse failure, so the
+    # regulatory class the record DOES state is used instead where there is one.
+    if name == f"{r['feature_type']}@{r['location']}" and r.get("subtype"):
+        name = r["subtype"].strip()
+    return name, within_gene
+
+
 def strand_relationship(repeat_pair: str, copy_1: tuple[int, int],
                         copy_2: tuple[int, int], sequence: str) -> str:
     """Whether the two copies of a pair read in the same direction.
@@ -71,10 +107,20 @@ def strand_relationship(repeat_pair: str, copy_1: tuple[int, int],
     `diploid_pairs.tsv` and the published table giving two copies with no strand at all,
     beside an explanation saying a position in one maps to the other by the repeat's own
     arithmetic, which reverses for an inverted pair.
+
+    Round 12: a single value `undetermined` covered three different situations, and 12
+    of the 32 published pairs carried it, including both LAT rows and five ICP4 rows,
+    while the prose beside the column insisted the copies are inverted. Nine of the
+    twelve were undetermined only because the feature is 6 bp and the floor is 12, which
+    is "too short to be worth measuring" and not a failed measurement. The reason is
+    stated now, so a reader can tell which is which and so a genuine disagreement cannot
+    hide among the short ones.
     """
     length = min(copy_1[1] - copy_1[0], copy_2[1] - copy_2[0]) + 1
-    if length < 12 or not sequence:
-        return "undetermined"
+    if not sequence:
+        return "unmeasured: no sequence"
+    if length < 12:
+        return f"too short to measure: {length} bp"
     first = sequence[copy_1[0] - 1:copy_1[0] - 1 + length].upper()
     second = sequence[copy_2[1] - length:copy_2[1]].upper()
     forward = sequence[copy_2[0] - 1:copy_2[0] - 1 + length].upper()
@@ -83,7 +129,9 @@ def strand_relationship(repeat_pair: str, copy_1: tuple[int, int],
         return "inverted"
     if first and first == forward:
         return "direct"
-    return "undetermined"
+    if (copy_1[1] - copy_1[0]) != (copy_2[1] - copy_2[0]):
+        return "unmeasured: the copies are of different length"
+    return "no match in either direction"
 
 
 def main() -> int:
@@ -108,20 +156,7 @@ def main() -> int:
         ext = extent(r["location"])
         if not ext:
             continue
-        # The `/gene` qualifier wins in M2's name column, so three reiteration sets
-        # arrived here called `RL1`, `RL2` and `US1`: those are ICP34.5, ICP0 and
-        # ICP22, whole genes of up to 3.6 kb, and this row is a 53 to 159 bp repeat
-        # inside one. Round 8: joining this column against the gene dictionary
-        # therefore returned a 53 bp interval for ICP34.5. The repeat's own note names
-        # it, so where a note exists for a repeat feature it is preferred, and the gene
-        # qualifier is kept beside it in `within_gene`.
-        name = r["name"].split(";")[0].strip()
-        note_name = r["notes"].split(";")[0].strip()
-        within_gene = ""
-        if note_name and note_name != name and (
-                "reiteration" in note_name or "sequence" in note_name
-                or "palindrome" in note_name):
-            within_gene, name = name, note_name
+        name, within_gene = feature_name(r)
         regions.append({
             "name": name,
             "within_gene": within_gene,
@@ -173,10 +208,13 @@ def main() -> int:
             if any(r["name"].startswith(x) and r["feature_type"] == "repeat_region"
                    for pair in REPEAT_PAIRS for x in pair):
                 continue
+            # The same naming as `regions` above, via one function. Reading
+            # `r["name"]` here is what published a 53 bp repeat under ICP34.5's name.
+            label = feature_name(r)[0]
             if inside(ext, ra) or overlaps(ext, ra):
-                in_a.append((r["name"], ext, r["feature_type"]))
+                in_a.append((label, ext, r["feature_type"]))
             if inside(ext, rb) or overlaps(ext, rb):
-                in_b.append((r["name"], ext, r["feature_type"]))
+                in_b.append((label, ext, r["feature_type"]))
         # Match on equal length and equal feature type. Where several candidates have
         # the same length, match by offset within the repeat, which is what a true
         # second copy preserves.
