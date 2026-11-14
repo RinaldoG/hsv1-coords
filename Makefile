@@ -1,6 +1,6 @@
-.PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap testcases check test clean
+.PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap agreement testcases check test clean
 
-all: inputs genomes names aliases annotation crosswalk versions repeatmap testcases check test
+all: inputs genomes names aliases annotation crosswalk versions repeatmap agreement testcases check test
 
 inputs:        ## fetch and checksum every input into data/raw
 	python3 -I src/fetch_inputs.py
@@ -25,6 +25,9 @@ versions:      ## map coordinates between NC_001806.1 and NC_001806.2
 
 repeatmap:     ## build the repeat and diploid-locus map
 	python3 -I src/build_repeat_map.py
+
+agreement:     ## pin every genome's measured base agreement with the reference
+	python3 -I src/build_base_agreement.py
 
 testcases:     ## regenerate the machine-readable synonymy test cases from the prose doc
 	python3 -I src/build_testcases.py

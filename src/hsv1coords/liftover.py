@@ -171,6 +171,16 @@ class LiftResult:
     prevent, so it is a field and it is in `__str__`.
     """
 
+    inverted_alternatives: tuple[int, ...] = ()
+    """Which of `alternatives` are on the opposite strand from this answer.
+
+    Round 9 found the alternatives printed bare: "could equally be 7597", where 7597 is
+    the inverted copy and its allele is the complement. Fed from
+    `CoordinateStatus.inverted_alternatives`, which is verified base by base against the
+    reference sequence in `tests/test_m4_repeat_map.py`. Last in the dataclass, as
+    standing rule 22 requires.
+    """
+
     def __bool__(self) -> bool:
         return self.position is not None
 
@@ -181,7 +191,10 @@ class LiftResult:
             return f"{self.source}:{self.position} does not lift to {self.target}"
         if self.well_defined:
             return f"{self.source} -> {self.target}: {self.position}{strand}"
-        alts = ", ".join(str(a) for a in self.alternatives) or "none computable"
+        alts = ", ".join(
+            f"{a} (opposite strand, so complement the allele)"
+            if a in self.inverted_alternatives else str(a)
+            for a in self.alternatives) or "none computable"
         loci = f" ({', '.join(self.loci)})" if self.loci else ""
         return (f"{self.source} -> {self.target}: {self.position}{strand}, but NOT "
                 f"well defined{loci}: {self.reason}. The reference position could "
@@ -213,9 +226,12 @@ def lift_detailed(position: int, source: str, target: str,
     complemented = ((orientation_of(source) == "reverse_complemented")
                     != (orientation_of(target) == "reverse_complemented"))
     if ref_pos is None:
+        # No answer, so no strand: `complemented` described a comparison between two
+        # coordinates and one of them does not exist. Round 9 found it set to True on a
+        # declined lift, which reads as a fact about an answer that was never given.
         return LiftResult(None, source, target, None, True, [], [],
                           "no reference coordinate for this position",
-                          complemented=complemented)
+                          complemented=False)
 
     out = position if source == target else (
         ref_pos if target == REFERENCE
@@ -224,7 +240,8 @@ def lift_detailed(position: int, source: str, target: str,
     status = RepeatMap.load().classify(ref_pos)
     return LiftResult(out, source, target, ref_pos, status.well_defined,
                       status.alternatives, status.loci, status.reason,
-                      complemented=complemented)
+                      complemented=complemented,
+                      inverted_alternatives=status.inverted_alternatives)
 
 
 def lift(position: int, source: str, target: str,

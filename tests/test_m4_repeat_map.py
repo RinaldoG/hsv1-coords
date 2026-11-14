@@ -13,7 +13,8 @@ import unittest
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from hsv1coords import Crosswalk, Dictionary, RepeatMap, lift  # noqa: E402
+from hsv1coords import (Crosswalk, Dictionary, RepeatMap, lift,  # noqa: E402
+                        lift_detailed)
 from hsv1coords.liftover import REFERENCE  # noqa: E402
 from hsv1coords.repeats import GENOME_BP  # noqa: E402
 from build_crosswalk import genbank_sequence  # noqa: E402
@@ -457,6 +458,114 @@ class CorrectionsFromReview(unittest.TestCase):
         outside = lift_detailed(60000, "JQ673480.1", "JQ780693.1", CROSSWALK)
         self.assertTrue(outside.well_defined)
         self.assertEqual(outside.alternatives, [])
+
+class EveryAlternativeCarriesItsStrand(unittest.TestCase):
+    """Round 9's blocker: the alternatives were on the opposite strand and said nothing.
+
+    `counterparts` computes an inverted-repeat counterpart as an offset from the other
+    copy's end, so every one of them is on the opposite strand by construction. Both
+    printed forms said only "could equally be 7597", and the README quoted that line as
+    flagship output. A user who took the alternative got a position whose allele is the
+    complement of theirs: the same class of error as root cause 25, one layer inside the
+    fix for root cause 25.
+
+    This checks the claim against the sequence rather than against the code that makes
+    it: for each alternative, a 20-mer from the position must equal the 20-mer at the
+    alternative (same strand) or its reverse complement (opposite strand), and the flag
+    must say which.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.ref = genbank_sequence(require_reference()).upper()
+        cls.m = RepeatMap.load()
+
+    @staticmethod
+    def _rc(s: str) -> str:
+        return s.translate(str.maketrans("ACGT", "TGCA"))[::-1]
+
+    def test_the_strand_flag_matches_the_sequence(self):
+        wrong, checked, flipped = [], 0, 0
+        for pos in list(range(150, 1500, 97)) + list(range(118800, 127000, 613)) \
+                + list(range(151000, 152200, 89)) + [120000, 126100, 7597]:
+            status = self.m.classify(pos)
+            home = self.ref[pos - 1:pos + 19]
+            if len(home) < 20 or any(c not in "ACGT" for c in home):
+                continue
+            for alt in status.alternatives:
+                same = self.ref[alt - 1:alt + 19]
+                rev = self._rc(self.ref[max(0, alt - 20):alt])
+                if len(same) < 20 or len(rev) < 20:
+                    continue
+                claims_inverted = alt in status.inverted_alternatives
+                flipped += claims_inverted
+                checked += 1
+                agrees = rev == home if claims_inverted else same == home
+                if not agrees:
+                    wrong.append((pos, alt, "opposite" if claims_inverted else "same"))
+        self.assertGreater(checked, 25,
+                           f"only {checked} alternatives were checked, so this proves "
+                           f"little")
+        self.assertGreater(flipped, 10, "no alternative was claimed to be inverted, so "
+                                        "the flag is not being exercised")
+        self.assertLess(flipped, checked,
+                        "every alternative was claimed inverted, so the flag is a "
+                        "constant and the two terminal copies of the 'a' sequence, "
+                        "which are direct repeats, are being mislabelled")
+        self.assertEqual(wrong, [],
+                         f"{len(wrong)} alternatives state the wrong strand "
+                         f"(position, alternative, claimed): {wrong[:8]}")
+
+    def test_the_two_terminal_a_sequence_copies_are_called_direct(self):
+        """The control on the flag: it must not be True everywhere.
+
+        The 'a' sequence sits at both ends of the linear record in the same orientation
+        and once inverted between the segments. Position 200's counterpart at 152,023 is
+        a direct repeat; its counterpart at 126,174 is inverted. If the flag were a
+        constant, both the biology and this test would be wrong.
+        """
+        status = self.m.classify(200)
+        self.assertIn(152023, status.alternatives)
+        self.assertNotIn(152023, status.inverted_alternatives,
+                         "the two terminal copies of the 'a' sequence are direct "
+                         "repeats of each other, not inverted")
+        self.assertIn(126174, status.inverted_alternatives,
+                      "the internal copy of the 'a' sequence is inverted relative to "
+                      "the terminal copies")
+
+    def test_both_printed_forms_name_the_strand(self):
+        """The warning has to reach the text a caller actually reads."""
+        status = self.m.classify(118777)
+        self.assertIn("opposite strand", str(status))
+        result = lift_detailed(118777, REFERENCE, "JQ780693.1", CROSSWALK)
+        self.assertIn("opposite strand", str(result),
+                      "a lift into an inverted repeat prints its alternative without "
+                      "saying the allele there is complemented")
+        self.assertEqual(tuple(result.inverted_alternatives),
+                         tuple(status.inverted_alternatives))
+
+    def test_a_declined_lift_claims_no_strand_relationship(self):
+        """`complemented` described a comparison with a coordinate that does not exist.
+
+        Round 9, minor: a declined lift out of a reverse-complemented genome returned
+        position None with complemented True, which reads as a fact about an answer that
+        was never given.
+        """
+        declined = lift_detailed(5, "ON783216.1", REFERENCE, CROSSWALK)
+        self.assertIsNone(declined.position)
+        self.assertFalse(declined.complemented)
+        self.assertNotIn("OPPOSITE", str(declined))
+
+    def test_a_lift_across_strands_still_says_so(self):
+        """The control for the test above: the flag must still fire when it should."""
+        crossed = lift_detailed(50000, REFERENCE, "ON783216.1", CROSSWALK)
+        self.assertIsNotNone(crossed.position)
+        self.assertTrue(crossed.complemented)
+        self.assertIn("OPPOSITE STRAND", str(crossed))
+        same = lift_detailed(50000, REFERENCE, "JQ673480.1", CROSSWALK)
+        self.assertFalse(same.complemented)
+        self.assertNotIn("OPPOSITE", str(same))
+
 
 class TheNameColumnIsJoinable(unittest.TestCase):
     """Round 8: three reiteration sets were named `RL1`, `RL2` and `US1`.

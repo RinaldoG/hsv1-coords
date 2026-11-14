@@ -106,10 +106,29 @@ class CoordinateStatus:
     earlier in `facts.Fact` and is now a standing rule in PITFALLS.
     """
 
+    inverted_alternatives: tuple[int, ...] = ()
+    """Which of `alternatives` sit on the opposite strand from `position`.
+
+    Round 9: every alternative in the large inverted repeats is on the opposite strand,
+    by construction, and both printed forms said only "could equally be 7597". A user
+    who took the alternative got a position whose allele is the complement of theirs.
+    The two terminal copies of the 'a' sequence are direct repeats of each other, so
+    this is a per-alternative fact rather than a constant.
+
+    Last in the dataclass, as standing rule 22 requires.
+    """
+
+    def describe_alternative(self, alternative: int) -> str:
+        """One alternative with its strand, in the form both `__str__` methods use."""
+        if alternative in self.inverted_alternatives:
+            return f"{alternative} (opposite strand, so complement the allele)"
+        return str(alternative)
+
     def __str__(self) -> str:
         if self.well_defined:
             return f"{self.position}: well defined"
-        alts = ", ".join(str(a) for a in self.alternatives) or "none computable"
+        alts = ", ".join(self.describe_alternative(a) for a in self.alternatives) \
+            or "none computable"
         return (f"{self.position}: not well defined ({self.reason}); "
                 f"could equally be {alts}")
 
@@ -196,7 +215,7 @@ class RepeatMap:
                 return r
         return None
 
-    def _multi_copy_counterparts(self, position: int) -> list[int]:
+    def _multi_copy_counterparts(self, position: int) -> list[tuple[int, bool]]:
         """Every other copy of a region the record names more than once.
 
         The live case is the 'a' sequence, which the reference carries three times and
@@ -205,7 +224,7 @@ class RepeatMap:
         orientation could not be measured, are skipped: the honest answer there is no
         counterpart rather than a computed one.
         """
-        out: list[int] = []
+        out: list[tuple[int, bool]] = []
         for copies in self.multi_copy.values():
             home = next((r for r in copies if r.contains(position)), None)
             if home is None or home.orientation not in ("forward", "reverse"):
@@ -219,8 +238,9 @@ class RepeatMap:
                     continue
                 if r.orientation not in ("forward", "reverse"):
                     continue
-                out.append(r.start + offset if r.orientation == "forward"
-                           else r.end - offset)
+                out.append((r.start + offset if r.orientation == "forward"
+                            else r.end - offset,
+                            r.orientation != home.orientation))
         return out
 
     def counterparts(self, position: int) -> list[int]:
@@ -236,17 +256,41 @@ class RepeatMap:
         earlier version returned whichever pair it checked first, which silently gave
         the wrong one for the junction.
         """
-        out: list[int] = []
+        return [p for p, _ in self.counterparts_detailed(position)]
+
+    def counterparts_detailed(self, position: int) -> list[tuple[int, bool]]:
+        """Each counterpart with whether it sits on the opposite strand.
+
+        Round 9: every alternative this map returns for the large inverted repeats is on
+        the opposite strand, by construction, because the counterpart is computed as an
+        offset from the other copy's end. Nothing said so. `classify` and
+        `lift_detailed` both printed "could equally be 7597" with no strand note, and
+        the README quoted that line as flagship output, so a user taking the alternative
+        got a position whose allele is the complement of theirs. Verified against the
+        sequence: the 20 bp from 118,777 is the reverse complement of the 20 bp ending
+        at 7,597.
+
+        The 'a' sequence is the case that makes this a flag rather than a constant. Its
+        three copies are not all in one orientation: the two terminal copies are direct
+        repeats of each other, so that counterpart is on the same strand, while the
+        internal copy is inverted relative to both.
+        """
+        out: list[tuple[int, bool]] = []
         for a, b in self.inverted_pairs:
             ra, rb = self._repeat(a), self._repeat(b)
             if not ra or not rb:
                 continue
             if ra.contains(position):
-                out.append(rb.end - (position - ra.start))
+                out.append((rb.end - (position - ra.start), True))
             if rb.contains(position):
-                out.append(ra.start + (rb.end - position))
+                out.append((ra.start + (rb.end - position), True))
         out.extend(self._multi_copy_counterparts(position))
-        return sorted(set(out) - {position})
+        merged: dict[int, bool] = {}
+        for pos, inverted in out:
+            if pos == position:
+                continue
+            merged[pos] = merged.get(pos, False) or inverted
+        return sorted(merged.items())
 
     def counterpart(self, position: int) -> int | None:
         """The single counterpart, or None where there is not exactly one."""
@@ -276,14 +320,18 @@ class RepeatMap:
                     if r.kind == "repeat_region"
                     and any(r.name.startswith(x)
                             for pair in self.inverted_pairs for x in pair)]
-        a_seq = self._multi_copy_counterparts(position)
+        a_seq_detailed = self._multi_copy_counterparts(position)
+        a_seq = sorted({p for p, _ in a_seq_detailed} - {position})
+        a_seq_flipped = tuple(sorted({p for p, inv in a_seq_detailed
+                                      if inv and p != position}))
         if not inverted:
             if a_seq:
                 return CoordinateStatus(
                     position, False, hits, a_seq, self.loci_at(position),
                     "inside the 'a' sequence, which the reference carries three times: "
                     "at both ends of the linear record in the same orientation, and "
-                    "once inverted between the segments")
+                    "once inverted between the segments",
+                    inverted_alternatives=a_seq_flipped)
             if hits:
                 kinds = ", ".join(sorted({r.name for r in hits}))
                 return CoordinateStatus(
@@ -295,13 +343,16 @@ class RepeatMap:
             return CoordinateStatus(
                 position, True, [], [], [],
                 "no annotated repeat covers this position")
-        alts = self.counterparts(position)
+        detailed = self.counterparts_detailed(position)
+        alts = [p for p, _ in detailed]
+        flipped = tuple(p for p, inv in detailed if inv)
         names = ", ".join(sorted({r.name for r in inverted}))
         reason = (f"inside {names}, which is present in two copies"
                   if len(inverted) == 1 else
                   f"inside {names}, which overlap and are each present in two copies")
         return CoordinateStatus(position, False, hits, alts,
-                                self.loci_at(position), reason)
+                                self.loci_at(position), reason,
+                                inverted_alternatives=flipped)
 
     def is_well_defined(self, position: int) -> bool:
         return self.classify(position).well_defined
