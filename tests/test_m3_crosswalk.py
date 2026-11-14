@@ -400,6 +400,53 @@ class SequenceAgreement(unittest.TestCase):
                     "be reported as sampled too thinly; they were not, so the "
                     "coverage count is not measuring coverage")
 
+    def test_the_last_base_of_every_block_matches(self):
+        """A sharper invariant than the pooled rate, and sensitive to one base.
+
+        Round 9 flagged an asymmetry: pooled over the corpus, the last base of a block
+        matches the reference 99.97 per cent of the time and the first base 95.04 per
+        cent. That is alignment behaviour, not an offset. A substitution is kept as an
+        aligned base, so block boundaries fall only at indels, and the aligner extends
+        matches up to a gap while often placing a mismatch just after one.
+
+        It is worth asserting because it is also the signature a one-base frame error
+        would produce, and the block-tail figure is far tighter than the 98.58 per cent
+        pooled rate: a shift of one base moves it to near zero.
+        """
+        comp = str.maketrans("ACGT", "TGCA")
+        ok = scored = 0
+        for acc in Crosswalk.available(CROSSWALK):
+            seq = self.genomes.get(acc)
+            if not seq:
+                continue
+            seq = seq.upper()
+            cw = Crosswalk.load(acc, CROSSWALK)
+            rc = cw.orientation == "reverse_complemented"
+            for block in cw.blocks:
+                if block.length < 5:
+                    continue
+                dep = cw._to_deposited(block.query_start + block.length)
+                ref_pos = cw.to_reference(dep)
+                if ref_pos is None:
+                    continue
+                a = seq[dep - 1]
+                if rc:
+                    a = a.translate(comp)
+                c = self.ref[ref_pos - 1].upper()
+                if a not in "ACGT" or c not in "ACGT":
+                    continue
+                scored += 1
+                ok += a == c
+        rate = 100 * ok / scored
+        self.assertGreater(scored, 20000,
+                           f"only {scored} block tails were scored")
+        self.assertGreaterEqual(
+            rate, 99.5,
+            f"the last base of a block matches at {rate:.3f} per cent over {scored:,} "
+            f"blocks. This figure is near 100 by construction, so anything lower means "
+            f"the block offsets have moved, not that the assemblies differ.")
+        print(f"    block tails: {rate:.3f} per cent match over {scored:,} blocks")
+
     def test_every_block_file_states_the_length_of_its_own_genome(self):
         """`deposited_length` against the sequence, which nothing checked.
 

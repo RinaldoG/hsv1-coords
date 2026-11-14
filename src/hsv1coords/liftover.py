@@ -230,6 +230,9 @@ def lift_detailed(position: int, source: str, target: str,
                   directory: pathlib.Path | None = None) -> LiftResult:
     """Lift a coordinate and consult the repeat map about the result.
 
+    `directory` selects the crosswalk directory only. The repeat map is a property of the
+    reference and is always the installed one.
+
     `lift` gives a number. This gives the number plus whether it identifies a unique
     locus, which it does not when the position falls inside one of the inverted
     repeats: roughly a fifth of this genome. Reporting such a coordinate as though it
@@ -262,6 +265,11 @@ def lift_detailed(position: int, source: str, target: str,
         ref_pos if target == REFERENCE
         else Crosswalk.load(target, directory).from_reference(ref_pos))
 
+    # The repeat map describes the reference, not the crosswalk, so it is not read from
+    # `directory`. Round 9 noted the mismatch: `directory` names a crosswalk directory
+    # and was being silently ignored here, which reads like a bug even though the
+    # installed map is the right one. Saying so is cheaper than leaving it to be found
+    # again.
     status = RepeatMap.load().classify(ref_pos)
     return LiftResult(out, source, target, ref_pos, status.well_defined,
                       status.alternatives, status.loci, status.reason,

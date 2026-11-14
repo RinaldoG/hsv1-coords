@@ -82,6 +82,16 @@ def blocks_from_cs(q_start: int, t_start: int, cs: str) -> list[tuple[int, int, 
     Only the short form is understood. `--cs=long` uses `=` and `~`, which this parser
     would silently skip, producing a crosswalk that looks fine and is wrong everywhere,
     so anything not fully consumed raises instead.
+
+    A property of the blocks this produces, measured in round 9 and worth stating because
+    it is the signature a one-base frame error would also have: block edges are not
+    symmetric. A substitution (`*`) is kept as an aligned base and merged into its
+    neighbours, so a block boundary falls only at an indel. The aligner extends matches up
+    to a gap and frequently places a mismatch immediately after one, so across the corpus
+    the LAST base of a block matches the reference 99.97 per cent of the time and the
+    FIRST base only 95.04 per cent. That is alignment behaviour around indels, not a
+    coordinate offset: an off-by-one would move both figures, which is why the suite
+    asserts the block-tail figure rather than the pooled one.
     """
     consumed = sum(len(op) + len(val) for op, val in CS_TOKEN.findall(cs))
     if consumed != len(cs):
