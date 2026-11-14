@@ -10,3 +10,7 @@ class Layout(unittest.TestCase):
         for rel in ("README.md", "ROADMAP.md", "LICENSE", "Makefile",
                     "src/fetch_inputs.py", "src/check_inputs.py"):
             self.assertTrue((ROOT / rel).exists(), f"missing {rel}")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

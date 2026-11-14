@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import pathlib
+import re
 import sys
 import unittest
 
@@ -952,6 +953,15 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         for path in sorted((ROOT / "tests").glob("test_*.py")):
             text = path.read_text()
             m = _re.search(r'^if __name__ == "__main__":', text, _re.M)
+            with self.subTest(file=path.name):
+                # Round 11: this skipped a file with no `__main__` block, and a slice
+                # edit of mine had deleted that block from two files along with a whole
+                # test class. The absence of the block is the thing worth catching: it
+                # is what a truncated file looks like.
+                self.assertIsNotNone(
+                    m,
+                    f"{path.name} has no `__main__` block. Every other test file has "
+                    f"one, so this file has probably been truncated by an edit")
             if not m:
                 continue
             after = text[m.end():]
@@ -1228,6 +1238,17 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
                 elif c.boundaries_evidence not in source:
                     wrong.append((c.name, f"quotes {c.boundaries_evidence!r}, which is "
                                           f"not in its own source field"))
+                elif len(c.boundaries_evidence) < 20:
+                    wrong.append((c.name, f"quotes {c.boundaries_evidence!r}, which is "
+                                          f"too short to be evidence of anything"))
+                elif not re.search(r"coordinate|prints|derived|retrieved|inference|"
+                                   r"no\b", c.boundaries_evidence, re.I):
+                    # Round 11: the check was that the row quotes itself, so setting
+                    # whisnant2020_masked's evidence to "Whisnant" passed. The quote has
+                    # to be about where the intervals came from, not merely present.
+                    wrong.append((c.name, f"quotes {c.boundaries_evidence!r}, which "
+                                          f"says nothing about where the intervals "
+                                          f"came from"))
             elif c.boundaries_evidence:
                 wrong.append((c.name, "quotes evidence for an inference it does not "
                                       "claim"))
@@ -1375,6 +1396,64 @@ class TheOutOfRangeGuardIsTested(unittest.TestCase):
                      if "usable under" in line and "NOT usable" not in line]
         self.assertEqual(offending, [],
                          f"the report calls an impossible position usable: {offending}")
+
+
+class ThePackageCarriesItsOwnData(unittest.TestCase):
+    """Round 11: `pip install .` gave an importable library in which nothing worked.
+
+    Every module resolved its data as `parents[2] / "data"`, the repository layout, so in
+    a non-editable install each loader raised FileNotFoundError and
+    `Crosswalk.available()` returned an empty list, which made a corpus sweep a silent
+    no-op. `pip install -e .` worked, which is what README.md recommends, so this hit
+    only the user who installed it as a dependency.
+    """
+
+    def test_the_loaders_resolve_through_one_place(self):
+        """Six modules computed the same path six times; they share it now."""
+        import hsv1coords._paths as paths
+        source = pathlib.Path(paths.__file__).parent
+        offenders = []
+        for module in sorted(source.glob("*.py")):
+            if module.name == "_paths.py":
+                continue
+            text = module.read_text()
+            if module.name == "facts.py":
+                # Exempt with a reason: `facts` derives the documentation gate's figures
+                # from data/raw as well as data/derived, and the raw inputs are
+                # deliberately not shipped in the package (they are fetched and
+                # checksummed). It is a build and test helper, not part of the library's
+                # read path, and it already reports a missing artefact rather than
+                # guessing.
+                continue
+            if "parents[2]" in text and "data" in text:
+                offenders.append(module.name)
+        self.assertEqual(
+            offenders, [],
+            f"{len(offenders)} modules still compute a data path from the repository "
+            f"layout, which does not hold in an installed copy: {offenders}")
+
+    def test_the_staging_script_lists_every_artefact_a_loader_needs(self):
+        """A wheel missing one file imports and then fails on one call in five."""
+        sys.path.insert(0, str(ROOT / "src"))
+        import stage_package_data as staging
+        needed = {
+            "conventions.tsv": staging.WANTED,
+            "aliases_literature.tsv": staging.DERIVED,
+            "repeat_map.tsv": staging.DERIVED,
+            "diploid_pairs.tsv": staging.DERIVED,
+            "version_crosswalk.tsv": staging.DERIVED,
+        }
+        for name, listing in sorted(needed.items()):
+            with self.subTest(artefact=name):
+                self.assertIn(name, listing,
+                              f"{name} is loaded by the library and is not staged into "
+                              f"the package, so a wheel would not carry it")
+
+    def test_an_absent_crosswalk_directory_raises_rather_than_answering(self):
+        from hsv1coords import Crosswalk
+        with self.assertRaises(FileNotFoundError):
+            Crosswalk.available(ROOT / "data" / "derived" / "not-a-directory")
+        self.assertGreater(len(Crosswalk.available(CROSSWALK_DIR)), 150)
 
 
 if __name__ == "__main__":

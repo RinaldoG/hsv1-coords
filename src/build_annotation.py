@@ -133,6 +133,13 @@ def classify(name: str, feature_type: str = "gene",
     if feature_type and feature_type not in GENE_LIKE_TYPES:
         if feature_type in UNNAMED_CLASSES and UNNAMED_CLASSES[feature_type][0]:
             return UNNAMED_CLASSES[feature_type][0]
+        # A type that is neither gene-like nor named here. Round 11, as a latent case:
+        # this fell through to the name rules, so a record carrying `mat_peptide`,
+        # `3'UTR` or `polyA_site` with a `/gene` qualifier would be classed
+        # `named_gene`, which is the defect the type-first branch was added to fix. The
+        # three records in use carry no such type today, so this is reached by nothing;
+        # a new source would reach it immediately.
+        return DEFAULT_CLASS[0]
     for label, pattern, _ in CLASS_RULES:
         if re.search(pattern, name):
             if label == "novel_orf_2020" and name in pre_2020_names:

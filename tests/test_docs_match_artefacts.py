@@ -180,6 +180,13 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
         """
         gaps = []
         for fact in self.facts:
+            # The four-digit floor stays. Round 11 showed what it costs: "runs 778 bp
+            # beyond" and "183 genomes aligned" could both be falsified. But lifting it
+            # for every required figure flags 67 occurrences where a small number
+            # coincides with a fact's value ("a further 37", "about 17 per cent"), which
+            # is the ambiguity the floor exists for. The fix for those two sentences was
+            # the missing phrasing, not the floor, so the contradiction check reaches
+            # them instead.
             forms = [f for f in fact.forms if re.search(r"\d", f)
                      and (("." in f) or len(re.sub(r"\D", "", f)) >= 4)]
             if not forms:

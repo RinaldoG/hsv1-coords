@@ -84,6 +84,12 @@ def main() -> int:
 
     print(f"re-aligned {checked} genomes against {len(Crosswalk.available(CROSSWALK))} "
           f"committed block files")
+    # Round 11: with no floor, an empty crosswalk directory exited 0 and reported
+    # success over nothing.
+    if checked < 150:
+        print(f"only {checked} genomes were re-aligned; the corpus is 183. A run that "
+              f"checks almost nothing must not report success.", file=sys.stderr)
+        return 1
     if problems:
         print(f"\n{len(problems)} problems:", file=sys.stderr)
         for line in problems:

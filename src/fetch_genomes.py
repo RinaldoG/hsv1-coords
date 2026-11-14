@@ -19,6 +19,7 @@ Run: python3 -I src/fetch_genomes.py
 from __future__ import annotations
 
 import argparse
+import hashlib
 import collections
 import datetime as dt
 import pathlib
@@ -97,18 +98,66 @@ def parse_fasta(path: pathlib.Path) -> list[tuple[str, str]]:
 
 # Strain labels contain characters a plain word class drops: `B^3x1.1A` became `B`,
 # which then looked like four records of one strain disagreeing on length.
-STRAIN = re.compile(r"\bstrain\s+(\S+?)(?:,|\s+complete\b|$)", re.I)
+STRAIN = re.compile(
+    r"\bstrain\s+(.+?)(?:,|\s+(?:nearly\s+)?(?:complete|partial)\b|"
+    r"\s+genome\b|\s+DNA\b|\)|$)", re.I)
+r"""The strain label in a FASTA defline.
+
+Round 11: the old anchor was `(?:,|\s+complete\b|$)`, which fails on "nearly complete
+genome", so `AB618031.1`'s label became its whole 69-character description and
+`X14112.1`'s became "complete genome". 41 of the 183 headers were mis-parsed.
+"""
+
+QUALIFIERS = re.compile(r"^(?:isolate|clone|mutant|variant|sub-?strain|str\.?)\s+",
+                        re.I)
+TRAILING = re.compile(r"\s+(?:genome\s+assembly|genome|assembly|DNA|sequence)$", re.I)
+
+
+def strain_group(label: str) -> str:
+    """The laboratory strain a label belongs to, for counting.
+
+    Round 11: the four KOS-family records are labelled `KOS`, `KOS`, `isolate KOS` and
+    `isolate KOS 1.1`, so grouping on the label split them three ways and the inventory
+    reported one label whose records disagree on length. The project's motivating claim
+    is about one laboratory strain deposited more than once at different lengths, and
+    this is the unit that claim is about: leading qualifiers are dropped and the first
+    token is taken, so all four group as KOS while the full label is kept beside it.
+
+    A derivative such as KOS 1.1 is a real distinction, which is why the label stays in
+    its own column and only the grouping is coarsened.
+    """
+    bare = TRAILING.sub("", label.strip()).strip()
+    # Repeatedly, not once: "Mutant  clone McKrae-dsncRNA2" has two qualifiers, and
+    # stripping one left "clone" as the group, so three unrelated mutant clones were
+    # grouped together under CLONE and reported as one strain of disagreeing length.
+    while True:
+        stripped = QUALIFIERS.sub("", bare).strip()
+        if stripped == bare:
+            break
+        bare = stripped
+    token = bare.split()[0] if bare.split() else bare
+    return token.strip(",;:()").upper() or "(UNLABELLED)"
 
 
 def strain_of(header: str) -> str:
     m = STRAIN.search(header)
     if m:
-        return m.group(1).rstrip(",")
+        label = TRAILING.sub("", m.group(1).strip().rstrip(",")).strip()
+        if label:
+            return label
     # Many headers read "Human alphaherpesvirus 1 <strain>, complete genome"
     body = header.split(" ", 1)[1] if " " in header else header
-    body = body.replace("Human alphaherpesvirus 1", "").replace("Human herpesvirus 1", "")
-    body = body.split(", complete genome")[0].strip(" ,")
-    return body or "(unlabelled)"
+    for organism in ("Human alphaherpesvirus 1", "Human herpesvirus 1",
+                     "Herpes simplex virus", "(type 1", "type 1"):
+        body = body.replace(organism, "")
+    body = re.split(r",\s*(?:nearly\s+)?(?:complete|partial)\b", body)[0]
+    body = TRAILING.sub("", body.strip(" ,/()")).strip(" ,/()")
+    # "complete genome" alone is not a strain label; it is what is left when the defline
+    # names no strain at all. Round 11 found it recorded as X14112.1's strain.
+    if not body or re.fullmatch(r"(?:nearly\s+)?(?:complete|partial)?\s*(?:genome|"
+                                r"sequence|DNA)?", body, re.I):
+        return "(unlabelled)"
+    return body
 
 
 def main() -> int:
@@ -140,12 +189,33 @@ def main() -> int:
     records = parse_fasta(fasta)
     print(f"\n  {len(records)} sequences parsed")
 
+    # Round 11: 133 of the 183 records were deleted from the FASTA and this script
+    # printed "183 pinned accessions" and "50 sequences parsed" two lines apart, exited
+    # 0, and rewrote strain_inventory.md so the project's own motivating figure went
+    # from 1 to 0. `check_inputs.py` passed too, because the FASTA has no manifest row.
+    # The count the script already knows is compared now, and the checksum is recorded.
+    if len(records) != len(ids):
+        print(f"the pinned list holds {len(ids)} accessions and the FASTA holds "
+              f"{len(records)} sequences. Re-fetch with `make genomes FORCE=1` or "
+              f"`python3 -I src/fetch_genomes.py --force`; a partial FASTA silently "
+              f"shrinks every artefact built from it.", file=sys.stderr)
+        return 1
+
+    # Written to data/, not data/raw/, because data/raw is gitignored: a digest nobody
+    # can see after a clone pins nothing.
+    digest = hashlib.sha256(fasta.read_bytes()).hexdigest()
+    (ACCESSION_LIST.parent / "genomes.sha256").write_text(
+        f"{digest}\t{len(records)}\tgenomes.fasta\n")
+    print(f"  genomes.fasta: {len(records)} sequences, sha256 {digest[:16]}...")
+
     rows = []
     for header, seq in records:
         acc = header.split()[0]
+        label = strain_of(header)
         rows.append({
             "accession": acc,
-            "strain": strain_of(header),
+            "strain": label,
+            "strain_group": strain_group(label),
             "length_bp": str(len(seq)),
             "ambiguous_bases": str(sum(1 for c in seq.upper() if c not in "ACGT")),
             "gc_percent": f"{100 * sum(1 for c in seq.upper() if c in 'GC') / len(seq):.2f}",
@@ -153,19 +223,27 @@ def main() -> int:
         })
 
     out = DERIVED / "strain_inventory.tsv"
-    cols = ["accession", "strain", "length_bp", "ambiguous_bases", "gc_percent",
-            "description"]
+    cols = ["accession", "strain", "strain_group", "length_bp", "ambiguous_bases",
+            "gc_percent", "description"]
     with out.open("w") as fh:
         fh.write("\t".join(cols) + "\n")
         for r in sorted(rows, key=lambda r: (r["strain"].lower(), r["accession"])):
             fh.write("\t".join(r[c] for c in cols) + "\n")
 
     # The motivating evidence: strains deposited more than once, and whether they agree.
+    # Grouped by laboratory strain rather than by the exact label. Round 11: grouping on
+    # the label split the four KOS-family records across `KOS`, `isolate KOS` and
+    # `isolate KOS 1.1`, so this reported one disputed label and missed the 987 bp spread
+    # that is the example the project leads with.
     by_strain: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
     for r in rows:
-        by_strain[r["strain"]].append(r)
+        by_strain[r["strain_group"]].append(r)
     disputed = {s: rs for s, rs in by_strain.items()
-                if len(rs) > 1 and len({r["length_bp"] for r in rs}) > 1}
+                if len(rs) > 1 and len({r["length_bp"] for r in rs}) > 1
+                and s != "(UNLABELLED)"}
+    by_label: dict[str, list[dict[str, str]]] = collections.defaultdict(list)
+    for r in rows:
+        by_label[r["strain"]].append(r)
 
     report = DERIVED / "strain_inventory.md"
     with report.open("w") as fh:
@@ -173,11 +251,27 @@ def main() -> int:
         fh.write(f"Fetched {dt.date.today().isoformat()} by `src/fetch_genomes.py`, "
                  f"NCBI nuccore query:\n\n```\n{QUERY}\n```\n\n")
         fh.write(f"- Records: **{len(rows)}**\n")
-        fh.write(f"- Distinct strain labels: **{len(by_strain)}**\n")
-        fh.write(f"- Strain labels deposited more than once: "
-                 f"**{sum(1 for rs in by_strain.values() if len(rs) > 1)}**\n")
-        fh.write(f"- Of those, labels whose records **disagree on length**: "
+        fh.write(f"- Distinct strain labels, as deposited: **{len(by_label)}**\n")
+        fh.write(f"- Distinct laboratory strains, after dropping qualifiers such as "
+                 f"`isolate` and `clone`: **{len(by_strain)}**\n")
+        fh.write(f"- Laboratory strains deposited more than once: "
+                 f"**{sum(1 for s, rs in by_strain.items() if len(rs) > 1 and s != '(UNLABELLED)')}**\n")
+        fh.write(f"- Of those, strains whose records **disagree on length**: "
                  f"**{len(disputed)}**\n\n")
+        fh.write("The two counts differ because a depositor may write `KOS`, `isolate "
+                 "KOS` and `isolate KOS 1.1` for records of the same laboratory strain. "
+                 "Grouping on the label as deposited splits those three ways, which is "
+                 "what this file did until round 11, and it reported one disputed strain "
+                 "while missing the KOS family entirely. The `strain` column in the TSV "
+                 "keeps the label as deposited; `strain_group` is the unit counted "
+                 "here.\n\n"
+                 "The grouping drops leading qualifiers only. A hyphenated construct "
+                 "such as `McKrae-dsncRNA2` keeps its own identity rather than joining "
+                 "`McKrae`, because merging constructs with their parents would also "
+                 "merge isolate designations such as `HSV1/USA/WA-UW-2L9/2020`, which "
+                 "are not laboratory strains. So these counts are a floor on how much "
+                 "the same material has been deposited at different lengths, not a "
+                 "complete reckoning.\n\n")
         lo = min(int(r["length_bp"]) for r in rows)
         hi = max(int(r["length_bp"]) for r in rows)
         fh.write(f"- Length range: {lo:,} to {hi:,} bp, a spread of {hi - lo:,} bp\n\n")

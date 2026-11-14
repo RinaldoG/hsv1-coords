@@ -53,6 +53,8 @@ Test case 6	32341360	full text read	UL19	MCP
 Test case 6	32341360	full text read	UL35	UL35
 Test case 6	32341360	full text read	UL35	VP26
 Test case 6	32341360	full text read	RS1	ICP4
+Test case 6	32341360	full text read	US1	ICP22
+Test case 6	32341360	full text read	US12	ICP47
 Test case 6	32341360	full text read	UL1	glycoprotein L
 Test case 6	32341360	full text read	UL49A	UL49.5
 Test case 6	32341360	full text read		JN555585
@@ -91,6 +93,10 @@ Test case 8	34578430	full text read	UL53	gK
 Test case 8	34578430	full text read	UL53	UL53
 Test case 8	34578430	full text read	UL27	gB
 Test case 8	34578430	full text read	US6	gD
+Test case 8	34578430	full text read	UL44	gC
+Test case 8	34578430	full text read	US8	gE
+Test case 8	34578430	full text read	US7	gI
+Test case 8	34578430	full text read	UL10	gM
 Test case 9	42015059	full text read	UL23	UL23
 Test case 9	42015059	full text read	UL23	TK
 Test case 9	42015059	full text read	UL23	thymidine kinase
@@ -151,5 +157,8 @@ Test case 13	34960783	full text read	UL18	UL18
 Test case 13	34960783	full text read	UL38	VP19C
 Test case 13	34960783	full text read	UL38	UL38
 Test case 13	34960783	full text read	UL6	UL6
+Test case 13	34960783	full text read	UL25	UL25
+Test case 13	34960783	full text read	UL17	UL17
+Test case 13	34960783	full text read	UL36	UL36
 Test case 13	34960783	full text read	UL35	VP26
 Test case 13	34960783	full text read	UL48	VP16

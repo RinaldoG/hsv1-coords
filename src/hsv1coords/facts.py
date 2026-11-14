@@ -254,14 +254,17 @@ def derive() -> list[Fact]:
             overhangs.append(abs(len_2 - len_1))
         if overhangs:
             facts.append(Fact("lat_overhang_bp", max(overhangs),
-                              ("bp past `IRL`", "bp into `IRS`"),
+                              ("bp past `IRL`", "bp into `IRS`",
+                               "bp beyond the end of"),
                               note="how far the LAT copy runs past IRL",
-                              prefixes=("it extends",)))
+                              prefixes=("it extends", "which runs")))
 
     coverage = DERIVED / "crosswalk_coverage.tsv"
     if coverage.exists():
         rows = _rows(coverage)
-        facts.append(Fact("genomes", len(rows), ("complete genomes",)))
+        facts.append(Fact("genomes", len(rows),
+                          ("complete genomes", "genomes aligned to the reference"),
+                          prefixes=("**Built.**",)))
         facts.append(Fact(
             "median_mappable",
             f"{statistics.median(float(r['mapped_percent']) for r in rows):.2f}",

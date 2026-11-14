@@ -16,6 +16,15 @@ Homepage = "https://github.com/RinaldoG/hsv1-coords"
 
 [tool.setuptools]
 package-dir = { "" = "src" }
+# The data is the library: without it every loader raises. Round 11 found `pip install .`
+# producing an importable package in which nothing worked, because the modules resolved
+# their paths against the repository layout. `make package-data` copies the built
+# artefacts into src/hsv1coords/data, and this ships them.
+include-package-data = true
+
+[tool.setuptools.package-data]
+hsv1coords = ["data/*.tsv", "data/*.sha256", "data/derived/*.tsv", "data/derived/*.md",
+              "data/derived/crosswalk/*.tsv"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

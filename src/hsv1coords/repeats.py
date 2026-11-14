@@ -27,10 +27,13 @@ from __future__ import annotations
 import csv
 import functools
 import pathlib
+
+from ._paths import data_path
 import re
+import types
 from dataclasses import dataclass, field
 
-DERIVED = pathlib.Path(__file__).resolve().parents[2] / "data" / "derived"
+DERIVED = data_path("derived")
 REPEAT_MAP = DERIVED / "repeat_map.tsv"
 DIPLOID_PAIRS = DERIVED / "diploid_pairs.tsv"
 
@@ -140,8 +143,15 @@ class RepeatMap:
         self.regions = tuple(regions)
         self.pairs = tuple(pairs)
         self._by_name = {r.name: r for r in regions}
-        self.inverted_pairs = self._derive_inverted_pairs()
-        self.multi_copy = self._derive_multi_copy()
+        # Tuples and a mapping proxy, for the reason the regions are tuples: `load` is
+        # cached and hands one object to every caller. Round 11: these two were missed,
+        # and `classify` reads both, so a caller doing `inverted_pairs.clear()` turned
+        # the repeat-ambiguity decline off for the life of the process. Position 900
+        # then came back "well defined" from the function written to decline there.
+        self.inverted_pairs = tuple(self._derive_inverted_pairs())
+        self.multi_copy = types.MappingProxyType(
+            {name: tuple(copies)
+             for name, copies in self._derive_multi_copy().items()})
 
     def _derive_inverted_pairs(self) -> list[tuple[str, str]]:
         """The inverted repeat pairs, from what the record says each region flanks.

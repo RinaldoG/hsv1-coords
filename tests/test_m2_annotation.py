@@ -108,6 +108,24 @@ class Classification(unittest.TestCase):
         self.assertGreater(len(found), 8,
                            f"only {len(found)} classes are in use, so this proves little")
 
+    def test_an_unknown_feature_type_is_not_classed_from_its_name(self):
+        """Round 11, latent: `classify` fell through for an untyped feature type.
+
+        A record carrying `mat_peptide`, `3'UTR` or `polyA_site` with a `/gene`
+        qualifier would have been classed `named_gene`, which is exactly what the
+        type-first branch was added to prevent. No source in use carries such a type,
+        so nothing reached it; this reaches it.
+        """
+        from build_annotation import classify
+        for feature_type in ("mat_peptide", "3'UTR", "polyA_site", "tRNA"):
+            with self.subTest(feature_type=feature_type):
+                self.assertEqual(
+                    classify("UL23", feature_type), "other",
+                    f"a {feature_type} feature named UL23 is being classed from its "
+                    f"name")
+        self.assertEqual(classify("UL23", "CDS"), "named_gene",
+                         "a gene-like type must still be classed by name")
+
     def test_every_class_the_builder_declares_is_described(self):
         """A class with no description is a column heading with no meaning."""
         from build_annotation import CLASS_RULES, DEFAULT_CLASS, UNNAMED_CLASSES
@@ -321,6 +339,76 @@ class StrandSurvivesEverySource(unittest.TestCase):
             disagree, [],
             f"{len(disagree)} features are on opposite strands in the two formats of "
             f"the same annotation: {disagree[:6]}")
+
+    def test_every_genbank_location_matches_the_record_it_came_from(self):
+        """Round 11: the strand gate covered the GTF only.
+
+        Stripping `complement(` from every `NC_001806.2` row left the suite green, 112
+        rows changed, including `RL2 gene complement(120675..124287)`. `BK012101.1` was
+        protected only by the relative check between the two formats of the 2020
+        annotation, which a shared strip passes, and the reference record had no
+        counterpart at all: 116 of its 284 features carry `complement`. So the exact
+        defect round 10 fixed was still open on the primary annotation.
+
+        This checks each GenBank-sourced location against the record's own feature
+        table, which is the only independent source for it.
+        """
+        from extract_names import parse_genbank
+        records = {"NC_001806.2": "ref_NC_001806.2.gb",
+                   "BK012101.1": "alt_BK012101.1.gb"}
+        checked, wrong = 0, []
+        for source, filename in sorted(records.items()):
+            path = ROOT / "data" / "raw" / filename
+            if not path.exists():
+                continue
+            stated = set()
+            for f in parse_genbank(path):
+                location = (f.get("_location") or "").strip()
+                if location:
+                    stated.add((f.get("gene", "").strip(), f["_type"], location))
+            for r in rows():
+                if r["source"] != source:
+                    continue
+                key = (r["name"], r["feature_type"], r["location"])
+                checked += 1
+                if key in stated:
+                    continue
+                # A row whose name came from a note rather than a `/gene` qualifier, or
+                # a composite name, will not match on the name. The location and type
+                # still must.
+                if any(t == r["feature_type"] and loc == r["location"]
+                       for _, t, loc in stated):
+                    continue
+                wrong.append((source, r["name"], r["feature_type"], r["location"]))
+        self.assertGreater(checked, 400,
+                           f"only {checked} GenBank rows were checked against their "
+                           f"records")
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} rows state a location the record does not "
+            f"(source, name, type, location): {wrong[:6]}")
+
+    def test_the_complement_count_matches_the_records(self):
+        """A count, so a wholesale strip fails even if a row still matches by type."""
+        from extract_names import parse_genbank
+        for source, filename in (("NC_001806.2", "ref_NC_001806.2.gb"),
+                                 ("BK012101.1", "alt_BK012101.1.gb")):
+            path = ROOT / "data" / "raw" / filename
+            if not path.exists():
+                continue
+            expected = sum(1 for f in parse_genbank(path)
+                           if "complement" in (f.get("_location") or "")
+                           and f["_type"] != "source")
+            found = sum(1 for r in rows()
+                        if r["source"] == source and "complement" in r["location"])
+            with self.subTest(source=source):
+                self.assertEqual(
+                    found, expected,
+                    f"{source}: the table has {found} complemented locations and the "
+                    f"record has {expected}")
+                self.assertGreater(expected, 50,
+                                   f"{source} has only {expected} complemented "
+                                   f"features, so this gate checks little")
 
     def test_the_product_column_is_not_a_biotype(self):
         """`gene_type` is "protein_coding" on all 910 GTF lines, LAT included.

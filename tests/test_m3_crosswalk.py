@@ -1,8 +1,10 @@
 """The M3 gate: the crosswalk round-trips, and declines rather than guessing."""
 from __future__ import annotations
 
+import csv
 import pathlib
 import random
+import re
 import sys
 import unittest
 
@@ -228,6 +230,30 @@ class TheBlocksComeFromTheAlignment(unittest.TestCase):
         rng = random.Random(seed)
         rng.shuffle(rotating)
         return [a for a in self.ALWAYS if a in available] + rotating[:self.SAMPLE]
+
+    def test_the_aligner_version_is_recorded_and_reported(self):
+        """Round 11: the aligner version was pinned nowhere.
+
+        Every block file is a function of the sequence, the aligner version and the
+        preset. Two of those three were pinned, so a differing minimap2 on another
+        machine would fail the re-alignment gate across 183 files with no way to tell an
+        aligner change from a data change.
+
+        A mismatch is reported, not failed: a newer aligner is a legitimate state to be
+        in, and the useful behaviour is to say so rather than to block the suite.
+        """
+        import subprocess
+        recorded = ROOT / "data" / "derived" / "aligner.txt"
+        self.assertTrue(recorded.exists(),
+                        "data/derived/aligner.txt is missing, so the blocks do not say "
+                        "what aligned them")
+        fields = recorded.read_text().strip().split("\t")
+        self.assertEqual(fields[0], "minimap2")
+        installed = subprocess.run(["minimap2", "--version"], capture_output=True,
+                                   text=True, check=False).stdout.strip()
+        if installed and installed != fields[1]:
+            print(f"\n    NOTE: blocks were built with minimap2 {fields[1]} and this "
+                  f"machine has {installed}; a block difference may be the aligner")
 
     def test_the_stored_blocks_are_the_blocks_an_alignment_gives(self):
         import tempfile
@@ -954,6 +980,97 @@ class GenomeToGenome(unittest.TestCase):
         self.assertEqual(declined, alignment_answered,
                          f"lift answered at {alignment_answered - declined} of "
                          f"{alignment_answered} positions the repeat map calls ambiguous")
+
+
+class TheStrainInventoryIsParsedNotGuessed(unittest.TestCase):
+    """Round 11: `strain_of` mis-parsed 41 of the 183 deflines.
+
+    The anchor was `(?:,|\\s+complete\\b|$)`, which fails on "nearly complete genome", so
+    `AB618031.1`'s strain became its whole 69-character description and `X14112.1`'s
+    became "complete genome". The consequence landed on the project's motivating example:
+    the four KOS-family records, which span 987 bp, were labelled `KOS`, `KOS`, `isolate
+    KOS` and `isolate KOS 1.1`, and grouping on the label split them three ways, so
+    `strain_inventory.md` reported one strain whose records disagree on length and missed
+    the KOS family entirely. README.md cites that 987 bp spread as the reason this
+    repository exists.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        fasta = ROOT / "data" / "raw" / "genomes.fasta"
+        if not fasta.exists():
+            raise unittest.SkipTest("genomes.fasta is fetched, not committed")
+        sys.path.insert(0, str(ROOT / "src"))
+        from fetch_genomes import parse_fasta, strain_group, strain_of
+        cls.strain_of, cls.strain_group = staticmethod(strain_of), staticmethod(strain_group)
+        cls.records = parse_fasta(fasta)
+        cls.inventory = list(csv.DictReader(
+            (ROOT / "data" / "derived" / "strain_inventory.tsv").open(), delimiter="\t"))
+
+    def test_no_strain_label_is_a_description(self):
+        bad = []
+        for header, _ in self.records:
+            label = self.strain_of(header)
+            if re.search(r"\b(genome|virus|complete|assembly|sequence)\b", label, re.I):
+                bad.append((header.split()[0], label))
+        self.assertEqual(
+            bad, [],
+            f"{len(bad)} strain labels are descriptions rather than strains: {bad[:6]}")
+
+    def test_the_two_headers_that_broke_the_old_pattern(self):
+        by_accession = {h.split()[0]: h for h, _ in self.records}
+        self.assertEqual(self.strain_of(by_accession["AB618031.1"]), "RH2",
+                         "the 'nearly complete genome' defline is mis-parsed again")
+        self.assertEqual(self.strain_of(by_accession["X14112.1"]), "(unlabelled)",
+                         "'complete genome' is being recorded as a strain name")
+
+    def test_the_kos_family_groups_together(self):
+        kos = [r for r in self.inventory if r["strain_group"] == "KOS"]
+        self.assertEqual(
+            len(kos), 4,
+            f"the KOS family has {len(kos)} records in the inventory, not 4: "
+            f"{[(r['accession'], r['strain']) for r in kos]}")
+        lengths = sorted(int(r["length_bp"]) for r in kos)
+        self.assertEqual(
+            lengths[-1] - lengths[0], 987,
+            f"the KOS spread is {lengths[-1] - lengths[0]} bp; README.md cites 987")
+
+    def test_a_qualifier_chain_does_not_become_the_group(self):
+        """"Mutant clone McKrae-dsncRNA2" must not group as CLONE.
+
+        It groups as MCKRAE-DSNCRNA2, its own name, and not with the parent McKrae.
+        That is deliberate: grouping only drops leading qualifiers, so `isolate KOS 1.1`
+        joins KOS because the qualifier is a separate word, while a hyphenated construct
+        keeps its own identity. Merging constructs with their parents would also merge
+        isolate designations such as `HSV1/USA/WA-UW-2L9/2020`, which are not strains.
+        """
+        self.assertEqual(self.strain_group("Mutant  clone McKrae-dsncRNA2"),
+                         "MCKRAE-DSNCRNA2")
+        self.assertEqual(self.strain_group("isolate KOS 1.1"), "KOS")
+        self.assertEqual(self.strain_group("KOS"), "KOS")
+        groups = {r["strain_group"] for r in self.inventory}
+        for junk in ("CLONE", "ISOLATE", "MUTANT", "STRAIN"):
+            self.assertNotIn(junk, groups,
+                             f"{junk} is being used as a laboratory strain name")
+
+    def test_the_genome_fasta_is_pinned_by_a_committed_digest(self):
+        """Round 11: the FASTA everything rests on had no checksum anywhere.
+
+        Deleting 133 of its 183 records left `check_inputs.py` exiting 0 and silently
+        shrank every artefact built from it.
+        """
+        import hashlib
+        pin = ROOT / "data" / "genomes.sha256"
+        self.assertTrue(pin.exists(), "data/genomes.sha256 is missing, so the FASTA is "
+                                      "pinned by nothing")
+        digest, count, name = pin.read_text().split()
+        fasta = ROOT / "data" / "raw" / "genomes.fasta"
+        self.assertEqual(name, "genomes.fasta")
+        self.assertEqual(int(count), len(self.records),
+                         "the pinned sequence count is not the number in the FASTA")
+        self.assertEqual(
+            hashlib.sha256(fasta.read_bytes()).hexdigest(), digest,
+            "genomes.fasta does not match its committed checksum")
 
 
 if __name__ == "__main__":

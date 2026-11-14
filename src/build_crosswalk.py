@@ -314,6 +314,15 @@ def main() -> int:
         print("minimap2 not found; it is a declared dependency of this milestone",
               file=sys.stderr)
         return 1
+    # Every committed block file is a function of (sequence, aligner version, preset).
+    # Two of the three were pinned and the version was recorded nowhere, so round 11
+    # could not tell an aligner change from a data change. It is written beside the
+    # artefacts now, and the suite reports when the installed version differs.
+    aligner = subprocess.run(["minimap2", "--version"], capture_output=True,
+                             text=True, check=False).stdout.strip()
+    (DERIVED / "aligner.txt").write_text(
+        f"minimap2\t{aligner}\tpreset {PRESET}\t--cs --secondary=no\n")
+    print(f"  aligner: minimap2 {aligner}, preset {PRESET}")
 
     ref_seq = genbank_sequence(RAW / "ref_NC_001806.2.gb")
     genomes = read_fasta(RAW / "genomes.fasta")
@@ -348,8 +357,11 @@ def main() -> int:
         # Alignments on the other strand are dropped. Mostly they are repeat artefacts,
         # but for a genome deposited as a segmental isomer they are a whole segment, and
         # dropping them silently is what round 9 objected to: `ON783215.1` has its long
-        # segment forward and its short segment reversed, so 29,764 bp, essentially IRS,
-        # US and TRS, has no reference coordinate at all. A lift of a variant in US6
+        # segment forward and its short segment reversed. Two quantities, which round 11
+        # found this comment conflating: 14,941 bp aligned on the other strand and is
+        # dropped here, and 29,764 bp of that genome has no reference coordinate at all
+        # (153,542 deposited against 123,778 mapped). The dropped alignments explain
+        # about half of the unmapped total; the header records the 14,941. A lift of a variant in US6
         # (gD) or RS1 (ICP4) out of that genome returns None with nothing saying why.
         # The amount dropped is recorded in the block file's header and the decline says
         # so. Representing the segment properly needs per-segment orientation, which is

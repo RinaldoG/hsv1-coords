@@ -17,6 +17,7 @@ Run: python3 src/build_aliases.py
 """
 
 import os
+import re
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -576,11 +577,24 @@ which it is, rather than the resolver inferring it from the prose of the note.
 """
 
 
-def add(canonical, alias, atype, cit, inventory, conf, notes="",
-        resolution=RESOLVE):
-    if conf == AMB and resolution not in (RESOLVE, DECLINE):
-        raise ValueError(f"{alias}: an ambiguous row must state its resolution")
-    ROWS.append((canonical, alias, atype, cit, inventory, conf, notes, resolution))
+def add(canonical, alias, atype, cit, inventory, conf, notes="", resolution=None):
+    """Record one gene/alias pair.
+
+    An `ambiguous` row must state its resolution explicitly. Round 11: `resolution`
+    defaulted to `RESOLVE`, so the guard here could never fire and
+    `test_every_ambiguous_row_states_what_to_do_with_it` could never fail. Marking a new
+    row `ambiguous` made it resolve silently, which is the behaviour round 10 added this
+    column to stop: six ambiguous rows still resolved, and the next one added would have
+    too. The default is None now, so the choice has to be made at the call site.
+    """
+    if conf == AMB and resolution is None:
+        raise ValueError(
+            f"{alias} ({canonical}) is marked ambiguous and states no resolution. "
+            f"Pass DECLINE if the string cannot be attributed to one gene, or RESOLVE "
+            f"if it can and the ambiguity is about something else, such as a near-miss "
+            f"with another gene's name.")
+    ROWS.append((canonical, alias, atype, cit, inventory, conf, notes,
+                 resolution or RESOLVE))
 
 
 # --- repeat-region genes -------------------------------------------------- #
@@ -653,7 +667,9 @@ add("AL-RNA", "AL-RNA", O, "PERNG2002", "classical", PROB,
     "named in the primary paper as a transcript antisense to the 5' end of LAT")
 add("AL-RNA", "AL-RNA", O, "TPA", "whisnant2020", AMB,
     "BK012101.1 /note cites 'Perng et al., JVI 2002, not observed': the re-annotation "
-    "records the name but did not detect the feature")
+    "records the name but did not detect the feature",
+    # identity mapping: the name resolves to itself, so answering adds nothing and withholding helps nobody
+    RESOLVE)
 add("Ori-S", "Ori-S", O, "HUBENTHAL1987", "classical", EST,
     "cited by name in the BK012101.1 /note 'Hubenthal-Voss,Starr,Roizman JVI 1987'")
 add("Ori-S", "Ori-S-TRS1", S, "TPA", "whisnant2020", EST, "BK012101.1 /gene for the compound locus")
@@ -804,7 +820,9 @@ add("UL26", "capsid maturation protease", F, "REF", "classical", EST, "RefSeq /p
 add("UL26", "capsid scaffolding protein", F, "UP:P10210", "classical", AMB,
     "UniProt recommended name for UL26. One letter from the RefSeq /product for UL26.5, "
     "'capsid scaffold protein'. Two different genes, two near-identical strings: a string "
-    "match on either will silently pick the wrong gene. See alias_notes.md")
+    "match on either will silently pick the wrong gene. See alias_notes.md",
+    # UniProt's recommended name for UL26; the ambiguity is the one letter between it and UL26.5's product string, not the attribution
+    RESOLVE)
 add("UL26", "AP", P, "UP:P10210", "classical", AMB,
     "UniProt names the cleaved 'Assembly protein (AP)' chain of UL26. That chain covers "
     "the same polypeptide region as the separate UL26.5 product (VP22a, ICP35), so AP is "
@@ -824,7 +842,9 @@ add("UL26.5", "ICP35", P, "LIUROIZMAN1991", "classical", EST,
     "cell protein 35'")
 add("UL26.5", "capsid scaffold protein", F, "REF", "classical", AMB,
     "RefSeq /product for UL26.5. One letter from UniProt's recommended name for UL26, "
-    "'capsid scaffolding protein'. See alias_notes.md")
+    "'capsid scaffolding protein'. See alias_notes.md",
+    # the RefSeq product for UL26.5; same near-miss, same reasoning
+    RESOLVE)
 add("UL26.5", "infected cell protein 35", P, "LIUROIZMAN1991", "classical", EST,
     "abstract, written out in full: 'the UL26.5 gene, which specifies a capsid protein "
     "designated infected cell protein 35'")
@@ -864,7 +884,9 @@ add("UL54", "ICP27", P, "UP:P10238", "classical", EST, "UniProt alternative name
 add("UL54", "IE63", M, "UP:P10238", "classical", EST, "UniProt 'Immediate-early protein IE63'")
 add("UL54", "IE63", M, "TPA", "whisnant2020", AMB,
     "CDS /note 'icp27; ie63'. The same record also puts 'ie63' on US1/ICP22, so the "
-    "string IE63 is not unique within one authoritative record. See alias_notes.md")
+    "string IE63 is not unique within one authoritative record. See alias_notes.md",
+    # two canonicals exist for IE63, so resolve() raises AmbiguousName by the multi-target path; declining here would hide which genes collide
+    RESOLVE)
 add("UL54", "Vmw63", M, "UP:P10238", "classical", EST, "UniProt alternative name 'VMW63'")
 add("UL54", "mRNA export factor", F, "UP:P10238", "classical", EST, "UniProt recommended name")
 
@@ -1173,7 +1195,9 @@ add("US1", "IE63", M, "JACKERS1992", "", AMB,
     "which has amino acid similarities to the immediate-early (IE) protein 22 (ICP22) of "
     "herpes simplex virus type 1'. VZV IE63 is the homologue of HSV-1 ICP22, which is "
     "how ie63 plausibly reached US1 in BK012101.1. The HSV-1 reading of IE63 is UL54. "
-    "Recorded as ambiguity with its explanation, not resolved away")
+    "Recorded as ambiguity with its explanation, not resolved away",
+    # as above, the IE63 collision is reported by the multi-target path
+    RESOLVE)
 add("US1", "ICP22", P, "REF", "both", EST, "RefSeq /product 'regulatory protein ICP22'")
 add("US1", "ICP22", P, "TPA", "whisnant2020", EST, "CDS /note 'icp22'")
 add("US1", "ICP22", P, "UP:P04485", "classical", EST, "UniProt 'Transcriptional regulator ICP22'")
@@ -1181,7 +1205,9 @@ add("US1", "IE68", M, "UP:P04485", "classical", EST, "UniProt 'Immediate-early p
 add("US1", "IE63", M, "TPA", "whisnant2020", AMB,
     "CDS /note 'icp22; ie63'. This conflicts with UniProt P10238, which assigns IE63 to "
     "UL54/ICP27, and with UniProt P04485, which gives IE68 for ICP22. Recorded as an "
-    "ambiguity, not resolved. See alias_notes.md")
+    "ambiguity, not resolved. See alias_notes.md",
+    # as above
+    RESOLVE)
 add("US1", "Vmw68", M, "SCHWYZER1994", "classical", EST,
     "abstract gloss: 'designated BICP22 because of its homology to ICP22 (Vmw68) of "
     "herpes simplex virus type 1'. The gloss is in a bovine herpesvirus 1 paper making a "
@@ -1453,7 +1479,13 @@ def verbatim_in(ident: str, alias: str, raw: str) -> str:
     if not os.path.exists(path):
         return ""
     with open(path) as fh:
-        return "yes" if alias.lower() in fh.read().lower() else "no"
+        text = fh.read().lower()
+    # A word-boundary match, not a substring. Round 11: `gL`, `gM`, `gH`, `gN`, `gK`,
+    # `gG`, `gD`, `gE`, `gI` and `Pol` were all marked attested because the record
+    # contains "glycoprotein ..." and "polymerase", so 15 of the 220 yes rows were wrong
+    # and the column contradicted itself within one class of alias: gB said no.
+    pattern = r"(?<![0-9a-z])" + re.escape(alias.lower()) + r"(?![0-9a-z])"
+    return "yes" if re.search(pattern, text) else "no"
 
 # Which gene inventory each source speaks for. The inventory column is DERIVED from
 # this rather than asserted per row, so a gene/alias pair reads "both" only when it is

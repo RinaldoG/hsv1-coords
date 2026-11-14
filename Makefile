@@ -1,6 +1,7 @@
-.PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap agreement verify-crosswalk testcases check test clean
+.PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap agreement verify-crosswalk package-data testcases check test clean
 
-all: inputs genomes names aliases annotation crosswalk versions repeatmap agreement testcases check test
+all: inputs genomes names aliases annotation crosswalk versions repeatmap \
+     agreement package-data testcases check verify-crosswalk test
 
 inputs:        ## fetch and checksum every input into data/raw
 	python3 -I src/fetch_inputs.py
@@ -31,6 +32,9 @@ agreement:     ## pin every genome's measured base agreement with the reference
 
 verify-crosswalk:  ## check every COMMITTED block file against a fresh alignment
 	python3 -I src/verify_crosswalk.py
+
+package-data:  ## stage the built artefacts inside the package, for a wheel
+	python3 -I src/stage_package_data.py
 
 testcases:     ## regenerate the machine-readable synonymy test cases from the prose doc
 	python3 -I src/build_testcases.py

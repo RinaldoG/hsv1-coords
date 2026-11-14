@@ -1,0 +1,1 @@
+minimap2	2.31-r1302	preset asm10	--cs --secondary=no

@@ -427,7 +427,13 @@ class EveryCitationAttestsItsAlias(unittest.TestCase):
                 if r["verbatim_in_citation"]:
                     wrong.append((r["alias"], "marked for a record not held here"))
                 continue
-            present = r["alias"].lower() in text
+            # A word-boundary match, written here independently of the builder's.
+            # Round 11: both used a bare substring test, so 15 rows were marked attested
+            # because the record says "glycoprotein L" and "polymerase", and the gate
+            # shared the defect it was meant to catch.
+            present = bool(re.search(
+                r"(?<![0-9a-z])" + re.escape(r["alias"].lower()) + r"(?![0-9a-z])",
+                text))
             if (r["verbatim_in_citation"] == "yes") != present:
                 wrong.append((r["alias"], r["citation_identifier"],
                               r["verbatim_in_citation"], present))
@@ -519,3 +525,61 @@ class TheDeclaredGapsAreRealGaps(unittest.TestCase):
         self.assertIn("oriS", docstring,
                       "the collision is not documented where a reader would meet it")
         self.assertIn("not the oriS palindrome", docstring)
+
+
+class WhetherTheRepeatCopySurvives(unittest.TestCase):
+    """Round 10: the canonical set mixes two schemes and the answer did not say which.
+
+    `resolve("IRL2")` gives `RL2`, dropping the copy the caller named; `resolve("IRL2.5")`
+    gives `IRL2.5`, keeping it. Both are correct, because the records differ: the
+    reference annotates RL2 once and the 2020 re-annotation annotates TRL2 and IRL2
+    separately, with copy-specific decimal names that have no copy-agnostic form. What
+    was wrong is that a caller could not tell the two cases apart, on the distinction
+    this repository exists to keep.
+
+    This class was written in round 10 and lost before it was committed: an edit that
+    rewrote this file as a slice of itself silently deleted everything after the cut,
+    including the `__main__` block, and round 11 found the commit touching only the
+    source file. See PITFALLS root cause 40.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.d = Dictionary.load(TABLE)
+
+    def test_a_copy_specific_input_reports_whether_the_copy_survived(self):
+        cases = {"IRL2": False, "TRL2": False, "IRS1": False, "TRS1": False,
+                 "IRL2.5": True, "TRL1.5": True, "IRL3": True, "TRL3": True}
+        for name, kept in sorted(cases.items()):
+            with self.subTest(name=name):
+                self.assertIsNotNone(
+                    self.d.copy_named(name),
+                    f"{name} names a copy and copy_named says it does not")
+                self.assertEqual(
+                    self.d.copy_kept(name), kept,
+                    f"{name} resolves to {self.d.resolve(name)}; copy_kept should be "
+                    f"{kept}")
+
+    def test_a_name_with_no_copy_reports_none(self):
+        for name in ("ICP0", "VP16", "UL48", "LAT"):
+            with self.subTest(name=name):
+                self.assertIsNone(self.d.copy_named(name))
+                self.assertIsNone(self.d.copy_kept(name))
+
+    def test_both_outcomes_occur_so_the_report_is_not_a_constant(self):
+        outcomes = set()
+        for e in self.d.entries:
+            if self.d.copy_named(e.alias) is not None:
+                outcomes.add(self.d.copy_kept(e.alias))
+        self.assertEqual(outcomes, {True, False},
+                         f"copy_kept takes only {outcomes}, so it carries no "
+                         f"information")
+
+    def test_the_mixture_is_documented_where_a_reader_meets_it(self):
+        source = (ROOT / "src" / "hsv1coords" / "resolver.py").read_text()
+        self.assertIn("mixes two schemes", source,
+                      "the inconsistency is not explained in the module that has it")
+
+
+if __name__ == "__main__":
+    unittest.main(verbosity=2)

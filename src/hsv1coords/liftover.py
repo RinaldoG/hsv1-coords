@@ -19,10 +19,11 @@ import bisect
 import csv
 import functools
 import pathlib
+
+from ._paths import data_path
 from dataclasses import dataclass, field
 
-DEFAULT_DIR = (pathlib.Path(__file__).resolve().parents[2]
-               / "data" / "derived" / "crosswalk")
+DEFAULT_DIR = data_path("derived", "crosswalk")
 REFERENCE = "NC_001806.2"
 
 
@@ -122,7 +123,18 @@ class Crosswalk:
 
     @staticmethod
     def available(directory: pathlib.Path | None = None) -> list[str]:
+        """Every accession with a block file, or raise if the directory is not there.
+
+        Round 11: this returned `[]` for a missing directory, so in a non-editable
+        install `for acc in Crosswalk.available():` was a silent no-op loop over a
+        corpus of 183 genomes. An empty corpus and an absent one are different facts.
+        """
         directory = pathlib.Path(directory or DEFAULT_DIR)
+        if not directory.is_dir():
+            raise FileNotFoundError(
+                f"no crosswalk directory at {directory}. If this is an installed copy, "
+                f"it was built without its data; if it is a checkout, run "
+                f"`make crosswalk`")
         return sorted(p.name.replace(".blocks.tsv", "")
                       for p in directory.glob("*.blocks.tsv"))
 
@@ -171,6 +183,12 @@ class Crosswalk:
         limit = self.deposited_length or 0
         if position < 1 or (limit and position > limit):
             return None
+        if not limit:
+            # Round 11: with no stated length this returned a one-base stretch that did
+            # not contain the position, so a position a million bases away was described
+            # as sitting in it. Every committed block file states a length, which is why
+            # this is unreachable from the artefacts, but the method is public.
+            return None
         if self.to_reference(position) is not None:
             return None
         aligned = self._to_aligned(position) - 1
@@ -215,6 +233,17 @@ class LiftResult:
     `ON783216.1` would have got reference positions whose alleles were the complement of
     theirs, with no warning. That is the shape of error this repository exists to
     prevent, so it is a field and it is in `__str__`.
+    """
+
+    in_range: bool = True
+    """False when the reference position is not in the reference at all.
+
+    Round 7 added this distinction to `CoordinateStatus`, because `well_defined` was
+    conflating "this coordinate does not exist" with "this coordinate is ambiguous".
+    Round 11 found `LiftResult` not carrying it forward, so the public type could not
+    express the difference, and `lift_detailed(200000, ref, ref)` returned 200000 as an
+    answer: the unchecked identity case, which is the hole round 9 closed in
+    `VersionCrosswalk.convert` and left open here.
     """
 
     inverted_alternatives: tuple[int, ...] = ()
@@ -297,9 +326,16 @@ def lift_detailed(position: int, source: str, target: str,
     # installed map is the right one. Saying so is cheaper than leaving it to be found
     # again.
     status = RepeatMap.load().classify(ref_pos)
+    if not status.in_range:
+        # Out of the reference entirely. Round 11: the identity case returned the
+        # position unchecked, so a coordinate past the end of the genome came back as an
+        # answer with `well_defined` False carrying the whole of the message, and
+        # `LiftResult` had no way to say which kind of refusal it was.
+        return LiftResult(None, source, target, None, True, [], [], status.reason,
+                          complemented=False, in_range=False)
     return LiftResult(out, source, target, ref_pos, status.well_defined,
                       status.alternatives, status.loci, status.reason,
-                      complemented=complemented,
+                      complemented=complemented, in_range=status.in_range,
                       inverted_alternatives=status.inverted_alternatives)
 
 

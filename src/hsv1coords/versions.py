@@ -14,10 +14,11 @@ from __future__ import annotations
 import bisect
 import csv
 import pathlib
+
+from ._paths import data_path
 from dataclasses import dataclass
 
-DEFAULT = (pathlib.Path(__file__).resolve().parents[2]
-           / "data" / "derived" / "version_crosswalk.tsv")
+DEFAULT = data_path("derived", "version_crosswalk.tsv")
 OLD, NEW = "NC_001806.1", "NC_001806.2"
 
 
@@ -50,6 +51,8 @@ class VersionCrosswalk:
 
     def to_new(self, position: int) -> int | None:
         """A 1-based NC_001806.1 position, in NC_001806.2, or None."""
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         p = position - 1
         i = bisect.bisect_right(self._old, p) - 1
         if i < 0:
@@ -60,6 +63,8 @@ class VersionCrosswalk:
         return b.new_start + (p - b.old_start) + 1
 
     def to_old(self, position: int) -> int | None:
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         p = position - 1
         i = bisect.bisect_right(self._new, p) - 1
         if i < 0:
@@ -71,6 +76,8 @@ class VersionCrosswalk:
 
     def offset_at(self, position: int) -> int | None:
         """The offset applying at this NC_001806.1 position, or None if unmapped."""
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         new = self.to_new(position)
         return None if new is None else new - position
 

@@ -31,13 +31,16 @@ digit were folded, which described a behaviour the code does not have and should
 from __future__ import annotations
 
 import csv
+import functools
 import pathlib
+
+from ._paths import data_path
 import re
+import types
 import unicodedata
 from dataclasses import dataclass, field
 
-DEFAULT_TABLE = (pathlib.Path(__file__).resolve().parents[2]
-                 / "data" / "derived" / "aliases_literature.tsv")
+DEFAULT_TABLE = data_path("derived", "aliases_literature.tsv")
 
 # Greek character to the word MEDLINE prints for it.
 GREEK = {
@@ -119,7 +122,15 @@ class Dictionary:
     _declined: dict[str, list] = field(default_factory=dict)
 
     @classmethod
+    @functools.lru_cache(maxsize=4)
     def load(cls, path: pathlib.Path | None = None) -> "Dictionary":
+        """Cached, like the other two loaders.
+
+        Round 11 measured the README's own first pattern, `Dictionary.load().resolve(x)`
+        in a loop: 0.57 s for 200 names against 0.2 ms with one load reused, 2,440 times
+        the useful cost. The other two loaders were cached in round 8 and this was
+        missed. Same immutability basis: the entries are read and not written.
+        """
         path = path or DEFAULT_TABLE
         entries: list[Entry] = []
         with pathlib.Path(path).open() as fh:
@@ -141,6 +152,17 @@ class Dictionary:
             if e.resolution == "decline":
                 d._declined.setdefault(normalise(e.alias), []).append(e)
         d._add_single_letter_greek_keys()
+        # Frozen after the derived keys are added, because this loader is cached now and
+        # hands one object to every caller. Round 9 froze the crosswalk's blocks and the
+        # repeat map's regions for this reason, round 11 found the repeat map's
+        # `inverted_pairs` and `multi_copy` still mutable, and caching this loader would
+        # have added a third instance of the same hazard: one caller clearing `_by_key`
+        # would stop every later resolve in the process.
+        d.entries = tuple(d.entries)
+        d._by_key = types.MappingProxyType(
+            {key: frozenset(value) for key, value in d._by_key.items()})
+        d._declined = types.MappingProxyType(
+            {key: tuple(value) for key, value in d._declined.items()})
         return d
 
     def _add_single_letter_greek_keys(self) -> None:

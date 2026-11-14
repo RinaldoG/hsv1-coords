@@ -4,11 +4,12 @@ from .conventions import (Convention, ConventionSet, PositionReport,
 from .liftover import Block, Crosswalk, LiftResult, lift, lift_detailed
 from .repeats import CoordinateStatus, DiploidPair, Region, RepeatMap
 from .versions import VersionBlock, VersionCrosswalk
-from .resolver import (AmbiguousName, Dictionary, Entry, RepeatPairedName, normalise,
-                       repeat_pair_of)
+from .resolver import (AmbiguousName, Dictionary, Entry, RepeatPairedName,
+                       UnresolvableName, normalise, repeat_pair_of)
 
 __all__ = ["AmbiguousName", "Block", "Convention", "ConventionSet", "CoordinateStatus",
            "Crosswalk", "Dictionary", "DiploidPair", "Entry", "LiftResult",
            "PositionReport", "ReferenceVersionMismatch", "Region", "RepeatMap", "RepeatPairedName",
-           "UnverifiedConvention", "VersionBlock", "VersionCrosswalk", "lift", "lift_detailed", "normalise",
+           "UnresolvableName", "UnverifiedConvention", "VersionBlock",
+           "VersionCrosswalk", "lift", "lift_detailed", "normalise",
            "repeat_pair_of"]

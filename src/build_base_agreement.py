@@ -119,8 +119,12 @@ def measure(accession: str, sequence: str, reference: str,
                 for first, second in zip(positions, positions[1:])]
         worst = max(gaps) if gaps else b.length
         tail = b.length - positions[-1]
-        row["worst_sample_gap"] = max(row["worst_sample_gap"], worst, tail)
-        if worst > MAX_SAMPLE_GAP or tail > MAX_SAMPLE_GAP:
+        # The head as well as the tail. Round 11: only the tail was measured, so five
+        # samples packed at the END of every long block left `clustered_blocks` at 0 and
+        # `worst_sample_gap` at 37 while real coverage fell from 6.2 to 3.8 per cent.
+        head = positions[0]
+        row["worst_sample_gap"] = max(row["worst_sample_gap"], worst, tail, head)
+        if max(worst, tail, head) > MAX_SAMPLE_GAP:
             row["clustered_blocks"] += 1
         short = b.length < SHORT_BLOCK
         for off in offsets:

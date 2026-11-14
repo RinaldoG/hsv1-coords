@@ -48,9 +48,11 @@ from __future__ import annotations
 
 import csv
 import pathlib
+
+from ._paths import data_path
 from dataclasses import dataclass, field
 
-DATA = pathlib.Path(__file__).resolve().parents[2] / "data" / "conventions.tsv"
+DATA = data_path("conventions.tsv")
 GENOME_BP = 152222
 # Each reference version has its own length. A bounds check must use the length of the
 # version the coordinate is actually in. An earlier version of this module used a
@@ -394,7 +396,14 @@ class ConventionSet:
         return cls(out)
 
     def __getitem__(self, name: str) -> Convention:
-        return self._by_name[name]
+        try:
+            return self._by_name[name]
+        except KeyError:
+            # Round 11: a bare `KeyError: 'hg38'` with no list of what is valid, while
+            # `Convention.from_record` names its four records on a bad one.
+            raise KeyError(
+                f"unknown convention {name!r}; this resolver holds "
+                f"{sorted(self._by_name)}") from None
 
     @property
     def names(self) -> list[str]:
@@ -501,6 +510,11 @@ class ConventionSet:
         return None
 
     def _usable_native(self, position: int, c: Convention) -> tuple[bool, str]:
+        # Round 11: `usable(5.5, ...)` answered while `report(5.5)` raised, which is the
+        # same package disagreeing with itself about what a coordinate is. Every other
+        # entry point in the library refuses a non-int.
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         limit = VERSION_LENGTHS.get(c.reference_version, GENOME_BP)
         if not 1 <= position <= limit:
             return False, (f"outside {c.reference_version}, which is 1 to {limit:,}")
