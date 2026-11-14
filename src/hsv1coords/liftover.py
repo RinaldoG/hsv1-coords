@@ -158,6 +158,32 @@ class Crosswalk:
             return None
         return self._to_deposited(b.query_start + (p - b.target_start) + 1)
 
+    def unmapped_stretch(self, position: int) -> tuple[int, int] | None:
+        """The run of deposited positions around `position` that has no coordinate.
+
+        1-based and inclusive, in the deposited frame, or None when the position does
+        lift. Round 10: the decline message keyed on a per-genome number, so a two-base
+        insertion was described as a missing segment. The size of the stretch the
+        position actually sits in is the thing that distinguishes them.
+        """
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        limit = self.deposited_length or 0
+        if position < 1 or (limit and position > limit):
+            return None
+        if self.to_reference(position) is not None:
+            return None
+        aligned = self._to_aligned(position) - 1
+        i = bisect.bisect_right(self._q_starts, aligned) - 1
+        start = 0
+        if i >= 0:
+            block = self.blocks[i]
+            start = block.query_start + block.length
+        end = (self.blocks[i + 1].query_start - 1 if i + 1 < len(self.blocks)
+               else max(start, limit - 1))
+        lo, hi = self._to_deposited(start + 1), self._to_deposited(end + 1)
+        return (min(lo, hi), max(lo, hi))
+
     @property
     def mapped_bases(self) -> int:
         return sum(b.length for b in self.blocks)
@@ -287,13 +313,19 @@ segment. The threshold only decides the wording of a decline, never a coordinate
 
 def _why_no_coordinate(source: str, target: str, position: int,
                        directory: pathlib.Path | None) -> str:
-    """The reason a lift declined, naming a missing segment where that is the cause.
+    """The reason a lift declined, naming a missing segment only where that is the cause.
 
     Round 9: this said "no reference coordinate for this position" whether the position
     sat in a small insertion or inside the 30 kb of `ON783215.1` that the crosswalk does
     not represent at all, because that genome's short segment is deposited inverted and
-    alignments on the other strand are dropped. A user lifting a variant in gD or ICP4
-    out of it got None with no way to tell the difference.
+    alignments on the other strand are dropped.
+
+    Round 10: the first fix keyed on `reverse_strand_bp`, which is a fact about the
+    genome and not about the position, so every ordinary decline in that genome, such as
+    a two-base insertion at 1,776, was told it was in a missing segment. Replacing
+    silence with a wrong reason is worse than the silence. The position's own unmapped
+    stretch decides now: a gap the size of a segment gets the segment explanation, a
+    two-base gap gets the plain one, and the gap is stated either way.
     """
     plain = "no reference coordinate for this position"
     if source == REFERENCE:
@@ -302,14 +334,21 @@ def _why_no_coordinate(source: str, target: str, position: int,
         cw = Crosswalk.load(source, directory)
     except FileNotFoundError:          # pragma: no cover
         return plain
-    if cw.reverse_strand_bp < SEGMENT_BP:
+    gap = cw.unmapped_stretch(position)
+    if gap is None:
         return plain
-    return (f"no reference coordinate for this position. {source} has "
+    start, end = gap
+    size = end - start + 1
+    where = (f"{plain}. It falls in an unmapped stretch of {source}, "
+             f"{start:,} to {end:,}, {size:,} bp")
+    if size < SEGMENT_BP or cw.reverse_strand_bp < SEGMENT_BP:
+        return where
+    return (f"{where}. That is a segment's worth: {source} has "
             f"{cw.reverse_strand_bp:,} bp that aligned to the reference on the opposite "
-            f"strand, which this crosswalk does not represent: it is deposited as a "
-            f"segmental isomer, with one segment inverted relative to the reference. "
-            f"Positions in that segment have no coordinate here at all, rather than "
-            f"having one that could not be placed")
+            f"strand, which this crosswalk does not represent, because the genome is "
+            f"deposited as a segmental isomer with one segment inverted relative to the "
+            f"reference. Positions there have no coordinate at all, rather than one "
+            f"that could not be placed")
 
 
 def lift(position: int, source: str, target: str,

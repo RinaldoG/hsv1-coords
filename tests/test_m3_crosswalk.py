@@ -153,6 +153,117 @@ class Monotonicity(unittest.TestCase):
             "position 900 must not resolve to the far copy of the terminal repeat")
 
 
+class TheBlocksComeFromTheAlignment(unittest.TestCase):
+    """Round 10's blocker: a block can be moved to another matching position.
+
+    The round 9 baseline pins each genome's base-agreement counts, which catches a block
+    whose bases stop matching the reference. It cannot catch a block moved to a different
+    position where the bases still match, and inside a tandem array the reference is
+    periodic, so such positions exist. A reviewer moved 34 blocks in 17 genomes that way:
+    3,868 positions lifted to a wrong reference coordinate, by 1 to 48 bp, with all 221
+    tests green. One of 36 such moves was caught, by a random 800-window sample, which is
+    luck rather than a gate.
+
+    Only an alignment can say where a block belongs, so this runs one and requires the
+    stored blocks to be identical to the derived ones, byte for byte, including the
+    header fields. `minimap2` is already a declared dependency of this milestone and the
+    cost is about 0.08 s per genome.
+
+    The sample rotates with the day so that the whole corpus is covered over time, and
+    the three reverse-complemented deposits plus the segmental isomer are always
+    included, because they are the cases where the derivation is least obvious.
+    """
+
+    ALWAYS = ("ON783216.1", "ON783217.1", "PQ569920.1", "ON783215.1")
+    SAMPLE = 12
+
+    @classmethod
+    def setUpClass(cls):
+        import shutil
+        for need in ("ref_NC_001806.2.gb", "genomes.fasta"):
+            if not (ROOT / "data" / "raw" / need).exists():
+                raise unittest.SkipTest(f"{need} is fetched, not committed")
+        if not shutil.which("minimap2"):
+            raise unittest.SkipTest(
+                "minimap2 is not installed. It is a declared dependency of this "
+                "milestone, and without it the blocks cannot be checked against an "
+                "alignment, only against themselves.")
+        from build_crosswalk import genbank_sequence, read_fasta
+        cls.ref = genbank_sequence(ROOT / "data" / "raw" / "ref_NC_001806.2.gb")
+        cls.genomes = read_fasta(ROOT / "data" / "raw" / "genomes.fasta")
+
+    def _sample(self, seed: int | None = None) -> list[str]:
+        """The genomes to re-align. Deterministic for a given seed.
+
+        The seed is the day, so a failure is reproducible for anyone who runs the suite
+        that day, and the corpus is covered over a fortnight rather than the same twelve
+        genomes forever. The seed is a parameter so the rotation itself can be tested;
+        `datetime.date.today` cannot be monkeypatched, which is how the first version of
+        that test failed.
+        """
+        import datetime
+        available = [a for a in Crosswalk.available(CROSSWALK) if self.genomes.get(a)]
+        rotating = [a for a in available if a not in self.ALWAYS]
+        if seed is None:
+            seed = datetime.date.today().toordinal()
+        rng = random.Random(seed)
+        rng.shuffle(rotating)
+        return [a for a in self.ALWAYS if a in available] + rotating[:self.SAMPLE]
+
+    def test_the_stored_blocks_are_the_blocks_an_alignment_gives(self):
+        import tempfile
+        from build_crosswalk import derive_blocks
+        tmp = pathlib.Path(tempfile.mkdtemp())
+        ref_fa = tmp / "ref.fa"
+        ref_fa.write_text(">ref\n" + self.ref + "\n")
+        checked, differences = 0, []
+        for acc in self._sample():
+            blocks, orientation, reverse_bp, _, _ = derive_blocks(
+                acc, self.genomes[acc], tmp / "query.fa", ref_fa)
+            cw = Crosswalk.load(acc, CROSSWALK)
+            stored = sorted((x.query_start, x.target_start, x.length)
+                            for x in cw.blocks)
+            checked += 1
+            with self.subTest(accession=acc):
+                if sorted(blocks) != stored:
+                    missing = sorted(set(map(tuple, blocks)) - set(stored))[:3]
+                    extra = sorted(set(stored) - set(map(tuple, blocks)))[:3]
+                    differences.append((acc, f"{len(blocks)} derived against "
+                                             f"{len(stored)} stored",
+                                        f"in the alignment only: {missing}",
+                                        f"in the file only: {extra}"))
+                self.assertEqual(orientation, cw.orientation,
+                                 f"{acc}: the file states the wrong frame")
+                self.assertEqual(reverse_bp, cw.reverse_strand_bp,
+                                 f"{acc}: the file states the wrong dropped amount")
+                self.assertEqual(cw.deposited_length, len(self.genomes[acc]),
+                                 f"{acc}: the file states the wrong length")
+        self.assertEqual(
+            differences, [],
+            f"{len(differences)} genomes' stored blocks are not what an alignment of "
+            f"the deposited sequence gives: {differences}")
+        self.assertGreaterEqual(checked, self.SAMPLE,
+                                f"only {checked} genomes were re-aligned")
+        print(f"\n    re-aligned {checked} genomes; stored blocks identical to the "
+              f"alignment in all of them")
+
+    def test_the_sample_rotates(self):
+        """A fixed sample would protect twelve genomes and leave 171 open."""
+        import datetime
+        today = datetime.date.today().toordinal()
+        self.assertEqual(self._sample(today), self._sample(today),
+                         "the sample is not reproducible for a given day, so a failure "
+                         "could not be repeated")
+        seen = set()
+        for offset in range(14):
+            seen.update(self._sample(today + offset))
+        self.assertGreater(
+            len(seen), self.SAMPLE * 3,
+            f"a fortnight of samples covers only {len(seen)} genomes, so the rotation "
+            f"is not actually rotating")
+        self.assertLessEqual(len(self._sample(today)), self.SAMPLE + len(self.ALWAYS))
+
+
 class ADroppedSegmentSaysSo(unittest.TestCase):
     """Round 9: `ON783215.1` is deposited as a segmental isomer.
 
@@ -187,11 +298,43 @@ class ADroppedSegmentSaysSo(unittest.TestCase):
         self.assertIn("segmental isomer", str(result),
                       "the reason does not reach the printed form, so nobody is told")
 
-    def test_an_ordinary_decline_is_not_dressed_up_as_a_missing_segment(self):
-        """The control: most declines are small insertions and must stay plain."""
+    def test_an_ordinary_decline_in_the_same_genome_is_not_dressed_up(self):
+        """The control, in the genome that has the segment.
+
+        Round 10: the first version of this used a different genome, so it could not
+        exercise the case at all, which is PITFALLS root cause 12 (verifying a fix with
+        inputs that cannot reach it). Inside `ON783215.1` every ordinary decline was
+        being told it was in a missing segment: position 1,776 sits in a two-base
+        insertion and got the whole paragraph about segmental isomers.
+        """
+        result = lift_detailed(1776, "ON783215.1", REFERENCE, CROSSWALK)
+        self.assertIsNone(result.position)
+        self.assertNotIn("segmental isomer", result.reason,
+                         "a two-base insertion is being described as a missing segment")
+        self.assertIn("2 bp", result.reason,
+                      "the decline does not say how large the unmapped stretch is")
+
+    def test_a_decline_in_another_genome_stays_plain(self):
         result = lift_detailed(900, "OP297884.1", REFERENCE, CROSSWALK)
         self.assertIsNone(result.position)
         self.assertNotIn("segmental isomer", result.reason)
+
+    def test_the_unmapped_stretch_is_the_one_the_position_is_in(self):
+        """The stretch is measured, so a wrong one would be visible here."""
+        cw = Crosswalk.load("ON783215.1", CROSSWALK)
+        start, end = cw.unmapped_stretch(140000)
+        self.assertLessEqual(start, 140000)
+        self.assertGreaterEqual(end, 140000)
+        for position in (start, end, 140000):
+            with self.subTest(position=position):
+                self.assertIsNone(cw.to_reference(position),
+                                  f"{position} is inside the stretch and lifts anyway")
+        self.assertIsNotNone(cw.to_reference(start - 1),
+                             "the stretch starts one base too late")
+        self.assertIsNotNone(cw.to_reference(end + 1),
+                             "the stretch ends one base too early")
+        self.assertIsNone(cw.unmapped_stretch(60000),
+                          "a position that lifts has no unmapped stretch")
 
     def test_every_block_file_states_how_much_it_dropped(self):
         missing = [acc for acc in Crosswalk.available(CROSSWALK)
@@ -278,8 +421,14 @@ class SequenceAgreement(unittest.TestCase):
             "recorded in base_agreement.tsv; run `make agreement`")
         differences = []
         for acc, row in sorted(measured.items()):
-            for field in ("scored", "matching", "short_scored", "short_matching",
-                          "blocks", "mapped_bp", "deposited_length"):
+            # Every column, not seven of fourteen. Round 10: six of the recorded
+            # columns were written and never read, so `orientation`,
+            # `sequence_length`, `sampled_blocks`, `unsampled_bp`, `thin_blocks` and
+            # `sampled_positions` could be set to anything in a file whose own header
+            # says "pinned exactly".
+            for field in build_base_agreement.COLUMNS:
+                if field == "accession":
+                    continue
                 if row[field] != recorded[acc][field]:
                     differences.append(
                         (acc, field, recorded[acc][field], row[field]))
@@ -359,6 +508,22 @@ class SequenceAgreement(unittest.TestCase):
             f"{build_base_agreement.MIN_SAMPLES} positions without being sampled "
             f"exhaustively, so their agreement figure carries no information about the "
             f"bases between the samples: {thin[:8]}")
+        # The spread, because the count cannot see clustering. Round 10: `thin_blocks`
+        # is inert at the current parameters, so this check was the third version of
+        # itself that could not fail, and a sampling that packed six samples into the
+        # first six bases of every block left every printed figure identical.
+        clustered = [(acc, r["clustered_blocks"]) for acc, r in sorted(measured.items())
+                     if r["clustered_blocks"]]
+        worst_gap = max(r["worst_sample_gap"] for r in measured.values())
+        self.assertEqual(
+            clustered, [],
+            f"{sum(n for _, n in clustered)} blocks have a gap between consecutive "
+            f"sampled positions larger than "
+            f"{build_base_agreement.MAX_SAMPLE_GAP} bp, so part of the block is further "
+            f"from any scored base than the sampling claims: {clustered[:8]}")
+        self.assertLessEqual(
+            worst_gap, build_base_agreement.MAX_SAMPLE_GAP,
+            f"the largest gap between sampled positions is {worst_gap} bp")
         print(f"    coverage: {positions:,} positions sampled in {blocks:,} blocks "
               f"over {mapped:,} mapped bases ({100 * positions / mapped:.1f} per cent "
               f"of them), 0 blocks unsampled, 0 sampled too thinly")
@@ -395,10 +560,10 @@ class SequenceAgreement(unittest.TestCase):
                     "setting the short-block cutoff to 0 changed nothing, so the "
                     "cutoff is not what decides this gate's coverage")
                 self.assertGreater(
-                    mutant["thin_blocks"], 0,
+                    mutant["thin_blocks"] + mutant["clustered_blocks"], 0,
                     "with the cutoff at 0, short blocks get one sample each and must "
-                    "be reported as sampled too thinly; they were not, so the "
-                    "coverage count is not measuring coverage")
+                    "be reported as sampled too thinly or too unevenly; they were not, "
+                    "so the coverage count is not measuring coverage")
 
     def test_the_last_base_of_every_block_matches(self):
         """A sharper invariant than the pooled rate, and sensitive to one base.
@@ -453,6 +618,40 @@ class SequenceAgreement(unittest.TestCase):
             f"the block offsets have moved, not that the assemblies differ.")
         print(f"    block tails: {rate:.3f} per cent match over {scored:,} blocks")
 
+    def test_a_position_before_the_first_block_declines(self):
+        """Fable's finding: no test probed a real position before the first block.
+
+        `test_position_before_the_first_block_returns_none` passes position 0, which is
+        refused by the `position < 1` guard before any block is consulted, so changing
+        the no-block-found branch to return the first block's reference start left the
+        suite green while every position before a genome's first block got a confident
+        wrong coordinate.
+        """
+        probed = 0
+        for acc in Crosswalk.available(CROSSWALK):
+            cw = Crosswalk.load(acc, CROSSWALK)
+            if not cw.blocks:
+                continue
+            first = min(b.query_start for b in cw.blocks)
+            if first < 1:
+                continue        # nothing lies before it in this genome
+            # `query_start` is 0-based, so the first mapped base is `first + 1` in the
+            # 1-based deposited frame and `first` is the base before it.
+            inside = cw._to_deposited(first + 1)
+            before = cw._to_deposited(first)
+            probed += 1
+            with self.subTest(accession=acc):
+                self.assertIsNotNone(
+                    cw.to_reference(inside),
+                    f"{acc}: the first mapped base does not lift, so this test is not "
+                    f"probing the boundary it names")
+                self.assertIsNone(
+                    cw.to_reference(before),
+                    f"{acc}: a position before the first block returned a coordinate")
+        self.assertGreater(probed, 20,
+                           f"only {probed} genomes have anything before their first "
+                           f"block, so this proves little")
+
     def test_every_block_file_states_the_length_of_its_own_genome(self):
         """`deposited_length` against the sequence, which nothing checked.
 
@@ -469,7 +668,10 @@ class SequenceAgreement(unittest.TestCase):
             if not seq:
                 continue
             cw = Crosswalk.load(acc, CROSSWALK)
-            if cw.deposited_length is not None and cw.deposited_length != len(seq):
+            # `is not None` made a file that states no length pass a test named for
+            # stating it, and `measure` falls back to `len(seq)`, so the baseline missed
+            # it too. A missing frame already raises; a missing length must fail here.
+            if cw.deposited_length != len(seq):
                 wrong.append((acc, cw.deposited_length, len(seq)))
         self.assertEqual(
             wrong, [],

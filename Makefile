@@ -1,4 +1,4 @@
-.PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap agreement testcases check test clean
+.PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap agreement verify-crosswalk testcases check test clean
 
 all: inputs genomes names aliases annotation crosswalk versions repeatmap agreement testcases check test
 
@@ -28,6 +28,9 @@ repeatmap:     ## build the repeat and diploid-locus map
 
 agreement:     ## pin every genome's measured base agreement with the reference
 	python3 -I src/build_base_agreement.py
+
+verify-crosswalk:  ## check every COMMITTED block file against a fresh alignment
+	python3 -I src/verify_crosswalk.py
 
 testcases:     ## regenerate the machine-readable synonymy test cases from the prose doc
 	python3 -I src/build_testcases.py

@@ -33,6 +33,7 @@ jobs:
       - name: Fetch inputs
         run: make inputs
 
+
       - name: Fail if any input changed upstream
         # `make inputs` rewrites MANIFEST.tsv, so checking files against the manifest it
         # has just written proves nothing: that gate cannot fail. Diffing the regenerated
@@ -46,6 +47,16 @@ jobs:
       - name: Fetch the pinned genome set
         run: make genomes
 
+      - name: Check the COMMITTED crosswalk against a fresh alignment
+        # Before the rebuild below overwrites it, which is the only moment a corrupted
+        # committed block file is still visible. Round 10: a block moved to another
+        # position where the bases still match is invisible to every sequence-identity
+        # check, because inside a tandem array the reference is periodic, and 3,868
+        # positions were put at a wrong coordinate with the whole suite green. The
+        # rebuild-and-diff step below would also catch it, but only as a diff in 183
+        # files; this names the block.
+        run: make verify-crosswalk
+
       - name: Rebuild every derived artefact
         run: |
           make names
@@ -54,6 +65,7 @@ jobs:
           make crosswalk
           make versions
           make repeatmap
+          make agreement
           make testcases
 
       - name: Fail if any rebuilt file differs from what is committed

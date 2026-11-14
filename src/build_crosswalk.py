@@ -263,6 +263,48 @@ def align(query_fa: pathlib.Path, ref_fa: pathlib.Path) -> list[list[str]]:
     return [line.split("\t") for line in proc.stdout.splitlines() if line.strip()]
 
 
+def derive_blocks(acc: str, sequence: str, q_fa: pathlib.Path,
+                  ref_fa: pathlib.Path) -> tuple[list[tuple[int, int, int]], str, int,
+                                                 list, list]:
+    """Align one genome and reduce it to the blocks this repository stores.
+
+    Extracted in round 10 so that the gate can re-derive a genome's blocks from the
+    sequence and compare them to the committed file, rather than checking the file
+    against itself. The baseline added in round 9 pins each genome's base-agreement
+    counts, which catches a block whose bases stop matching; it cannot catch a block
+    moved to another position where the bases still match, and inside a tandem array
+    the reference is periodic, so such positions exist. A reviewer moved 34 blocks in 17
+    genomes that way: 3,868 positions lifted to a wrong coordinate, offsets of 1 to 48
+    bp, with the whole suite green.
+
+    An alignment is the only thing that can say where a block belongs, so the gate runs
+    one. Returns the blocks together with everything the header records, so the gate
+    checks those too.
+    """
+    seq = sequence
+    q_fa.write_text(f">{acc}\n{seq}\n")
+    rows = align(q_fa, ref_fa)
+    orientation = "forward"
+    if rows and all(f[4] == "-" for f in rows):
+        seq = seq.upper().translate(str.maketrans("ACGTN", "TGCAN"))[::-1]
+        q_fa.write_text(f">{acc}\n{seq}\n")
+        rows = align(q_fa, ref_fa)
+        orientation = "reverse_complemented"
+    reverse_strand_bp = sum(int(f[3]) - int(f[2]) for f in rows if f[4] != "+")
+    blocks: list[tuple[int, int, int]] = []
+    for f in rows:
+        if f[4] != "+":
+            continue
+        cs = next((x[5:] for x in f[12:] if x.startswith("cs:Z:")), None)
+        if not cs:
+            continue
+        blocks.extend(blocks_from_cs(int(f[2]), int(f[7]), cs))
+    blocks.sort()
+    blocks, dropped = drop_ambiguous(blocks)
+    blocks, non_mono = drop_non_monotonic(blocks)
+    return blocks, orientation, reverse_strand_bp, dropped, non_mono
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--limit", type=int, default=0, help="only process N genomes")
@@ -292,6 +334,7 @@ def main() -> int:
         q_fa = tmp / "q.fa"
         q_fa.write_text(f">{acc}\n{seq}\n")
         deposited_length = len(seq)
+        original_seq = seq
         rows = align(q_fa, ref_fa)
         orientation = "forward"
         if rows and all(f[4] == "-" for f in rows):
@@ -323,6 +366,11 @@ def main() -> int:
         blocks.sort()
         blocks, dropped = drop_ambiguous(blocks)
         blocks, non_mono = drop_non_monotonic(blocks)
+        # The same derivation the gate re-runs, so the two cannot drift apart. Checked
+        # here rather than trusted: if `derive_blocks` and this loop ever disagree, the
+        # gate is checking something the build does not produce.
+        assert blocks == derive_blocks(acc, original_seq, q_fa, ref_fa)[0], (
+            f"{acc}: derive_blocks does not reproduce the build's own blocks")
         mapped = sum(b[2] for b in blocks)
         out = CROSSWALK / f"{acc}.blocks.tsv"
         with out.open("w") as fh:

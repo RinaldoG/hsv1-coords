@@ -43,18 +43,33 @@ STRIDE = 37
 
 COLUMNS = ["accession", "orientation", "deposited_length", "sequence_length",
            "blocks", "mapped_bp", "sampled_blocks", "unsampled_bp", "thin_blocks",
-           "sampled_positions", "scored", "matching", "short_scored",
-           "short_matching"]
+           "clustered_blocks", "worst_sample_gap", "sampled_positions", "scored",
+           "matching", "short_scored", "short_matching"]
 
 MIN_SAMPLES = 5
 """The fewest samples a block may contribute unless it is scored at every base.
 
-A block sampled once is a block whose agreement figure is 0 or 100 per cent, which
-carries no information about the other bases in it. Round 9 found the coverage test
-could not fail, and the first replacement asserted only that every block gets at least
-one sample. With a stride of 37 that is true of every block of any length, including a
-3 bp block, so it was a second tautology in the same place. Density is the thing: a
-block either gets `MIN_SAMPLES` samples or it gets all of them.
+Round 10 found this inert, which makes it the third version of this check that could not
+fail. With `SHORT_BLOCK = 200` and `STRIDE = 37`, a block under 200 bp is scored at every
+base, so the "unless" clause is always satisfied, and a block of 200 bp or more yields at
+least ceil(200/37) = 6 samples, so the floor of 5 is always met. No block of any length
+could be counted thin, and `MIN_SAMPLES` could be set anywhere from 2 to 6 with the suite
+green.
+
+It is kept, because it is the right condition if those parameters change, and the gate
+now also measures the thing the count could not see: the largest gap between consecutive
+sampled positions inside a block. That is what distinguishes real coverage from a sample
+that has been quietly clustered, which was the reviewer's successful attack: replacing
+the stride with six samples packed into the first six bases of every block left every
+printed coverage figure identical.
+"""
+
+MAX_SAMPLE_GAP = STRIDE
+"""The largest allowed distance between consecutive sampled positions inside a block.
+
+A stride of `STRIDE` gives gaps of exactly `STRIDE`; exhaustive scoring gives gaps of 1.
+Anything larger means part of the block is further from a sampled base than the sampling
+claims, which is how a clustered sample looks.
 """
 
 
@@ -83,6 +98,7 @@ def measure(accession: str, sequence: str, reference: str,
            "deposited_length": cw.deposited_length or len(seq),
            "sequence_length": len(seq), "blocks": len(cw.blocks), "mapped_bp": 0,
            "sampled_blocks": 0, "unsampled_bp": 0, "thin_blocks": 0,
+           "clustered_blocks": 0, "worst_sample_gap": 0,
            "sampled_positions": 0, "scored": 0, "matching": 0,
            "short_scored": 0, "short_matching": 0}
     for b in cw.blocks:
@@ -95,6 +111,17 @@ def measure(accession: str, sequence: str, reference: str,
         row["sampled_positions"] += len(offsets)
         if len(offsets) < min(MIN_SAMPLES, b.length) and len(offsets) != b.length:
             row["thin_blocks"] += 1
+        # The spread, not just the count. A block sampled six times in its first six
+        # bases has the same count as one sampled every 37th base and tells you nothing
+        # about the rest of itself.
+        positions = list(offsets)
+        gaps = [second - first
+                for first, second in zip(positions, positions[1:])]
+        worst = max(gaps) if gaps else b.length
+        tail = b.length - positions[-1]
+        row["worst_sample_gap"] = max(row["worst_sample_gap"], worst, tail)
+        if worst > MAX_SAMPLE_GAP or tail > MAX_SAMPLE_GAP:
+            row["clustered_blocks"] += 1
         short = b.length < SHORT_BLOCK
         for off in offsets:
             dep = cw._to_deposited(b.query_start + off + 1)
