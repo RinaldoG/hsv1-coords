@@ -6,12 +6,15 @@ test_discrepancy_is_documented_not_resolved below.
 """
 from __future__ import annotations
 
+import collections
 import csv
 import pathlib
 import re
+import sys
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "src"))
 VERSION = "0.1.0"
 TABLE = ROOT / "data" / "derived" / f"annotation_v{VERSION}.tsv"
 SUMMARY = ROOT / "data" / "derived" / "annotation_summary.md"
@@ -87,20 +90,78 @@ class Provenance(unittest.TestCase):
 
 class Classification(unittest.TestCase):
     def test_classes_are_from_the_declared_set(self):
-        declared = {"sORF", "uORF", "uoORF", "iORF", "dORF", "transcript_span",
-                    "novel_orf_2020", "primary_mirna", "named_gene", "other",
-                    # features carrying no /gene qualifier, added after review
-                    "repeat_region", "stem_loop", "rep_origin", "misc_feature",
-                    "regulatory", "misc_RNA"}
-        found = {r["feature_class"] for r in rows()}
-        self.assertEqual(found - declared, set(), f"undeclared classes: {found - declared}")
+        """The declared set comes from the builder, not from a list retyped here.
 
-    def test_transcript_spans_are_not_counted_as_genes(self):
-        """A span across two genes is not a gene, and the class must say so."""
+        It was retyped, so adding two classes in round 10 failed this test for the wrong
+        reason: the classes were declared and described in the builder and in the
+        published summary, and only this copy of the list disagreed. A second copy of a
+        declaration is a thing that goes stale.
+        """
+        from build_annotation import CLASS_RULES, DEFAULT_CLASS, UNNAMED_CLASSES
+        declared = ({label for label, _, _ in CLASS_RULES}
+                    | {DEFAULT_CLASS[0]}
+                    | {cls for cls, _ in UNNAMED_CLASSES.values() if cls})
+        found = {r["feature_class"] for r in rows()}
+        self.assertEqual(found - declared, set(),
+                         f"classes in the table that the builder does not declare: "
+                         f"{found - declared}")
+        self.assertGreater(len(found), 8,
+                           f"only {len(found)} classes are in use, so this proves little")
+
+    def test_every_class_the_builder_declares_is_described(self):
+        """A class with no description is a column heading with no meaning."""
+        from build_annotation import CLASS_RULES, DEFAULT_CLASS, UNNAMED_CLASSES
+        described = {label: desc for label, _, desc in CLASS_RULES}
+        described[DEFAULT_CLASS[0]] = DEFAULT_CLASS[1]
+        described.update({cls: desc for cls, desc in UNNAMED_CLASSES.values() if cls})
+        thin = sorted(cls for cls, desc in described.items() if len(desc or "") < 20)
+        self.assertEqual(thin, [], f"these classes have no real description: {thin}")
+
+    SYSTEMATIC = r"(UL|US|RL|RS|IRL|IRS|TRL|TRS)\d+(\.\d+)?"
+
+    def test_a_span_between_two_systematic_names_is_not_a_gene(self):
         for r in rows():
-            if re.match(r"^[A-Za-z0-9.]+-[A-Za-z0-9.]+$", r["name"]):
+            if re.match(rf"^{self.SYSTEMATIC}-{self.SYSTEMATIC}$", r["name"]):
                 with self.subTest(name=r["name"]):
-                    self.assertNotEqual(r["feature_class"], "named_gene")
+                    self.assertEqual(r["feature_class"], "transcript_span")
+
+    def test_a_hyphenated_name_that_is_not_a_span_is_not_called_one(self):
+        """Round 10: the span rule matched any hyphenated name.
+
+        So AL-RNA, ORF-O, ORF-P, Ori-S and gG-1 were all classed as transcript units
+        spanning more than one gene, and the count of spans quoted in ROADMAP.md
+        included them. The old test here reused the rule's own regex to decide which
+        names were spans, so it restated the rule instead of checking it and could not
+        fail.
+        """
+        wrong = [(r["name"], r["feature_class"]) for r in rows()
+                 if "-" in r["name"]
+                 and not re.match(rf"^{self.SYSTEMATIC}-{self.SYSTEMATIC}$", r["name"])
+                 and r["feature_class"] == "transcript_span"]
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} names are classed as spanning two genes without being two "
+            f"systematic names joined: {wrong[:8]}")
+
+    def test_the_named_transcripts_are_classed_by_what_they_are(self):
+        """The five names the loose rule mislabelled, now checked by name."""
+        expected = {"AL-RNA": "lat_region", "ORF-O": "lat_region",
+                    "ORF-P": "lat_region", "LAT": "lat_region",
+                    "Ori-S": "origin_locus", "UL49A": "named_gene",
+                    "US8A": "named_gene", "UL26.5": "named_gene"}
+        # Gene-like rows only: a regulatory element that carries `/gene=LAT` is a
+        # regulatory element, which is the whole point of classing by feature type, so
+        # it is not evidence about how LAT itself is classed.
+        from build_annotation import GENE_LIKE_TYPES
+        found = {}
+        for r in rows():
+            if r["name"] in expected and r["feature_type"] in GENE_LIKE_TYPES:
+                found.setdefault(r["name"], set()).add(r["feature_class"])
+        for name, want in sorted(expected.items()):
+            with self.subTest(name=name):
+                self.assertIn(name, found, f"{name} is not in the table at all")
+                self.assertEqual(found[name], {want},
+                                 f"{name} is classed {found[name]}, not {want}")
 
     def test_every_class_in_the_summary_appears_in_the_table(self):
         summary = SUMMARY.read_text()
@@ -186,6 +247,110 @@ class DocumentedDiscrepancy(unittest.TestCase):
         for required in ("77", "300", "transcript"):
             self.assertIn(required, section,
                           f"the changelog does not mention {required!r}")
+
+
+class StrandSurvivesEverySource(unittest.TestCase):
+    """Round 10's blocker: the GTF's strand column was never read.
+
+    `parse_gtf` built the location from the start and end columns only, so 423 of that
+    file's 910 lines, on the minus strand, reached this table as a plain `start..end`
+    range. The same features from the GenBank-format version of the same annotation
+    carry `complement(...)`, so the absence read as a positive assertion of the plus
+    strand for 83 genes, UL23, UL27, UL29, UL48 and IRS1 among them. Anyone pulling
+    codons for those got the reverse complement of a coding sequence.
+
+    Stripping `complement(` from every location in the table left the suite green.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        gtf = ROOT / "data" / "raw" / "HSV1_Annotation.gtf"
+        if not gtf.exists():
+            raise unittest.SkipTest("HSV1_Annotation.gtf is fetched, not committed")
+        cls.gtf = gtf
+
+    def test_every_minus_strand_gtf_line_is_complemented_in_the_table(self):
+        from extract_names import parse_gtf
+        expected = {}
+        for f in parse_gtf(self.gtf):
+            key = (f["gene"], f["_type"], f["_location"].strip("complement()"))
+            expected[key] = f["strand"]
+        minus = sum(1 for v in expected.values() if v == "-")
+        self.assertGreater(minus, 300,
+                           f"only {minus} minus-strand features in the GTF, so this "
+                           f"gate is checking almost nothing")
+        wrong = []
+        for r in rows():
+            if r["source"] != "whisnant2020-gtf":
+                continue
+            bare = r["location"].replace("complement(", "").rstrip(")")
+            strand = expected.get((r["name"], r["feature_type"], bare))
+            if strand is None:
+                continue
+            complemented = r["location"].startswith("complement(")
+            if (strand == "-") != complemented:
+                wrong.append((r["name"], r["feature_type"], r["location"], strand))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} rows disagree with the GTF's own strand column "
+            f"(name, type, location, strand): {wrong[:8]}")
+
+    def test_the_two_formats_of_the_same_annotation_agree_on_strand(self):
+        """`BK012101.1` and the GTF are one annotation in two formats, per the builder.
+
+        Where both state the same feature at the same coordinates, they must agree about
+        the strand. This is the check that would have caught the defect without knowing
+        the GTF format at all.
+        """
+        def index(source):
+            out = {}
+            for r in rows():
+                if r["source"] != source:
+                    continue
+                bare = r["location"].replace("complement(", "").rstrip(")")
+                out[(r["name"], r["feature_type"], bare)] = \
+                    r["location"].startswith("complement(")
+            return out
+        bk, gtf = index("BK012101.1"), index("whisnant2020-gtf")
+        shared = sorted(set(bk) & set(gtf))
+        self.assertGreater(len(shared), 20,
+                           f"only {len(shared)} features are stated in both formats, so "
+                           f"this comparison proves little")
+        disagree = [k for k in shared if bk[k] != gtf[k]]
+        self.assertEqual(
+            disagree, [],
+            f"{len(disagree)} features are on opposite strands in the two formats of "
+            f"the same annotation: {disagree[:6]}")
+
+    def test_the_product_column_is_not_a_biotype(self):
+        """`gene_type` is "protein_coding" on all 910 GTF lines, LAT included.
+
+        It was being written into `product`, so the table asserted that LAT and the
+        pri-miRNAs have the product "protein_coding". It belongs in `subtype`.
+        """
+        products = {r["product"] for r in rows() if r["source"] == "whisnant2020-gtf"}
+        self.assertNotIn("protein_coding", products,
+                         "the product column still carries the GTF's biotype")
+        subtypes = {r["subtype"] for r in rows() if r["source"] == "whisnant2020-gtf"}
+        self.assertIn("protein_coding", subtypes,
+                      "the biotype was dropped rather than moved")
+
+    def test_the_regulatory_subtypes_are_recoverable(self):
+        """`regulatory_class` was dropped, so TATA_box and polyA_signal were gone."""
+        subtypes = collections.Counter(
+            r["subtype"] for r in rows() if r["feature_type"] == "regulatory")
+        self.assertGreater(subtypes["polyA_signal_sequence"], 40,
+                           f"polyadenylation signals are not identifiable: {subtypes}")
+        self.assertGreater(subtypes["TATA_box"], 10,
+                           f"TATA boxes are not identifiable: {subtypes}")
+
+    def test_the_gtf_comments_are_kept(self):
+        """386 GTF lines carry the functional names and all 910 notes were empty."""
+        noted = [r for r in rows() if r["source"] == "whisnant2020-gtf" and r["notes"]]
+        self.assertGreater(len(noted), 200,
+                           f"only {len(noted)} GTF rows carry their comment")
+        self.assertTrue(any("ICP4" in r["notes"] for r in noted),
+                        "the comment naming ICP4 is not in the table")
 
 
 if __name__ == "__main__":

@@ -54,9 +54,12 @@ annotations are not compared as though they measured the same thing.
   criterion anticipated arbitrating between two conflicting annotations, and there is no
   conflict to arbitrate: one record is the other's successor on the same sequence with a
   wider scope. So it is met by recording that the difference is one of scope, and by making
-  the class column stop the two counts being compared directly again. 452 of that
-  record's features are transcript units spanning more than one gene, and a further 37 are
-  nested reading frames; the reference annotation describes none of either.
+  the class column stop the two counts being compared directly again. That record names
+  37 named transcript units spanning more than one gene, stated across 446 rows, counting
+  each gene, CDS and mRNA feature of a unit, and a further 17 nested reading frames; the
+  reference annotation describes none of either. This sentence said 452 until round 10,
+  which was the row count, under a rule that classed any hyphenated name as a span and so
+  counted AL-RNA, ORF-O, ORF-P and Ori-S among them.
 - **Outstanding:** parses with two independent GFF3 parsers, zero warnings. The current
   release is a classed feature table, not yet GFF3. GFF3 generation waits on the coordinate
   crosswalk (M3), because emitting one merged GFF3 across sources before the crosswalk
@@ -442,7 +445,7 @@ each is only honest beside its definition:
 |---|---|---|
 | The whole suite | **45 of 90** | A number anywhere in the four documents, changed one at a time, with the full suite re-run. Was 34 of 90 before round 7. |
 | This gate alone | **about 17 per cent** | Every standalone number in the four documents, changed one at a time, judged only by the figure-to-artefact comparison. Printed on every run as a count and a rate, with a floor on each, and this row is checked against the rate the run measures. Round 8 sampled 60 of these sites with a fixed seed and this row said 18 per cent, which was above the then-real figure of 15; the unchanged gate ranged from 8.3 to 23.3 per cent across other seeds, so the sample was narrower than its own spread and the row overstated it. The exact counts are printed by the run rather than written here, because they move whenever a document gains a number. |
-| `gate power` | **76 of 76** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
+| `gate power` | **77 of 77** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
 
 The gap between the first two is the rest of the suite: the per-occurrence reach check,
 the component-table count, the quoted-resolver output and the README example runner each

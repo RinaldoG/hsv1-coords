@@ -123,11 +123,23 @@ def derive() -> list[Fact]:
         facts.append(Fact("annotation_rows", len(rows),
                           ("feature rows", "rows across three sources",
                            "rows, up from")))
-        spans = sum(1 for r in rows if r["source"] == "BK012101.1"
-                    and r["feature_class"] == "transcript_span")
-        facts.append(Fact("transcript_spans", spans,
-                          ("of its named features are transcript",
-                           "of that record's features are transcript")))
+        # Distinct names, not rows. Round 10: this counted rows, so the figure in
+        # ROADMAP.md described how many gene, CDS and mRNA features the spans are
+        # stated across rather than how many spans there are, and the rule that
+        # classed them matched any hyphenated name, so AL-RNA, ORF-O, ORF-P and Ori-S
+        # were counted among them.
+        span_rows = [r for r in rows if r["source"] == "BK012101.1"
+                     and r["feature_class"] == "transcript_span"]
+        facts.append(Fact("transcript_spans", len({r["name"] for r in span_rows}),
+                          ("named transcript units spanning",)))
+        facts.append(Fact("transcript_span_rows", len(span_rows),
+                          ("rows, counting each gene",)))
+        nested = {"sORF", "uORF", "uoORF", "iORF", "dORF"}
+        facts.append(Fact(
+            "nested_orfs",
+            len({r["name"] for r in rows if r["source"] == "BK012101.1"
+                 and r["feature_class"] in nested}),
+            ("nested reading frames",)))
 
     aliases = DERIVED / "aliases_literature.tsv"
     if aliases.exists():

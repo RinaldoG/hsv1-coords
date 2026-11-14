@@ -92,9 +92,26 @@ def parse_gtf(path: pathlib.Path) -> list[dict]:
         if len(parts) < 9:
             continue
         attrs = dict(re.findall(r'(\w+)\s+"([^"]*)"', parts[8]))
-        out.append({"_type": parts[2], "_location": f"{parts[3]}..{parts[4]}",
+        # Column 7 is the strand, and it was not read. Round 10: 423 of this file's
+        # lines are on the minus strand and every one of them reached the annotation
+        # table as a plain `start..end` range, while the same features from the
+        # GenBank-format version of the same annotation carry `complement(...)`. The
+        # absence of `complement` therefore read as a positive assertion of the plus
+        # strand for 83 genes including UL23, UL27, UL29, UL48 and IRS1, and anyone
+        # pulling codons for them would have got the reverse complement of a CDS.
+        span = f"{parts[3]}..{parts[4]}"
+        location = f"complement({span})" if parts[6] == "-" else span
+        out.append({"_type": parts[2], "_location": location,
+                    "strand": parts[6],
                     "gene": attrs.get("gene_id", ""),
-                    "product": attrs.get("gene_type", ""),
+                    # `gene_type` is a biotype, not a product: it is the constant
+                    # "protein_coding" on all 910 lines, LAT and the pri-miRNAs
+                    # included. It was being written into the `product` column, where a
+                    # reader would take it for a product.
+                    "biotype": attrs.get("gene_type", ""),
+                    # The functional annotation this file does carry, which was being
+                    # discarded: `comment "(ICP4; IE175;)"`, `comment "(=pri-miRNA-H1)"`.
+                    "note": attrs.get("comment", "").strip("()"),
                     "transcript": attrs.get("transcript_id", "")})
     return out
 
