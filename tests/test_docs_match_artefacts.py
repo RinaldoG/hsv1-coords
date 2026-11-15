@@ -105,6 +105,42 @@ def phrasings(fact) -> list[tuple[str, str]]:
     return out
 
 
+REACHED_SITES = {
+    "alias_citations": 1, "alias_genes": 2, "alias_rows": 1, "alt_cds": 3,
+    "alt_genes": 3, "annotation_rows": 5, "conventions": 4, "diploid_pairs": 2,
+    "genome_bp": 11, "genome_v1_bp": 7, "genomes": 7, "inputs": 1,
+    "lat_in_szpara": 3, "lat_overhang_bp": 7, "long_repeat_bp": 1,
+    "median_mappable": 4, "nested_orfs": 2, "partial_pairs": 1,
+    "pooled_agreement": 2, "ref_cds": 3, "ref_genes": 1, "regions": 2,
+    "repeat_covered_bp": 1, "repeat_covered_percent": 2,
+    "revcomp_ON783216.1": 2, "revcomp_ON783217.1": 2, "revcomp_PQ569920.1": 2,
+    "reverse_complemented": 1, "scored_positions": 1, "short_repeat_bp": 1,
+    "transcript_span_rows": 2, "transcript_spans": 2, "version_blocks": 4,
+    "version_offsets": 4, "worst_agreement": 2,
+}
+"""How many places in the four documents each fact's phrasings actually reach.
+
+Why this table exists. Round 12 measured the depth of the gate against the likeliest
+careless edit: deleting a phrasing while rewording a sentence. Removing
+`lat_overhang_bp`'s "bp beyond the end of" and "which runs", then changing the sentence
+those covered from 778 to 878, left every floor intact (35 of 35 figures gated, the
+power count and the catch rate both above their floors) and failed exactly one test,
+whose message named the number to change: "81 != 79". Changing that one number in
+ROADMAP.md re-opened the hole with the suite green.
+
+The reach test cannot see it, because it sweeps for occurrences of the CORRECT value and
+a falsified sentence no longer holds one. The contradiction check cannot see it, because
+the phrasing that would have found the sentence is the thing that was deleted.
+
+So the count is pinned per fact. A deleted phrasing now fails with the fact's name and
+the sentence it stopped reaching, which cannot be repaired by copying a number out of
+the failure message: lowering an entry here is a written statement that a figure is
+gated in fewer places than it was, which is a different claim from "the total moved".
+These numbers move whenever the documents gain or lose a sentence stating a figure, and
+raising one is ordinary. Lowering one needs a reason in the commit message.
+"""
+
+
 class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
     """The gate. One subtest per (document, phrasing) pair that appears."""
 
@@ -153,6 +189,40 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                          f"delete it; a phrasing carried 'for future wording' hides a "
                          f"hole:\n  " + "\n  ".join(f"{k}: {n!r}" for k, n in dead))
 
+    def test_no_fact_reaches_fewer_sentences_than_it_did(self):
+        """Per fact, not per total. See REACHED_SITES for why."""
+        measured = {}
+        for fact in self.facts:
+            measured[fact.key] = sum(
+                len(re.findall(pattern, body, re.I))
+                for _, pattern in phrasings(fact)
+                for body in self.bodies.values())
+        lost, gained = [], []
+        for key, was in sorted(REACHED_SITES.items()):
+            now = measured.get(key)
+            if now is None:
+                lost.append(f"{key}: the fact no longer exists")
+            elif now < was:
+                sites = [f"{n!r}" for n, pattern in
+                         phrasings(next(f for f in self.facts if f.key == key))
+                         if not any(re.search(pattern, b, re.I)
+                                    for b in self.bodies.values())]
+                lost.append(f"{key}: reaches {now} sentences, {was} recorded; "
+                            f"phrasings reaching nothing: {sites or 'none'}")
+            elif now > was:
+                gained.append(f"{key}: {was} -> {now}")
+        self.assertEqual(
+            lost, [],
+            f"{len(lost)} figures are gated in fewer sentences than REACHED_SITES "
+            f"records. A phrasing was probably deleted while rewording a sentence, "
+            f"which leaves that sentence ungated and is how round 12 falsified 778 to "
+            f"878 in README.md with the suite otherwise green. Restore the phrasing, or "
+            f"lower the entry and say why in the commit message:\n  "
+            + "\n  ".join(lost))
+        if gained:
+            print(f"\n    REACHED_SITES is behind: {', '.join(gained)}. Raising an "
+                  f"entry is ordinary; do it in the same commit as the new sentence.")
+
     def test_every_fact_can_be_gated_at_all(self):
         """A fact with no phrasings can never gate anything, whatever a document says.
 
@@ -180,18 +250,40 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
         """
         gaps = []
         for fact in self.facts:
-            # The four-digit floor stays. Round 11 showed what it costs: "runs 778 bp
-            # beyond" and "183 genomes aligned" could both be falsified. But lifting it
-            # for every required figure flags 67 occurrences where a small number
-            # coincides with a fact's value ("a further 37", "about 17 per cent"), which
-            # is the ambiguity the floor exists for. The fix for those two sentences was
-            # the missing phrasing, not the floor, so the contradiction check reaches
-            # them instead.
+            # The four-digit floor stays for bare numbers, because lifting it entirely
+            # flags 67 occurrences where a small number coincides with a fact's value
+            # ("a further 37", "UL22", "asm5"), which is the ambiguity it exists for.
+            #
+            # Round 12 measured what it still cost: not the two sentences round 11
+            # fixed, but at least nine sentences carrying twelve occurrences of six
+            # required figures, among them "runs 778 bp past the end of `IRL`" in
+            # ROADMAP.md (a sibling of the README sentence round 11 fixed), "every one
+            # of the 183 genomes" in README.md (a sibling of the ROADMAP sentence round
+            # 11 fixed), and the whole 77-against-300 comparison at five sites in
+            # FINDINGS.md and CHANGELOG.md. Changing 778 to 878, 183 to 283 and 300 to
+            # 400 in three documents left the suite green and did not even move the
+            # printed catch rate.
+            #
+            # So a small number is checked when it is stated WITH A UNIT the fact
+            # itself declares: the first word of one of its nouns, or the last word of
+            # one of its prefixes. "778 bp" is a claim about base pairs and "183
+            # genomes" a claim about genomes, while "a further 37" names no unit and is
+            # left to the contradiction check. The units are derived from the phrasings
+            # rather than typed here, so a fact cannot gain a unit this test does not
+            # know about.
+            small = [f for f in fact.forms if re.search(r"\d", f)
+                     and "." not in f and len(re.sub(r"\D", "", f)) < 4]
+            units = {n.split()[0].strip("`,.").lower() for n in fact.nouns if n.split()}
+            before_units = {p.split()[-1].strip("`,.*").lower()
+                            for p in fact.prefixes if p.split()}
             forms = [f for f in fact.forms if re.search(r"\d", f)
                      and (("." in f) or len(re.sub(r"\D", "", f)) >= 4)]
-            if not forms:
+            if not forms and not (small and (units or before_units)):
                 continue
-            pattern = "|".join(re.escape(f) for f in forms)
+            if small and (units or before_units):
+                forms = forms + small
+            pattern = "|".join(re.escape(f) for f in sorted(forms, key=len,
+                                                            reverse=True))
             for doc, body in self.bodies.items():
                 for m in re.finditer(rf"(?<![\d,.]){pattern}(?![\d,.])", body):
                     before = body[max(0, m.start() - 60):m.start()]
@@ -215,6 +307,16 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                     reached = any(after.lower().startswith(" " + n.lower())
                                   or re.search(rf"{re.escape(n)}\s*$", before, re.I)
                                   for n in fact.nouns + fact.prefixes)
+                    if m.group(0) in small and not reached:
+                        # A small number is only in scope when it carries one of this
+                        # fact's own units. Without one it is any number in prose.
+                        next_word = (after.strip().split()[0].strip("`,.:;")
+                                     if after.strip() else "")
+                        last_word = (before.strip().split()[-1].strip("`,.:;*")
+                                     if before.strip() else "")
+                        if (next_word.lower() not in units
+                                and last_word.lower() not in before_units):
+                            continue
                     if not reached:
                         gaps.append(f"{doc}: '...{before[-40:]}[{m.group(0)}]"
                                     f"{after[:30]}...' states {fact.key} with no "

@@ -36,11 +36,13 @@ that a GFF3 will be generated from.
 
 **The documented discrepancy**
 
-The 77-against-300 coding sequence difference between `NC_001806.2` and `BK012101.1` is
-**documented, not resolved**, as the M2 criteria require. It is not a disagreement:
+The coding sequence count difference between `NC_001806.2` and `BK012101.1` is
+**documented, not resolved**, as the M2 criteria require. `NC_001806.2` carries 77 CDS
+features and `BK012101.1` carries 300 over the identical bases. It is not a disagreement:
 `BK012101.1` is the 2020 re-annotation deposited as third-party annotation on the same
-sequence, and 452 of its named features are transcript units spanning more than one gene,
-with a further 37 being nested reading frames (small, upstream, internal and downstream).
+sequence, and it names 37 named transcript units spanning more than one gene, stated
+across 446 rows, counting each gene, CDS and mRNA feature of a unit, and a further 17
+nested reading frames (small, upstream, internal and downstream).
 The RefSeq annotation does not attempt those classes. A count is only comparable within a
 class, which is what the class column exists to enforce. See `FINDINGS.md`.
 
@@ -68,7 +70,7 @@ annotation's GFF3 output are still outstanding.
 - **Convention resolver (M5)**: five published handlings of the repeat regions, each
   quoted from its own paper, with `ConventionSet.report`.
 - **Version crosswalk (M6)**: `NC_001806.1` against `NC_001806.2`, nine distinct offsets
-  across 22 blocks.
+  across 22 aligned blocks.
 
 **Corrected during construction**, with the old wording kept in `FINDINGS.md` rather than
 quietly replaced: the inverted repeats were missing from the annotation entirely; the

@@ -25,7 +25,7 @@ entry for this pair. It also means anyone who has avoided the 2020 annotation be
 sequence name differs from the reference has avoided it for no reason, which is worth
 stating plainly in the release.
 
-## The 77 against 300 CDS discrepancy is real and is not a length difference
+## The CDS count discrepancy is real and is not a length difference
 
 `NC_001806.2` carries 77 CDS features and 79 gene features. `BK012101.1` carries 300 CDS
 features and 83 gene names. Both describe 152,222 bp of sequence. So the two records
@@ -77,13 +77,13 @@ Doelken (submitted 7 November 2019, released 7 November 2020), citing Whisnant e
 from `JN555585.1`, which this repository has separately confirmed holds a sequence
 identical to `NC_001806.2`.
 
-**So the "77 CDS against 300 CDS on identical bases" is not two laboratories disagreeing.**
+**So the two CDS counts on identical bases are not two laboratories disagreeing.**
 It is the 2018 RefSeq annotation against the 2020 re-annotation, correctly deposited as TPA
 on the same sequence and properly linked to its paper. The earlier framing, carried from
 the research strands, overstated this. The 2020 work is in GenBank, discoverable and
 attributed.
 
-The 300 CDS features are also not 300 genes. Across the record's 83 gene names:
+Nor do those CDS features correspond one to one with genes. Across the record's 83 gene names:
 
 | Kind of name | Count |
 |---|---|

@@ -255,7 +255,7 @@ def derive() -> list[Fact]:
         if overhangs:
             facts.append(Fact("lat_overhang_bp", max(overhangs),
                               ("bp past `IRL`", "bp into `IRS`",
-                               "bp beyond the end of"),
+                               "bp beyond the end of", "bp past the end of"),
                               note="how far the LAT copy runs past IRL",
                               prefixes=("it extends", "which runs")))
 
@@ -263,7 +263,8 @@ def derive() -> list[Fact]:
     if coverage.exists():
         rows = _rows(coverage)
         facts.append(Fact("genomes", len(rows),
-                          ("complete genomes", "genomes aligned to the reference"),
+                          ("complete genomes", "genomes aligned to the reference",
+                           "genomes now agrees"),
                           prefixes=("**Built.**",)))
         facts.append(Fact(
             "median_mappable",
