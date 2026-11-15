@@ -312,7 +312,13 @@ def lift_detailed(position: int, source: str, target: str,
         # No answer, so no strand: `complemented` described a comparison between two
         # coordinates and one of them does not exist. Round 9 found it set to True on a
         # declined lift, which reads as a fact about an answer that was never given.
-        return LiftResult(None, source, target, None, True, [], [],
+        # `well_defined` False, not True. Round 12: both of the no-coordinate returns
+        # here hardcoded True, so `lift_detailed(200000, ref, ref).well_defined` was
+        # True while `RepeatMap.classify(200000).well_defined` is False, and the field
+        # exists precisely so a caller branching on it does not treat a coordinate that
+        # does not exist as an ordinary one. No coordinate is not a well defined
+        # coordinate.
+        return LiftResult(None, source, target, None, False, [], [],
                           _why_no_coordinate(source, target, position, directory),
                           complemented=False)
 
@@ -331,7 +337,7 @@ def lift_detailed(position: int, source: str, target: str,
         # position unchecked, so a coordinate past the end of the genome came back as an
         # answer with `well_defined` False carrying the whole of the message, and
         # `LiftResult` had no way to say which kind of refusal it was.
-        return LiftResult(None, source, target, None, True, [], [], status.reason,
+        return LiftResult(None, source, target, None, False, [], [], status.reason,
                           complemented=False, in_range=False)
     return LiftResult(out, source, target, ref_pos, status.well_defined,
                       status.alternatives, status.loci, status.reason,

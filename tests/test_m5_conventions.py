@@ -974,6 +974,60 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
                     f"{path.name} defines {orphans} after its `__main__` block, so "
                     f"running the file directly silently skips them")
 
+    TESTS_PER_FILE = {
+        "test_docs_match_artefacts": 16,
+        "test_m1_dictionary": 38,
+        "test_m2_annotation": 27,
+        "test_m3_crosswalk": 45,
+        "test_m4_repeat_map": 54,
+        "test_m5_conventions": 94,
+        "test_placeholder": 1,
+        "test_readme_examples": 6,
+    }
+    """How many tests each file contributes to discovery.
+
+    Round 12: the `__main__` guard above catches a file truncated at the end, which is
+    what my round 11 slice edit did, and nothing else. Deleting the class that edit
+    destroyed, `WhetherTheRepeatCopySurvives`, while leaving the `__main__` block in
+    place, left the suite green at 265 tests instead of 269. Nothing in the repository
+    counted tests, classes or methods, or put a floor under any of them, so a whole
+    class could go missing in a commit and the only trace was the total scrolling past.
+
+    These numbers rise whenever tests are added, which is ordinary and is why the
+    failure says so. A number that falls is a test that stopped running, and that needs
+    a reason in the commit message rather than a quiet edit here.
+    """
+
+    def test_no_file_contributes_fewer_tests_than_it_did(self):
+        import unittest as _unittest
+        counted: dict[str, int] = {}
+
+        def walk(suite):
+            for item in suite:
+                if isinstance(item, _unittest.TestSuite):
+                    walk(item)
+                else:
+                    name = type(item).__module__
+                    counted[name] = counted.get(name, 0) + 1
+
+        walk(_unittest.TestLoader().discover(str(ROOT / "tests")))
+        lost, gained = [], []
+        for name, was in sorted(self.TESTS_PER_FILE.items()):
+            now = counted.get(name, 0)
+            if now < was:
+                lost.append(f"{name}: {now} tests discovered, {was} recorded")
+            elif now > was:
+                gained.append(f"{name}: {was} -> {now}")
+        self.assertEqual(
+            lost, [],
+            f"{len(lost)} test files run fewer tests than TESTS_PER_FILE records. A "
+            f"class or a method has stopped being discovered, which is what round 11's "
+            f"slice edit did to a whole class with the suite green:\n  "
+            + "\n  ".join(lost))
+        if gained:
+            print(f"\n    TESTS_PER_FILE is behind: {', '.join(gained)}. Raise it in "
+                  f"the same commit as the new tests.")
+
 class VersionNamesAreValidatedBeforeAnswering(unittest.TestCase):
     """Round 7: `convert` short-circuited on source == target before validating.
 
@@ -1347,6 +1401,23 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
                     wrong.append((c.name, f"quotes {c.boundaries_evidence!r}, which "
                                           f"says nothing about where the intervals "
                                           f"came from"))
+                elif not _is_whole_clauses(c.boundaries_evidence, source):
+                    # Round 12, the fourth version of this check to be gamed. "At least
+                    # 20 characters" and a keyword alternation whose weakest member is
+                    # `no\b` were both satisfied by 'rative functional geno', a 22
+                    # character window cut out of the middle of the paper's own title,
+                    # with "no" matching at the truncation. The suite stayed green and
+                    # `usable(118777, 'whisnant2020_masked')` went on reporting the
+                    # inference caveat as if it were justified.
+                    #
+                    # A quotation is now required to be whole clauses of the source, so
+                    # a window cut across word and clause boundaries fails whatever
+                    # letters it happens to contain. That is a property of the text
+                    # rather than a list of words to avoid, which is what the three
+                    # previous versions were.
+                    wrong.append((c.name, f"quotes {c.boundaries_evidence!r}, which is "
+                                          f"a window cut out of the source rather than "
+                                          f"whole clauses of it"))
             elif c.boundaries_evidence:
                 wrong.append((c.name, "quotes evidence for an inference it does not "
                                       "claim"))
@@ -1494,6 +1565,25 @@ class TheOutOfRangeGuardIsTested(unittest.TestCase):
                      if "usable under" in line and "NOT usable" not in line]
         self.assertEqual(offending, [],
                          f"the report calls an impossible position usable: {offending}")
+
+
+
+def _clauses(text: str) -> set[str]:
+    """The source's clauses, split at sentence and clause punctuation."""
+    return {part.strip() for part in re.split(r"[.;:,]", text) if part.strip()}
+
+
+def _is_whole_clauses(quote: str, source: str) -> bool:
+    """Whether a quotation is made of whole clauses of its source.
+
+    Every clause of the quote has to be a clause of the source. A character window cut
+    across word boundaries ('rative functional geno') produces a fragment that is a
+    clause of nothing, which is what round 12 used to pass the previous three versions
+    of this check.
+    """
+    available = _clauses(source)
+    parts = _clauses(quote)
+    return bool(parts) and parts <= available
 
 
 class ThePackageCarriesItsOwnData(unittest.TestCase):

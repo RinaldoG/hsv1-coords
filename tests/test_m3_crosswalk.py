@@ -364,6 +364,66 @@ class TheBlocksComeFromTheAlignment(unittest.TestCase):
         self.assertLessEqual(len(self._sample(today)), self.SAMPLE + len(self.ALWAYS))
 
 
+class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
+    """Round 12: no test asserted either flag on `LiftResult`.
+
+    So round 11's `in_range` fix shipped a contradiction. Both no-coordinate returns in
+    `lift_detailed` hardcoded `well_defined=True`, which made
+    `lift_detailed(200000, ref, ref)` report `position=None, in_range=False,
+    well_defined=True`, while `RepeatMap.classify(200000).well_defined` is False and
+    `tests/test_m4_repeat_map.py` states that the field exists so that a caller
+    branching on it does not treat a coordinate that does not exist as an in-range one.
+    A caller got a wrong flag instead of a wrong number, which is why this was ranked
+    below the artefact findings and not left alone.
+
+    The invariants, rather than the one case: no coordinate is not a well defined
+    coordinate, and a position outside the reference has no coordinate at all.
+    """
+
+    REFERENCE = "NC_001806.2"
+
+    def _cases(self):
+        from hsv1coords import lift_detailed
+        return {
+            "past the end of the reference":
+                lift_detailed(200000, self.REFERENCE, self.REFERENCE),
+            "inside a repeat, so ambiguous":
+                lift_detailed(118777, self.REFERENCE, "JQ780693.1", CROSSWALK),
+            "outside the repeats, so unique":
+                lift_detailed(60000, "JQ673480.1", "JQ780693.1", CROSSWALK),
+        }
+
+    def test_no_coordinate_is_never_reported_as_well_defined(self):
+        for label, result in self._cases().items():
+            with self.subTest(case=label):
+                if result.position is None:
+                    self.assertFalse(
+                        result.well_defined,
+                        f"{label}: position is None and well_defined is True, so a "
+                        f"caller branching on well_defined is told a coordinate that "
+                        f"does not exist is a good one")
+
+    def test_out_of_range_means_no_coordinate_and_a_reason(self):
+        result = self._cases()["past the end of the reference"]
+        self.assertFalse(result.in_range)
+        self.assertIsNone(result.position,
+                          "a position outside the reference was given a coordinate")
+        self.assertFalse(result.well_defined)
+        self.assertTrue(result.reason.strip(), "an out-of-range lift states no reason")
+        self.assertFalse(bool(result), "the result is truthy with no position")
+
+    def test_the_three_kinds_are_distinguishable_by_the_flags_alone(self):
+        """Otherwise the flags carry no information a caller can act on."""
+        flags = {label: (r.position is not None, r.well_defined, r.in_range)
+                 for label, r in self._cases().items()}
+        self.assertEqual(len(set(flags.values())), 3,
+                         f"two of the three kinds of answer look identical to a caller "
+                         f"reading the flags: {flags}")
+        self.assertEqual(flags["outside the repeats, so unique"], (True, True, True))
+        self.assertEqual(flags["inside a repeat, so ambiguous"], (True, False, True))
+        self.assertEqual(flags["past the end of the reference"], (False, False, False))
+
+
 class ADroppedSegmentSaysSo(unittest.TestCase):
     """Round 9: `ON783215.1` is deposited as a segmental isomer.
 
