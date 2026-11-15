@@ -23,8 +23,12 @@ package-dir = { "" = "src" }
 include-package-data = true
 
 [tool.setuptools.package-data]
-hsv1coords = ["data/*.tsv", "data/*.sha256", "data/derived/*.tsv", "data/derived/*.md",
-              "data/derived/crosswalk/*.tsv"]
+# Round 12: `accessions.txt` was staged by the staging script and matched by no glob
+# here, so it was copied into the package and then left out of the wheel while the
+# script printed success. The staging script now checks every staged file against these
+# globs and fails if one would not ship.
+hsv1coords = ["data/*.tsv", "data/*.txt", "data/*.sha256", "data/derived/*.tsv",
+              "data/derived/*.md", "data/derived/crosswalk/*.tsv"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

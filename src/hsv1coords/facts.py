@@ -21,9 +21,15 @@ import pathlib
 import statistics
 from dataclasses import dataclass, field
 
+from ._paths import data_dir, data_path
+
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-DERIVED = ROOT / "data" / "derived"
-RAW = ROOT / "data" / "raw"
+# Round 12: these two were still `parents[2] / "data"`, the repository layout, which is
+# the defect round 11 fixed in the five loader modules and did not fix here. In an
+# installed copy both directories are absent, so `derive()` returned an empty list and
+# every figure silently went ungated rather than failing.
+DERIVED = data_path("derived")
+RAW = data_dir(strict=False) / "raw"
 
 
 @dataclass(frozen=True)

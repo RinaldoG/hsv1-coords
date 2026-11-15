@@ -1,6 +1,7 @@
 """The M5 gate, written before the code, per ROADMAP.md."""
 from __future__ import annotations
 
+import fnmatch
 import pathlib
 import re
 import sys
@@ -1529,22 +1530,72 @@ class ThePackageCarriesItsOwnData(unittest.TestCase):
             f"{len(offenders)} modules still compute a data path from the repository "
             f"layout, which does not hold in an installed copy: {offenders}")
 
-    def test_the_staging_script_lists_every_artefact_a_loader_needs(self):
-        """A wheel missing one file imports and then fails on one call in five."""
+    def test_what_a_wheel_carries_is_derived_from_what_the_loaders_read(self):
+        """Round 12: the staged list was a tuple, and this test was membership-only.
+
+        It asserted that five file names appeared in `staging.WANTED` or
+        `staging.DERIVED`, so dropping `annotation_v0.1.0.tsv` or the block files from
+        those tuples passed, and it never looked at whether a staged copy existed or was
+        current. `accessions.txt` was in the tuple and matched by no `package-data` glob,
+        so it was staged and then not shipped while the script printed success.
+
+        The list is derived now: `_paths.requested()` records every data file the
+        library asks for, and the staging script stages exactly those. This asserts the
+        derivation rather than a typed list, by exercising the loaders in this process
+        and requiring each path they read to be a real file or directory under `data/`.
+        """
         sys.path.insert(0, str(ROOT / "src"))
         import stage_package_data as staging
-        needed = {
-            "conventions.tsv": staging.WANTED,
-            "aliases_literature.tsv": staging.DERIVED,
-            "repeat_map.tsv": staging.DERIVED,
-            "diploid_pairs.tsv": staging.DERIVED,
-            "version_crosswalk.tsv": staging.DERIVED,
-        }
-        for name, listing in sorted(needed.items()):
-            with self.subTest(artefact=name):
-                self.assertIn(name, listing,
-                              f"{name} is loaded by the library and is not staged into "
-                              f"the package, so a wheel would not carry it")
+        read = staging.what_the_loaders_read()
+        self.assertGreaterEqual(
+            len(read), 5,
+            f"the loaders report reading only {len(read)} data paths: {read}")
+        for relative in read:
+            with self.subTest(path=relative):
+                source = ROOT / "data" / pathlib.Path(relative)
+                self.assertTrue(
+                    source.exists(),
+                    f"a loader reads data/{relative}, which does not exist, so a wheel "
+                    f"cannot carry it")
+        globs = staging.shipped_globs()
+        unshipped = [r for r in read
+                     if not any(fnmatch.fnmatch(f"data/{r}/x.tsv", g)
+                                or fnmatch.fnmatch(f"data/{r}", g) for g in globs)]
+        self.assertEqual(
+            unshipped, [],
+            f"{len(unshipped)} paths the loaders read match no package-data glob in "
+            f"pyproject.toml, so a wheel would be built without them: {unshipped}")
+
+    def test_the_staged_copy_if_present_is_identical_to_the_source(self):
+        """Round 12: the staged copy was stale and nothing could see it.
+
+        `src/hsv1coords/data/aliases_literature.tsv` held 220 rows claiming
+        `verbatim_in_citation=yes` against 205 in the checkout: the exact 15 rows round
+        11 corrected were still asserted as attested in the shipped library. Nothing
+        read it, because `_paths.data_dir()` prefers the checkout and the staged tree is
+        gitignored, so neither the suite nor CI ever opened it.
+        """
+        staged = ROOT / "src" / "hsv1coords" / "data"
+        if not staged.is_dir():
+            self.skipTest("no staged copy; run `make package-data`")
+        differing, checked = [], 0
+        for path in sorted(staged.rglob("*")):
+            if not path.is_file():
+                continue
+            source = ROOT / "data" / path.relative_to(staged)
+            checked += 1
+            if not source.exists():
+                differing.append(f"{path.relative_to(staged)} (no source)")
+            elif source.read_bytes() != path.read_bytes():
+                differing.append(str(path.relative_to(staged)))
+        self.assertEqual(
+            differing, [],
+            f"{len(differing)} staged files are not what data/ holds, so a wheel built "
+            f"now would ship a different library from the one these tests pass "
+            f"against: {differing[:5]}")
+        self.assertGreater(checked, 150,
+                           f"only {checked} staged files were compared; the crosswalk "
+                           f"alone is 183")
 
     def test_an_absent_crosswalk_directory_raises_rather_than_answering(self):
         from hsv1coords import Crosswalk

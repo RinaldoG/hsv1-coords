@@ -15,7 +15,7 @@ import bisect
 import csv
 import pathlib
 
-from ._paths import data_path
+from ._paths import data_path, require
 from dataclasses import dataclass
 
 DEFAULT = data_path("derived", "version_crosswalk.tsv")
@@ -44,7 +44,7 @@ class VersionCrosswalk:
 
     @classmethod
     def load(cls, path: pathlib.Path | None = None) -> "VersionCrosswalk":
-        with (pathlib.Path(path) if path else DEFAULT).open() as fh:
+        with require(pathlib.Path(path) if path else DEFAULT).open() as fh:
             return cls([VersionBlock(int(r["query_start"]), int(r["target_start"]),
                                      int(r["length"]))
                         for r in csv.DictReader(fh, delimiter="\t")])

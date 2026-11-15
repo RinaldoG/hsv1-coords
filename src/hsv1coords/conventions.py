@@ -49,7 +49,7 @@ from __future__ import annotations
 import csv
 import pathlib
 
-from ._paths import data_path
+from ._paths import data_path, require
 from dataclasses import dataclass, field
 
 DATA = data_path("conventions.tsv")
@@ -369,7 +369,7 @@ class ConventionSet:
 
     @classmethod
     def load(cls, path: pathlib.Path | None = None) -> "ConventionSet":
-        with (pathlib.Path(path) if path else DATA).open() as fh:
+        with require(pathlib.Path(path) if path else DATA).open() as fh:
             rows = list(csv.DictReader(fh, delimiter="\t"))
         out = []
         for r in rows:

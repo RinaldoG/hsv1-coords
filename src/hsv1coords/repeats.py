@@ -28,14 +28,17 @@ import csv
 import functools
 import pathlib
 
-from ._paths import data_path
+from ._paths import data_path, require
 import re
 import types
 from dataclasses import dataclass, field
 
-DERIVED = data_path("derived")
-REPEAT_MAP = DERIVED / "repeat_map.tsv"
-DIPLOID_PAIRS = DERIVED / "diploid_pairs.tsv"
+# Named one by one through `data_path`, not derived from a directory, so that
+# `_paths.requested()` records them and `src/stage_package_data.py` stages what this
+# module actually reads rather than a directory it has to guess the contents of.
+REPEAT_MAP = data_path("derived", "repeat_map.tsv")
+DIPLOID_PAIRS = data_path("derived", "diploid_pairs.tsv")
+DERIVED = REPEAT_MAP.parent
 
 GENOME_BP = 152222
 
@@ -198,7 +201,7 @@ class RepeatMap:
         as immutable within a run; rebuild and reload in a new process.
         """
         d = pathlib.Path(directory) if directory else DERIVED
-        with (d / "repeat_map.tsv").open() as fh:
+        with require(d / "repeat_map.tsv").open() as fh:
             rows = list(csv.DictReader(fh, delimiter="\t"))
             if rows and "orientation" not in rows[0]:
                 raise ValueError(

@@ -34,7 +34,7 @@ import csv
 import functools
 import pathlib
 
-from ._paths import data_path
+from ._paths import data_path, require
 import re
 import types
 import unicodedata
@@ -131,7 +131,7 @@ class Dictionary:
         the useful cost. The other two loaders were cached in round 8 and this was
         missed. Same immutability basis: the entries are read and not written.
         """
-        path = path or DEFAULT_TABLE
+        path = require(pathlib.Path(path or DEFAULT_TABLE))
         entries: list[Entry] = []
         with pathlib.Path(path).open() as fh:
             for row in csv.DictReader(fh, delimiter="\t"):

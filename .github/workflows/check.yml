@@ -71,6 +71,11 @@ jobs:
           make repeatmap
           make agreement
           make testcases
+          # Round 12: `make package-data` ran nowhere in CI, and the staged tree is
+          # gitignored, so nothing ever checked that a wheel built from this tree would
+          # carry its data or that the staged copy matched the source. It does both and
+          # fails rather than printing success.
+          make package-data
 
       - name: Fail if any rebuilt file differs from what is committed
         # Covers the whole directory rather than a handful of named files, and
