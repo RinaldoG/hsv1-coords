@@ -1515,15 +1515,17 @@ class ThePackageCarriesItsOwnData(unittest.TestCase):
             if module.name == "_paths.py":
                 continue
             text = module.read_text()
-            if module.name == "facts.py":
-                # Exempt with a reason: `facts` derives the documentation gate's figures
-                # from data/raw as well as data/derived, and the raw inputs are
-                # deliberately not shipped in the package (they are fetched and
-                # checksummed). It is a build and test helper, not part of the library's
-                # read path, and it already reports a missing artefact rather than
-                # guessing.
-                continue
-            if "parents[2]" in text and "data" in text:
+            # No exemptions. Round 12: `facts.py` was exempt, on the grounds that it
+            # reads data/raw as well and is a build helper, and it was computing
+            # `parents[2] / "data"` for BOTH directories, so in an installed copy
+            # `derive()` returned an empty list and every figure went ungated instead of
+            # failing. An exemption from the rule that found a defect five times is
+            # where the sixth one lives.
+            # Code, not prose: a comment or docstring recording the defect is not the
+            # defect, and this check is textual.
+            code = "\n".join(line.split("#")[0] for line in text.splitlines()
+                             if not line.strip().startswith("#"))
+            if "parents[2]" in code and "data" in code:
                 offenders.append(module.name)
         self.assertEqual(
             offenders, [],
