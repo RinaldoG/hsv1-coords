@@ -37,10 +37,13 @@ class VersionCrosswalk:
     """Ungapped blocks relating NC_001806.1 to NC_001806.2."""
 
     def __init__(self, blocks: list[VersionBlock]) -> None:
-        self.blocks = sorted(blocks, key=lambda b: b.old_start)
-        self._old = [b.old_start for b in self.blocks]
-        self._by_new = sorted(blocks, key=lambda b: b.new_start)
-        self._new = [b.new_start for b in self._by_new]
+        # Tuples. Round 12: `blocks` was a plain list, so `blocks.clear()` made `to_new`
+        # raise IndexError rather than return None, which is the sibling of the
+        # mutability round 9 fixed on `Crosswalk.blocks` and `RepeatMap.regions`.
+        self.blocks = tuple(sorted(blocks, key=lambda b: b.old_start))
+        self._old = tuple(b.old_start for b in self.blocks)
+        self._by_new = tuple(sorted(blocks, key=lambda b: b.new_start))
+        self._new = tuple(b.new_start for b in self._by_new)
 
     @classmethod
     def load(cls, path: pathlib.Path | None = None) -> "VersionCrosswalk":

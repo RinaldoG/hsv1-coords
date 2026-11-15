@@ -504,13 +504,23 @@ class ClaimsMatchBehaviour(unittest.TestCase):
         cs = ConventionSet.load()
         _, why = cs.usable(118777, "morse2017_nr")
         interval = re.search(r"inside ([\d,]+-[\d,]+)", why).group(1).rstrip(",")
+        checked = 0
         for doc in DOCS:
             for raw in re.findall(
                     r"NOT usable under morse2017_nr: inside ([\d,]+-[\d,]+)", flat(doc)):
+                checked += 1
                 with self.subTest(document=doc, quoted=raw):
                     self.assertEqual(raw.rstrip(","), interval,
                                      f"{doc} quotes an interval the code no longer "
                                      f"produces")
+        # Round 12: there was no counter, so this was the zero-occurrence tautology this
+        # file's own docstring warns about. It happens to have one live site; rewording
+        # that line would have left the test passing over nothing.
+        self.assertGreater(
+            checked, 0,
+            "no document quotes this message any more, so this test checks nothing. "
+            "Either a document stopped quoting it, in which case delete this test, or "
+            "the wording moved, in which case fix the pattern.")
 
     def test_no_document_says_a_built_component_is_unbuilt(self):
         self.assertNotIn("is not built yet", flat("README.md"))

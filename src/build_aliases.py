@@ -593,6 +593,14 @@ def add(canonical, alias, atype, cit, inventory, conf, notes="", resolution=None
             f"Pass DECLINE if the string cannot be attributed to one gene, or RESOLVE "
             f"if it can and the ambiguity is about something else, such as a near-miss "
             f"with another gene's name.")
+    # Round 12: removing the default also removed the only check on the VALUE, so
+    # `resolution="declone"` was written straight into the table, where it is neither
+    # resolve nor decline and the loader's own handling of it is undefined. A typo in a
+    # deliberate choice is not a choice.
+    if resolution is not None and resolution not in (RESOLVE, DECLINE):
+        raise ValueError(
+            f"{alias} ({canonical}) states resolution {resolution!r}, which is neither "
+            f"{RESOLVE!r} nor {DECLINE!r}")
     ROWS.append((canonical, alias, atype, cit, inventory, conf, notes,
                  resolution or RESOLVE))
 

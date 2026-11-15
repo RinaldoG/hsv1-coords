@@ -170,21 +170,23 @@ def main() -> int:
         })
     regions.sort(key=lambda x: (x["start"], x["end"]))
 
-    named = {str(x["name"]): x for x in regions}
     big = {}
     for a, b in REPEAT_PAIRS:
         for label in (a, b):
-            hit = next((x for x in regions if str(x["name"]).startswith(label)), None)
-            if hit is None:
-                print(f"the reference does not annotate {label}", file=sys.stderr)
+            # Exact, not `startswith`. Round 12: `startswith("IRS")` also matches
+            # `IRS reiteration set 3`, a 126 bp repeat, and the right region was picked
+            # only because `regions` happens to be sorted by start coordinate, so the
+            # whole frame of the short repeat pair rested on a sort order. A name that
+            # matches more than one region is an ambiguity worth failing on.
+            hits = [x for x in regions if str(x["name"]) == label]
+            if len(hits) != 1:
+                print(f"the reference annotates {label} {len(hits)} times; the frame "
+                      f"of a repeat pair must be exactly one region", file=sys.stderr)
                 return 1
-            big[label] = hit
+            big[label] = hits[0]
 
     # 2. Diploid pairs: features of equal length sitting inside the two copies of a
     #    repeat. Derived by position and length, never hand-listed.
-    def inside(feature_extent: tuple[int, int], rep: dict[str, object]) -> bool:
-        return feature_extent[0] >= int(rep["start"]) and feature_extent[1] <= int(rep["end"])
-
     def overlaps(feature_extent: tuple[int, int], rep: dict[str, object]) -> bool:
         """Touches the repeat without being contained by it.
 
@@ -211,9 +213,9 @@ def main() -> int:
             # The same naming as `regions` above, via one function. Reading
             # `r["name"]` here is what published a 53 bp repeat under ICP34.5's name.
             label = feature_name(r)[0]
-            if inside(ext, ra) or overlaps(ext, ra):
+            if overlaps(ext, ra):
                 in_a.append((label, ext, r["feature_type"]))
-            if inside(ext, rb) or overlaps(ext, rb):
+            if overlaps(ext, rb):
                 in_b.append((label, ext, r["feature_type"]))
         # Match on equal length and equal feature type. Where several candidates have
         # the same length, match by offset within the repeat, which is what a true

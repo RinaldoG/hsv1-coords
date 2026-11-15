@@ -59,7 +59,11 @@ UNNAMED_CLASSES = {
                    "polyadenylation signals and 19 are TATA boxes, which the `subtype` "
                    "column now distinguishes; the earlier description said \"such as a "
                    "TATA box\" of a set that is three quarters polyA signals"),
-    "misc_RNA": ("misc_RNA", "An RNA the source record did not type further"),
+    # `misc_RNA` was here and is not, because it is also in GENE_LIKE_TYPES and the
+    # lookup below runs only for a type that is NOT gene-like, so the entry was
+    # unreachable. It was also describing a class with no rows in any source. A
+    # misc_RNA feature carries a /gene qualifier, so it is classed by its name like
+    # every other gene-like type. Round 12.
     "source": (None, None),          # the whole-genome record, deliberately not a feature
 }
 

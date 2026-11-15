@@ -182,8 +182,31 @@ class TheReadmeExamplesRun(unittest.TestCase):
         checked = 0
         for i, block in enumerate(self.blocks):
             for line in block.splitlines():
-                m = re.match(r"^([A-Za-z_][^#]*?)\s{2,}#\s*(\S.*)$", line)
+                m = re.match(r"^(\s*)([A-Za-z_][^#]*?)\s{2,}#\s*(\S.*)$", line)
                 if not m:
+                    continue
+                indent = m.group(1)
+                m = re.match(r"^\s*([A-Za-z_][^#]*?)\s{2,}#\s*(\S.*)$", line)
+                if indent:
+                    # Round 12: the pattern was anchored at column 0, so any INDENTED
+                    # line's inline expectation was unchecked. Refactoring
+                    # `Dictionary.load().resolve("alpha-TIF")  # 'UL48'` into a two-line
+                    # for loop and changing the expectation to `# 'UL99'` left the suite
+                    # green on a false claim.
+                    #
+                    # An indented expression sits inside a loop or a block, so it cannot
+                    # be evaluated on its own and this gate cannot check what it gives.
+                    # It is therefore held to the same rule as a print line: the comment
+                    # may be a label, and must not read as a claim about a value.
+                    label = m.group(2).strip()
+                    with self.subTest(label=label[:50]):
+                        self.assertIsNone(
+                            re.search(r"\d|\bis\b|\bequals\b|\breturns\b|"
+                                      r"\bwell defined\b|\bnone\b|^'", label, re.I),
+                            f"an indented line's inline comment cannot be evaluated by "
+                            f"this gate, so it must not read as a statement about a "
+                            f"value: {label!r}. Move the example to the top level if "
+                            f"the value is the point.")
                     continue
                 if m.group(1).strip().startswith("print("):
                     # A trailing comment on a print line was read by nothing: the
@@ -255,10 +278,14 @@ class EveryQuotedExampleIsExecutable(unittest.TestCase):
                 if re.search(r"^(from|import) ", block, re.M):
                     continue
                 lines = block.splitlines()
+                # Round 12: this required the line before the comment to be non-empty,
+                # so a block whose quoted output followed a BLANK line was invisible to
+                # both this gate and the block-execution gate. An import-less block
+                # ending "\n\n# 'UL99' -- and the LAT TATA box sits at 999,999" passed.
+                # A comment that is not part of a comment paragraph is a candidate quote
+                # whatever precedes it.
                 quotes = [n for n, line in enumerate(lines)
                           if line.strip().startswith("#") and n
-                          and not lines[n - 1].strip().startswith("#")
-                          and lines[n - 1].strip()
                           and not lines[n - 1].strip().startswith("#")]
                 if quotes:
                     offenders.append((name, i, lines[quotes[0]].strip()[:60]))

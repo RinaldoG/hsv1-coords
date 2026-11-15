@@ -47,6 +47,7 @@ available and what was derived.
 from __future__ import annotations
 
 import csv
+import functools
 import pathlib
 
 from ._paths import data_path, require
@@ -102,7 +103,16 @@ class ReferenceVersionMismatch(UnverifiedConvention):
 class Convention:
     name: str
     kind: str                  # none, exclude, mask_then_restore, trim
-    intervals: list[tuple[int, int]]
+    intervals: tuple[tuple[int, int], ...]
+    """The reference intervals this convention keeps.
+
+    A tuple, not a list. Round 9 hardened `Crosswalk.blocks`, `RepeatMap.regions` and
+    `RepeatMap.pairs` against a caller mutating a shared object, and round 12 found the
+    two siblings it missed: `Convention` is frozen and this field was a mutable list, so
+    `cs["szpara2014_trimmed"].intervals.append((50000, 70000))` changed
+    `to_convention(60000)` from 50787 to None. `ConventionSet.load` is cached, so one
+    caller's append is every caller's answer.
+    """
     reference: str
     verified: bool
     source: str
@@ -352,14 +362,14 @@ def _parse_records(text: str) -> list[tuple[str, int, int]]:
     return out
 
 
-def _parse_intervals(text: str) -> list[tuple[int, int]]:
+def _parse_intervals(text: str) -> tuple[tuple[int, int], ...]:
     if not text.strip() or text.strip() == "UNVERIFIED":
-        return []
+        return ()
     out = []
     for part in text.split(";"):
         a, b = part.split("-")
         out.append((int(a), int(b)))
-    return out
+    return tuple(out)
 
 
 class ConventionSet:
@@ -442,9 +452,17 @@ class ConventionSet:
         """Translate a base-version position into the version this convention uses."""
         if c.reference_version == self.BASE_VERSION:
             return position
+        # Loaded once. Round 12: this called `VersionCrosswalk.load()` on every
+        # invocation, so every Morse query re-read and re-parsed the TSV, once per
+        # position. `Crosswalk` and `RepeatMap` are cached for exactly this reason.
+        return self._version_crosswalk().convert(position, self.BASE_VERSION,
+                                                 c.reference_version)
+
+    @staticmethod
+    @functools.lru_cache(maxsize=1)
+    def _version_crosswalk():
         from .versions import VersionCrosswalk
-        return VersionCrosswalk.load().convert(position, self.BASE_VERSION,
-                                               c.reference_version)
+        return VersionCrosswalk.load()
 
     def usable(self, position: int, convention: str) -> tuple[bool, str]:
         """Is this position present in an analysis under that convention?

@@ -82,6 +82,62 @@ class EveryDefinitionIsSourced(unittest.TestCase):
         self.assertGreaterEqual(checked, 5,
                                 f"only {checked} intervals were tied to a source")
 
+    def test_the_morse_edges_come_from_the_previous_records_feature_table(self):
+        """Round 12: the one row that has been wrong three times was tied to nothing.
+
+        The test above iterates `cs.verified`, which by construction excludes
+        `morse2017_nr`, so its two intervals rested on a sum (136,770 bp, the length the
+        paper states) plus one string assertion. This project's own note on that row
+        says a sum cannot locate a boundary, which is exactly how the second wrong
+        version of it passed: boundaries wrong at three of four edges, with the errors
+        cancelling.
+
+        Its intervals are in `NC_001806.1`, so the `NC_001806.2` extents the test above
+        uses cannot check them. Each of the four edges is checked here against a number
+        in `NC_001806.1`'s own feature table, which is the frame the row declares.
+        """
+        import re
+        record = ROOT / "data" / "raw" / "ref_NC_001806.1.gb"
+        if not record.exists():
+            self.skipTest("ref_NC_001806.1.gb is fetched, not committed; "
+                          "run `make inputs` first")
+        body = record.read_text()
+        extents = {}
+        for loc, quals in re.findall(
+                r"^     repeat_region\s+(\S+)\n((?:\s+/.*\n)+)", body, re.M):
+            m = re.match(r"(\d+)\.\.(\d+)$", loc)
+            note = re.search(r'/note="([^";]+)', quals)
+            if m and note and "inverted repeat flanking" in quals:
+                extents[note.group(1).strip()] = (int(m.group(1)), int(m.group(2)))
+        for need in ("IRL", "IRS", "TRS"):
+            self.assertIn(need, extents,
+                          f"NC_001806.1 does not annotate {need} as an inverted repeat")
+        length = int(re.search(r"^LOCUS\s+\S+\s+(\d+) bp", body, re.M).group(1))
+
+        morse = self.cs["morse2017_nr"]
+        self.assertEqual(morse.reference_version, "NC_001806.1",
+                         "this test checks the row against NC_001806.1 because that is "
+                         "the frame the row declares")
+        expected = {
+            # The paper's rule: cut at the RL-UL and RS-US junctions, so the retained
+            # blocks run from the start of IRL to the base before IRS, and from the
+            # start of TRS to the end of the record.
+            (extents["IRL"][0], extents["IRS"][0] - 1): "IRL start to IRS start - 1",
+            (extents["TRS"][0], length): "TRS start to the end of the record",
+        }
+        self.assertEqual(
+            set(morse.intervals), set(expected),
+            f"morse2017_nr states {sorted(morse.intervals)}; the record's own feature "
+            f"table gives {sorted(expected)} "
+            f"({', '.join(expected.values())})")
+        # The intervals are the blocks REMOVED (IRL and TRS), so what the paper states
+        # is the record's length less their extent.
+        removed = sum(b - a + 1 for a, b in morse.intervals)
+        self.assertEqual(
+            length - removed, 136770,
+            f"the record is {length:,} bp and the row removes {removed:,}, leaving "
+            f"{length - removed:,}, where the paper states 136,770")
+
     def test_every_verified_convention_carries_a_quote(self):
         for c in self.cs.verified:
             with self.subTest(convention=c.name):
@@ -980,7 +1036,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m2_annotation": 27,
         "test_m3_crosswalk": 45,
         "test_m4_repeat_map": 54,
-        "test_m5_conventions": 94,
+        "test_m5_conventions": 98,
         "test_placeholder": 1,
         "test_readme_examples": 6,
     }
@@ -1335,6 +1391,51 @@ class TheCachedLoadersCannotBeCorruptedByACaller(unittest.TestCase):
         with self.assertRaises(AttributeError):
             m.pairs.clear()
         self.assertEqual(len(RepeatMap.load().regions), before)
+
+    def test_a_convention_cannot_be_mutated_through_its_intervals(self):
+        """Round 12: the two siblings round 9's fix missed.
+
+        `Convention` is `frozen=True`, which stops a field being reassigned and says
+        nothing about what a field points at. `intervals` was a list, and
+        `ConventionSet.load` is cached, so
+        `cs["szpara2014_trimmed"].intervals.append((50000, 70000))` changed that
+        convention's `to_convention(60000)` from 50787 to None for every later caller
+        in the process.
+        """
+        cs = ConventionSet.load()
+        before = cs["szpara2014_trimmed"].to_convention(60000)
+        self.assertIsNotNone(before)
+        with self.assertRaises(AttributeError):
+            cs["szpara2014_trimmed"].intervals.append((50000, 70000))
+        self.assertEqual(
+            ConventionSet.load()["szpara2014_trimmed"].to_convention(60000), before)
+
+    def test_the_version_crosswalk_cannot_be_mutated_through_its_blocks(self):
+        """`blocks.clear()` made `to_new` raise IndexError rather than answer None."""
+        from hsv1coords.versions import VersionCrosswalk
+        vc = VersionCrosswalk.load()
+        before = vc.to_new(1000)
+        with self.assertRaises(AttributeError):
+            vc.blocks.clear()
+        self.assertEqual(VersionCrosswalk.load().to_new(1000), before)
+
+    def test_the_version_crosswalk_is_read_once_per_process(self):
+        """Round 12: it was re-read and re-parsed once per Morse query.
+
+        `_to_convention_version` called `VersionCrosswalk.load()` on every invocation,
+        so a sweep over positions under the Morse convention re-parsed the TSV for each
+        one. `Crosswalk` and `RepeatMap` are cached for exactly this reason.
+        """
+        cs = ConventionSet.load()
+        cs.usable(118777, "morse2017_nr")
+        info = type(cs)._version_crosswalk.cache_info()
+        before = info.misses
+        for _ in range(50):
+            cs.usable(118777, "morse2017_nr")
+        after = type(cs)._version_crosswalk.cache_info().misses
+        self.assertEqual(after, before,
+                         f"50 further queries re-read the version crosswalk "
+                         f"{after - before} times")
 
     def test_the_crosswalk_cache_holds_the_whole_corpus(self):
         """At `maxsize=64` a sweep over 183 genomes gave 6 hits and 185 misses."""

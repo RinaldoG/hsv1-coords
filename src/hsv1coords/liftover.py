@@ -186,9 +186,14 @@ class Crosswalk:
         if not limit:
             # Round 11: with no stated length this returned a one-base stretch that did
             # not contain the position, so a position a million bases away was described
-            # as sitting in it. Every committed block file states a length, which is why
-            # this is unreachable from the artefacts, but the method is public.
-            return None
+            # as sitting in it. Round 12: the replacement returned None, which is this
+            # method's way of saying "that position lifts fine", so one wrong answer was
+            # swapped for another. Without the deposited length the end of the stretch
+            # cannot be known, and that is not a question this can answer.
+            raise ValueError(
+                f"{self.accession} states no deposited_length, so the extent of an "
+                f"unmapped stretch cannot be computed. Rebuild the block file with "
+                f"`make crosswalk`; every committed one states a length.")
         if self.to_reference(position) is not None:
             return None
         aligned = self._to_aligned(position) - 1
