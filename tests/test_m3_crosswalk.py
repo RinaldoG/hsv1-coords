@@ -1067,6 +1067,67 @@ class ZeroBlockGenomes(unittest.TestCase):
                 self.assertIsNone(lift(1000, acc, REFERENCE, CROSSWALK))
 
 
+class TheCoverageTableIsDerivedFromTheBlocks(unittest.TestCase):
+    """Round 14: `crosswalk_coverage.tsv` was never checked against what it summarises.
+
+    Swapping the `blocks`, `mapped_bp` and `mapped_percent` of two genomes, which
+    preserves the multiset of percentages so the median does not move, left all 301
+    tests green. Only `mapped_percent == 0` and `orientation` were read by anything,
+    and `verify_crosswalk.py` re-derives every block file without opening this table.
+    Four of its nine columns are the blocks counted up, so they are recomputed here.
+
+    `alignments`, `ambiguous_bp_dropped` and `non_monotonic_bp_dropped` describe the
+    alignment run rather than its output and cannot be recovered from the committed
+    blocks. They are counted and named below rather than left unmentioned, which is
+    standing rule 16; `crosswalk_report.md`'s dropped-bp sentences rest on them.
+    """
+
+    UNDERIVABLE = ("alignments", "ambiguous_bp_dropped", "non_monotonic_bp_dropped")
+
+    @classmethod
+    def setUpClass(cls):
+        import csv as _csv
+        with (ROOT / "data" / "derived" / "crosswalk_coverage.tsv").open() as fh:
+            cls.rows = list(_csv.DictReader(fh, delimiter="\t"))
+
+    def test_every_row_is_what_its_block_file_says(self):
+        wrong = []
+        for row in self.rows:
+            acc = row["accession"]
+            cw = Crosswalk.load(acc, CROSSWALK)
+            length = cw.deposited_length
+            mapped = sum(b.length for b in cw.blocks)
+            for column, derived in (("length_bp", length),
+                                    ("blocks", len(cw.blocks)),
+                                    ("mapped_bp", mapped),
+                                    ("orientation", cw.orientation)):
+                if str(row[column]) != str(derived):
+                    wrong.append((acc, column, row[column], derived))
+            if length:
+                stated = f"{100 * mapped / length:.2f}"
+                if row["mapped_percent"] != stated:
+                    wrong.append((acc, "mapped_percent", row["mapped_percent"],
+                                  stated))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} coverage cells disagree with the block file they describe, "
+            f"so the summary and the artefact it summarises are different claims: "
+            f"{wrong[:6]}")
+        self.assertGreater(len(self.rows), 150,
+                           f"only {len(self.rows)} coverage rows were checked")
+
+    def test_the_columns_no_block_file_can_confirm_are_named(self):
+        """So the share of the table this gate reads is stated, not assumed."""
+        columns = [c for c in self.rows[0] if c != "accession"]
+        underivable = [c for c in columns if c in self.UNDERIVABLE]
+        self.assertEqual(sorted(underivable), sorted(self.UNDERIVABLE),
+                         "a column named as underivable is no longer in the table, so "
+                         "this list is stale")
+        print(f"\n    coverage table: {len(columns) - len(underivable)} of "
+              f"{len(columns)} columns recomputed from the committed blocks; "
+              f"{underivable} describe the alignment run and are read by nothing")
+
+
 class GenomeToGenome(unittest.TestCase):
     def test_lift_between_two_genomes_is_consistent(self):
         accs = Crosswalk.available(CROSSWALK)

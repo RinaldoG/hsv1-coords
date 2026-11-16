@@ -579,6 +579,29 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
         self.assertGreaterEqual(len(self.m.regions) + 2 * len(self.m.pairs), 90,
                                 "the artefacts collapsed, so this gate checked little")
 
+    def test_every_pair_carries_the_strand_relationship_the_artefact_states(self):
+        """Round 14: the loader dropped the column.
+
+        So a library user of `RepeatMap.pairs` could not see whether a pair's two
+        copies are inverted, which is the fact that decides whether an allele has to
+        be complemented to read it at the other copy, while the TSV and the .md both
+        state it.
+        """
+        import csv as _csv
+        with (DERIVED / "diploid_pairs.tsv").open() as fh:
+            stated = [r for r in _csv.DictReader(fh, delimiter="\t")]
+        self.assertEqual(len(stated), len(self.m.pairs))
+        for row, pair in zip(stated, self.m.pairs):
+            with self.subTest(locus=pair.locus):
+                self.assertEqual(pair.strand_relationship,
+                                 row["strand_relationship"])
+        kinds = {p.strand_relationship for p in self.m.pairs}
+        self.assertIn("inverted", kinds,
+                      "no pair is recorded as inverted, so the field carries nothing")
+        self.assertGreater(len(kinds), 1,
+                           f"the strand relationship is a constant, {kinds}, so it "
+                           f"distinguishes nothing")
+
     def test_each_pair_sits_in_the_two_copies_of_its_repeat(self):
         """A copy that moved out of its repeat is the 90 kb mutation the reviewer made."""
         repeats = {label: next(r for r in self.m.regions

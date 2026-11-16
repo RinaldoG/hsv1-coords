@@ -33,7 +33,7 @@ it is the reason to be gated."""
 
 # The number of derived figures that must stay gated. Raising it is a deliberate edit;
 # a change that silently ungates a figure fails instead of printing a smaller number.
-COVERAGE_FLOOR = 30
+COVERAGE_FLOOR = 35
 
 REQUIRED_FACTS = frozenset({
     # The figures a reader acts on. Named, not counted: round 10 deleted the five facts
@@ -641,7 +641,7 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
     shrinks the gate shows up as a number rather than as silence.
     """
 
-    FLOOR_RATE = 10.0
+    FLOOR_RATE = 18.0
     """A floor on the figure-comparison gate ALONE, not on the suite.
 
     Round 8 measured this on a 60-site sample with a fixed seed and printed 15.0 per
@@ -652,8 +652,15 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
     deterministic and the floor means what it says.
     """
 
-    FLOOR_CAUGHT = 40
+    FLOOR_CAUGHT = 70
     """A floor on the COUNT, which the rate's denominator cannot move.
+
+    Round 14: 40 against 78 caught, 10.0 per cent against 20.4, and a coverage floor
+    of 30 against 36 gated, so roughly half of each gate could be removed before any
+    of them fired. That is standing rule 27, a threshold set below what the data
+    already achieves, in the three places this file states one. They are 70, 18.0 and
+    35 now, measured on 16 November 2026 at 78, 20.4 and 36; a document edit that
+    moves them legitimately moves them by one or two.
 
     Round 9's other attack on this metric: appending 40 ungated page numbers to a
     document dropped the printed rate from 15.0 to 6.7 per cent with the gate untouched,

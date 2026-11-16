@@ -68,6 +68,16 @@ class DiploidPair:
     copy_1: tuple[int, int]
     copy_2: tuple[int, int]
     note: str = ""
+    strand_relationship: str = ""
+    """How the two copies are oriented relative to each other, as the artefact says.
+
+    Round 14: `diploid_pairs.tsv` carries this column and the loader dropped it, so a
+    library user of `RepeatMap.pairs` could not see whether a pair is inverted,
+    unmeasured or too short to measure, while the TSV and the .md both state it. The
+    whole point of the pairs is that the two copies are inverted relative to each
+    other, which is why an allele at one has to be complemented to read it at the
+    other. Last in the dataclass, as standing rule 22 requires.
+    """
 
     @property
     def exact(self) -> bool:
@@ -221,7 +231,8 @@ class RepeatMap:
                         r["locus"], r["repeat_pair"], r["feature_type"],
                         (int(r["copy_1_start"]), int(r["copy_1_end"])),
                         (int(r["copy_2_start"]), int(r["copy_2_end"])),
-                        r.get("offset_delta", "")))
+                        r.get("offset_delta", ""),
+                        r.get("strand_relationship", "")))
         return cls(regions, pairs)
 
     def _repeat(self, label: str) -> Region | None:
@@ -356,11 +367,20 @@ class RepeatMap:
                                       if inv and p != position}))
         if not inverted:
             if a_seq:
+                # Round 14: this reason was hardcoded to the 'a' sequence, and brute
+                # force over all 152,222 positions reaches it for none of them: every
+                # multi-copy region in the artefact lies inside TRL/IRL/IRS/TRS, so
+                # `inverted` is non-empty first. The branch stays, because a future
+                # record could name a multi-copy region outside the big repeats, but
+                # the explanation is derived from the regions actually hit rather
+                # than from the one case it was written for, which would otherwise
+                # give the first user of it a confident wrong reason.
+                named = ", ".join(sorted({r.name for r in hits})) or "a repeat"
                 return CoordinateStatus(
                     position, False, hits, a_seq, self.loci_at(position),
-                    "inside the 'a' sequence, which the reference carries three times: "
-                    "at both ends of the linear record in the same orientation, and "
-                    "once inverted between the segments",
+                    f"inside {named}, which the reference carries more than once and "
+                    f"not all in the same orientation, so this position has "
+                    f"{len(a_seq)} counterpart(s) elsewhere in the genome",
                     inverted_alternatives=a_seq_flipped)
             if hits:
                 kinds = ", ".join(sorted({r.name for r in hits}))

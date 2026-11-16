@@ -4,6 +4,7 @@ from __future__ import annotations
 import fnmatch
 import pathlib
 import re
+import shutil
 import sys
 import tempfile
 import unittest
@@ -1035,9 +1036,9 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
         "test_m2_annotation": 27,
-        "test_m3_crosswalk": 46,
-        "test_m4_repeat_map": 55,
-        "test_m5_conventions": 103,
+        "test_m3_crosswalk": 48,
+        "test_m4_repeat_map": 56,
+        "test_m5_conventions": 104,
         "test_placeholder": 1,
         "test_readme_examples": 6,
     }
@@ -1100,11 +1101,64 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
                    if not data.joinpath(*rel.split("/")).exists()]
         absent += missing_inputs()
         # `HSV1_Annotation.gtf` is in the manifest, so the first loop names it.
+        #
+        # Round 14: three conditions no file in those three sources names, each the
+        # key to a skip the gate could not see. A missing `crosswalk_report.md` let
+        # `test_the_alignment_preset_is_not_contradicted` skip with the gate green;
+        # minimap2 off PATH let four tests skip, among them the only class that
+        # compares committed blocks against a fresh alignment; and an accession with
+        # no block file let three more skip.
+        if not shutil.which("minimap2"):
+            absent.append("minimap2 on PATH (a declared dependency of M3; without it "
+                          "the blocks can only be checked against themselves)")
+        for name in sorted(p.name for p in (data / "derived").glob("*.md")):
+            if not (data / "derived" / name).exists():       # pragma: no cover
+                absent.append(f"data/derived/{name}")
+        for report in ("crosswalk_report.md", "repeat_map.md", "strain_inventory.md",
+                       "version_crosswalk.md", "annotation_summary.md",
+                       "mechanical_report.md"):
+            if not (data / "derived" / report).exists():
+                absent.append(f"data/derived/{report}")
+        # `accessions.txt` lists the GI numbers the fetch asked for, one per genome,
+        # so its line count is how many block files a complete build leaves behind.
+        accessions = data / "accessions.txt"
+        if accessions.exists():
+            wanted = len([line for line in accessions.read_text().splitlines()
+                          if line.strip()])
+            built = len(list((data / "derived" / "crosswalk").glob("*.blocks.tsv")))
+            if built < wanted:
+                absent.append(f"{wanted - built} of {wanted} crosswalk block files; "
+                              f"the tests keyed on an accession skip without theirs")
         self.assertEqual(
             sorted(set(absent)), [],
             f"{len(set(absent))} inputs or artefacts are absent in a git checkout, so "
             f"the classes that read them are skipping and the suite is smaller than it "
             f"reports. Run `make all`. Missing: {sorted(set(absent))}")
+
+    SKIP_SITES = {
+        "test_docs_match_artefacts": 4, "test_m1_dictionary": 2,
+        "test_m2_annotation": 1, "test_m3_crosswalk": 4, "test_m4_repeat_map": 1,
+        "test_m5_conventions": 4, "test_placeholder": 0, "test_readme_examples": 2,
+    }
+    """How many `SkipTest` sites each test file holds.
+
+    Round 14: the gate above is a list of conditions, and a reviewer found four skips
+    whose condition was not on it. A new skip is a new way for the suite to report OK
+    over less than it says, so adding one fails here until its condition is added to
+    that gate as well. Removing one is ordinary and lowers the number.
+    """
+
+    def test_no_test_file_gains_a_skip_the_checkout_gate_does_not_cover(self):
+        import re as _re
+        counted = {}
+        for path in sorted((ROOT / "tests").glob("test_*.py")):
+            counted[path.stem] = len(_re.findall(r"SkipTest\(", path.read_text()))
+        self.assertEqual(
+            counted, self.SKIP_SITES,
+            "the number of SkipTest sites has changed. Every skip is a test that "
+            "does not run, so each one's condition belongs in "
+            "test_a_checkout_holds_every_artefact_the_gates_skip_without, which fails "
+            "in a checkout rather than skipping. Update that gate, then this count.")
 
     def test_no_file_contributes_fewer_tests_than_it_did(self):
         import unittest as _unittest
@@ -1694,8 +1748,20 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
                 elif len(c.boundaries_evidence) < 20:
                     wrong.append((c.name, f"quotes {c.boundaries_evidence!r}, which is "
                                           f"too short to be evidence of anything"))
-                elif not re.search(r"coordinate|prints|derived|retrieved|inference|"
-                                   r"no\b", c.boundaries_evidence, re.I):
+                elif not re.search(r"\b(no|not|never|none)\b[^.;:]*"
+                                   r"(coordinate|print|retriev|publish|state)|"
+                                   r"(coordinate|print|retriev|publish|state)[^.;:]*"
+                                   r"\b(no|not|never|none)\b",
+                                   c.boundaries_evidence, re.I):
+                    # Round 14: the alternation here was a list of words any of which
+                    # would do, so seven clauses of the Morse source passed it and two
+                    # of them argue the opposite of the flag. `the paper does name its
+                    # coordinates` was legal evidence for "the intervals were not read
+                    # from the source", and round 13 had just made this string
+                    # user-facing in the report. An inference is justified by the
+                    # source NOT giving the numbers, so the clause has to say that:
+                    # a negation and a word about printing or retrieving them, in
+                    # either order, within the clause.
                     # Round 11: the check was that the row quotes itself, so setting
                     # whisnant2020_masked's evidence to "Whisnant" passed. The quote has
                     # to be about where the intervals came from, not merely present.
@@ -1755,6 +1821,24 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
                 # `full_length` names no intervals: the convention is the deposited
                 # record as it stands, so there are no coordinates to have been read
                 # from anywhere, and the record itself is the source.
+                continue
+            # Round 14: the burden rests on `quote`, which is a column nothing
+            # verifies against the paper, so appending one fabricated sentence to it
+            # ("The masked terminal repeats are 1-9,213 and 145,590-152,222.") bought
+            # a `read` flag and dropped the inference caveat out of `usable()`. The
+            # row's own `source` field is deliberately not the evidence here, because
+            # quoting our own prose is how the sibling check was gamed three times,
+            # but it is the one field that CONTRADICTS the lie, and discarding it
+            # discarded that too. A row cannot say its coordinates were read from a
+            # source its own prose says prints none.
+            contradiction = re.search(
+                r"\b(no|not|never|none)\b[^.;:]*(coordinate|print|retriev)|"
+                r"(coordinate|print|retriev)[^.;:]*\b(no|not|never|none)\b",
+                c.source or "", re.I)
+            if contradiction:
+                wrong.append((c.name, f"says its intervals were read from the source "
+                                      f"and its own source field says "
+                                      f"{contradiction.group(0)!r}"))
                 continue
             printed = {int(n.replace(",", ""))
                        for n in re.findall(r"\d[\d,]*", c.quote or "")}

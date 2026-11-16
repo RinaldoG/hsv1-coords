@@ -226,6 +226,17 @@ class LiftResult:
     reference_position: int | None = None
     well_defined: bool = True
     alternatives: list[int] = field(default_factory=list)
+    """The other place this position could be, IN THE REFERENCE'S FRAME.
+
+    Round 14: the only field in this dataclass with no docstring, and the one whose
+    frame differs from its neighbour's. `lift_detailed(118777, "JQ673480.1",
+    "JQ780693.1")` answers `position=118295`, in JQ780693.1, beside
+    `alternatives=[7487]`, in NC_001806.2; the same alternative in the target's frame
+    is 7300, 187 bp away. `__str__` says "the reference position could equally be",
+    so the printed form was right and the field was silent (standing rule 19: the
+    frame travels with the value). Pass one through `lift` from the reference to get
+    it in the target's frame.
+    """
     loci: list[str] = field(default_factory=list)
     reason: str = ""
     complemented: bool = False
@@ -252,7 +263,11 @@ class LiftResult:
     """
 
     inverted_alternatives: tuple[int, ...] = ()
-    """Which of `alternatives` are on the opposite strand from this answer.
+    """Which of `alternatives` are on the opposite strand from `reference_position`.
+
+    Not from `position`: round 14 found this saying "from this answer", and the
+    answer is in the target's frame while these are in the reference's, so for a
+    reverse-complemented target the relation inverts once more between the two.
 
     Round 9 found the alternatives printed bare: "could equally be 7597", where 7597 is
     the inverted copy and its allele is the complement. Fed from
