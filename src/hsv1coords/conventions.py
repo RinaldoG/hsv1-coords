@@ -427,7 +427,18 @@ class Convention:
         for name, a, b in self.records:
             if name == record:
                 if offset > b - a + 1:
-                    return None
+                    # Round 17: this returned the same None as a position that HAS no
+                    # NC_001806.2 equivalent, and 7 offsets inside the four records
+                    # are in that second case (RL:8776, RL:8777, UL:894, UL:24223,
+                    # UL:53026, UL:77111 and one more), so a user holding `UL:894`
+                    # from a deposited VCF could not tell "your coordinate does not
+                    # exist" from "that base is not in the newer reference". The same
+                    # fault `unmapped_stretch` was fixed for in round 16.
+                    raise ValueError(
+                        f"{record} holds {b - a + 1:,} bases, so {record}:{offset} is "
+                        f"not a position in it. A None from this method means the "
+                        f"position exists and has no {ConventionSet.BASE_VERSION} "
+                        f"equivalent.")
                 own = a + offset - 1
                 if native:
                     return own

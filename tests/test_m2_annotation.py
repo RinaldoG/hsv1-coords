@@ -692,6 +692,24 @@ class EveryColumnIsTheSourceSOwnValue(unittest.TestCase):
             sorted(self.NON_GENE_TYPES & gene_like), [],
             "a class name is being used both for a non-gene feature type and for a "
             "gene-like feature, so the column no longer separates them")
+        # Round 17: `NON_GENE_TYPES` is a hand-typed set and reached 108 of 1,779
+        # rows, with nothing comparing it against the types the artefact actually
+        # holds in either direction (standing rule 60). A new feature type lands in
+        # whichever half nobody declared it for, silently.
+        observed = {r["feature_type"] for r in self.rows}
+        gene_like_types = observed - self.NON_GENE_TYPES
+        # `rep_origin` is declared non-gene-like and the reference does not use it
+        # today; the other four are all present.
+        self.assertEqual(
+            sorted(self.NON_GENE_TYPES - observed), ["rep_origin"],
+            f"the non-gene-like types absent from the table have changed: "
+            f"{sorted(self.NON_GENE_TYPES - observed)}")
+        self.assertEqual(
+            sorted(gene_like_types),
+            ["CDS", "exon", "gene", "mRNA", "ncRNA", "transcript"],
+            f"the gene-like feature types have changed: {sorted(gene_like_types)}. A "
+            f"new type is classed by whichever half of this test nobody declared it "
+            f"for, so it belongs in one of them deliberately.")
 
     def test_no_repeat_region_is_named_after_a_gene_it_sits_inside(self):
         """M4's rule, applied to M2's rows: round 16 found only M4 had it.

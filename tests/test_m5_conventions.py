@@ -1040,7 +1040,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m2_annotation": 44,
         "test_m3_crosswalk": 53,
         "test_m4_repeat_map": 59,
-        "test_m5_conventions": 122,
+        "test_m5_conventions": 123,
         "test_placeholder": 1,
         "test_readme_examples": 7,
     }
@@ -1462,7 +1462,30 @@ class ASplitReferenceHasARouteBackOut(unittest.TestCase):
                     self.assertEqual(self.m.locate(expected, native=True),
                                      (name, offset))
             with self.subTest(record=name, offset="past the end"):
-                self.assertIsNone(self.m.from_record(name, b - a + 2, native=True))
+                # Round 17: this was None, the same answer as a position that exists
+                # and has no base-version equivalent, of which there are seven.
+                with self.assertRaises(ValueError):
+                    self.m.from_record(name, b - a + 2, native=True)
+
+    def test_a_position_with_no_base_equivalent_is_not_an_impossible_one(self):
+        """Seven offsets inside the four records have no NC_001806.2 coordinate.
+
+        Round 17: they returned the same None as an offset past the end of a record,
+        so a user holding `UL:894` from a deposited VCF could not tell "that
+        coordinate does not exist" from "that base is not in the newer reference".
+        """
+        no_equivalent = [(r, o) for r, a, b in self.m.records
+                         for o in range(1, b - a + 2)
+                         if self.m.from_record(r, o) is None]
+        self.assertTrue(no_equivalent,
+                        "no Morse position lacks a base-version equivalent, so this "
+                        "test is comparing nothing")
+        for record, offset in no_equivalent[:4]:
+            with self.subTest(record=record, offset=offset):
+                self.assertIsNone(self.m.from_record(record, offset))
+                self.assertIsNotNone(
+                    self.m.from_record(record, offset, native=True),
+                    "the position does exist in the convention's own version")
 
     def test_from_record_answers_in_the_base_version_by_default(self):
         """The frame travels with the value, and the two routes agree.
