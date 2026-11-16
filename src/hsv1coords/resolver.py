@@ -120,6 +120,15 @@ class Dictionary:
     entries: list[Entry] = field(default_factory=list)
     _by_key: dict[str, set[str]] = field(default_factory=dict)
     _declined: dict[str, list] = field(default_factory=dict)
+    _derived_from: dict[str, str] = field(default_factory=dict)
+    """Each key this loader derived, and the cited key it was derived from.
+
+    Round 13: `a-TIF` and `aTIF` resolved to UL48 while `confidence_of` returned ''
+    for both, which the docstring defines as "unknown name", and a declined alias
+    spelled `alpha-...` was refused under its own spelling and answered under the
+    short one, because `_declined` was built before the short keys existed. A derived
+    key now carries everything its source key carries.
+    """
 
     @classmethod
     @functools.lru_cache(maxsize=4)
@@ -163,6 +172,7 @@ class Dictionary:
             {key: frozenset(value) for key, value in d._by_key.items()})
         d._declined = types.MappingProxyType(
             {key: tuple(value) for key, value in d._declined.items()})
+        d._derived_from = types.MappingProxyType(dict(d._derived_from))
         return d
 
     def _add_single_letter_greek_keys(self) -> None:
@@ -189,6 +199,15 @@ class Dictionary:
                 targets = self._by_key[key]
                 if len(targets) == 1 or repeat_pair_of(targets) is not None:
                     self._by_key[short] = set(targets)
+                    self._derived_from[short] = key
+                    # Round 13: the refusal lives in `_declined`, which was built
+                    # before this ran, so a declined alias answered under its derived
+                    # spelling. Marking `alpha-TIF` as `decline` left `a-TIF` and
+                    # `aTIF` resolving to UL48: the table recorded a refusal and the
+                    # code answered anyway, which is root cause 43's shape in the one
+                    # place round 10's fix did not reach.
+                    if key in self._declined:
+                        self._declined[short] = list(self._declined[key])
 
     @property
     def canonical_names(self) -> set[str]:
@@ -222,29 +241,106 @@ class Dictionary:
         """True if this name denotes one locus present in both inverted-repeat copies."""
         return repeat_pair_of(self._by_key.get(normalise(name), set())) is not None
 
+    def copies_in_the_reference(self, name: str) -> int | None:
+        """How many copies of this gene the reference carries: 2, 1, or None.
+
+        Round 13: whether a diploid locus announced itself depended only on which
+        naming scheme its aliases happened to use. `resolve("pri-miRNA-H1")` raises
+        `RepeatPairedName`, because the table holds both copies under their own names,
+        while `resolve("ICP0")`, `resolve("ICP34.5")` and `resolve("ICP4")` answered
+        RL2, RL1 and RS1 with `is_repeat_paired` False: those canonicals name the
+        locus rather than a copy, so nothing in the answer said the gene is present
+        twice. They are the three loci this repository exists for, and
+        `data/derived/diploid_pairs.tsv` already held the fact.
+
+        A separate question from `is_repeat_paired`, deliberately, and not folded into
+        it: that one means "`resolve` will refuse", which these names must not do.
+
+        None when the dictionary does not hold the name, or when the repeat map is not
+        available, so a caller can tell "one copy" from "no information".
+        """
+        try:
+            canonical = self.resolve(name)
+        except RepeatPairedName:
+            # Both copies are in the table under their own names, so the question is
+            # already answered. This clause is first because the refusals are all
+            # subclasses of KeyError.
+            return 2
+        except KeyError:
+            return None
+        try:
+            from .repeats import RepeatMap
+            pairs = RepeatMap.load().pairs
+        except Exception:                       # the map is optional here
+            return None
+        bare = canonical.upper()
+        for prefix in ("IR", "TR"):
+            if bare.startswith(prefix) and len(bare) > len(prefix):
+                bare = bare[len(prefix):]
+                break
+        for pair in pairs:
+            locus = pair.locus.upper()
+            if locus in (canonical.upper(), bare):
+                return 2
+        return 1
+
     def is_ambiguous(self, name: str) -> bool:
         """True for a name used for two loci, or one the table declines to resolve.
 
         Round 10: this was False for `ICP10` and `AP`, both flagged `ambiguous` in the
         table, because it only counted how many canonicals a key maps to.
+
+        It is not the same question as `confidence_of(name) == "ambiguous"`, and round
+        13 found the two read as though they were. This one means "`resolve` will
+        refuse", and the suite requires exactly that. The column means "this string is
+        easy to confuse with another gene's", which is true of names that resolve
+        perfectly well: "capsid scaffolding protein" is UL26 and "capsid scaffold
+        protein" is UL26.5, one letter apart, each unambiguous on its own. Refusing
+        those would be wrong; saying nothing about them was the defect. `caution_for`
+        is the signal for that, and it is not silent where this is False.
         """
-        key = normalise(name)
+        key = self._cited_key(name)
         hits = self._by_key.get(key, set())
         if key in self._declined:
             return True
         return len(hits) > 1 and repeat_pair_of(hits) is None
 
-    def confidence_of(self, name: str) -> str:
-        """The weakest confidence recorded for this name, or '' if unknown.
+    def _rows_for(self, key: str) -> list:
+        return [e for e in self.entries if normalise(e.alias) == key]
 
-        The column existed and no caller could see it.
-        """
+    def _cited_key(self, name: str) -> str:
+        """The key whose rows describe this name: its own, or the one it came from."""
         key = normalise(name)
+        return self._derived_from.get(key, key)
+
+    def confidence_of(self, name: str) -> str:
+        """The WEAKEST confidence recorded for this name, or '' if it is not in here.
+
+        Weakest, deliberately: a name is only as attested as its least attested
+        citation, so `ICP4` reads `probable` because the 1988 and 1985 naming papers
+        are paywalled and were not read in full. 77 of 375 names read `probable` for
+        that reason, and `confidences_of` gives both ends for a caller that needs to
+        tell "weak everywhere" from "strong somewhere".
+
+        Round 13: a derived Greek key answered '' here, which this docstring defines
+        as a name the dictionary does not hold, while `resolve` answered UL48 for the
+        same string.
+        """
+        best_worst = self.confidences_of(name)
+        return best_worst[1] if best_worst else ""
+
+    def confidences_of(self, name: str) -> tuple[str, str] | None:
+        """(strongest, weakest) confidence recorded for this name, or None if unknown.
+
+        Round 13: `confidence_of` returns the weakest only, so a caller filtering on
+        `established` discarded ICP4 and all 68 systematic UL and US names.
+        """
         order = {"established": 0, "probable": 1, "ambiguous": 2}
-        found = [e.confidence for e in self.entries if normalise(e.alias) == key]
+        found = [e.confidence for e in self._rows_for(self._cited_key(name))]
         if not found:
-            return ""
-        return max(found, key=lambda c: order.get(c, 3))
+            return None
+        return (min(found, key=lambda c: order.get(c, 3)),
+                max(found, key=lambda c: order.get(c, 3)))
 
     COPY_PREFIXES = {"IR": "internal", "TR": "terminal"}
 
@@ -261,6 +357,14 @@ class Dictionary:
         may have dropped. `copy_kept` says whether the answer still carries it.
         """
         bare = name.strip()
+        if normalise(bare) not in self._by_key:
+            # Round 13: any string starting `tr` or `ir` was answered, so
+            # `copy_named("trypsin")` was "terminal" and `copy_named("transactivator")`
+            # "terminal" while `copy_kept` returned None for both, which its own
+            # docstring defines as "the input named no copy". The two accessors
+            # contradicted each other on caller input. A name this dictionary does not
+            # hold names no repeat copy here.
+            return None
         for prefix, which in self.COPY_PREFIXES.items():
             if bare.upper().startswith(prefix) and len(bare) > len(prefix):
                 return which
@@ -281,6 +385,20 @@ class Dictionary:
         except KeyError:
             return None
         return self.copy_named(canonical) is not None
+
+    def caution_for(self, name: str) -> str:
+        """Why this name is easy to get wrong, or '' if nothing is recorded.
+
+        Round 13: the table flags six aliases `ambiguous`, and for three of them
+        (`AL-RNA` and the two capsid scaffold strings) `resolve` answers and
+        `is_ambiguous` is False, correctly, so the only signal was a confidence string
+        a caller had to know to compare against. The note beside the flag is the thing
+        worth reading: for the capsid pair it says in terms that "a string match on
+        either will silently pick the wrong gene".
+        """
+        notes = [e.notes for e in self._rows_for(self._cited_key(name))
+                 if e.confidence == "ambiguous" and e.notes]
+        return notes[0] if notes else ""
 
     def why_declined(self, name: str) -> str:
         """Why the table refuses to resolve this name, or '' if it does resolve."""

@@ -1033,7 +1033,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     TESTS_PER_FILE = {
         "test_docs_match_artefacts": 16,
-        "test_m1_dictionary": 42,
+        "test_m1_dictionary": 47,
         "test_m2_annotation": 27,
         "test_m3_crosswalk": 46,
         "test_m4_repeat_map": 54,

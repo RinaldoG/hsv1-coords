@@ -443,6 +443,125 @@ def _says(name: str, text: str) -> bool:
                for p in patterns)
 
 
+class WhatTheAnswerSaysBesidesTheName(unittest.TestCase):
+    """Round 13: four signals beside `resolve`, each wrong in its own direction.
+
+    A caller who gets a canonical name back needs to know three further things: is
+    this gene present twice in the reference, is this string easy to confuse with
+    another gene's, and how well attested the mapping is. Each had an accessor and
+    each answered something other than the question.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.d = Dictionary.load(TABLE)
+
+    def test_a_two_copy_locus_says_so_whichever_naming_scheme_it_uses(self):
+        """ICP0, ICP34.5 and ICP4 are the three loci this repository exists for.
+
+        `resolve("pri-miRNA-H1")` raises `RepeatPairedName`, because the table holds
+        both copies under their own names, while these three resolved to RL2, RL1 and
+        RS1 with `is_repeat_paired` False and nothing saying the gene is diploid. The
+        fact was already in `data/derived/diploid_pairs.tsv`.
+        """
+        for alias in ("ICP0", "ICP34.5", "ICP4", "IE110", "IE175"):
+            with self.subTest(alias=alias):
+                self.assertEqual(self.d.copies_in_the_reference(alias), 2)
+        for alias in ("VP16", "gB", "UL48"):
+            with self.subTest(alias=alias):
+                self.assertEqual(self.d.copies_in_the_reference(alias), 1,
+                                 "a unique gene is reported as diploid")
+        self.assertIsNone(self.d.copies_in_the_reference("nothing-like-this"),
+                          "an unknown name must be unknown, not single-copy")
+        # And it is not folded into the refusal: these names still resolve.
+        self.assertEqual(self.d.resolve("ICP0"), "RL2")
+
+    def test_a_name_the_table_calls_ambiguous_carries_its_caution(self):
+        """`is_ambiguous` means `resolve` refuses; the column means easy to confuse.
+
+        Three of the six aliases flagged `ambiguous` resolve perfectly well, among
+        them "capsid scaffolding protein" (UL26) and "capsid scaffold protein"
+        (UL26.5), one letter apart, whose own note says a string match on either will
+        silently pick the wrong gene. A caller branching on `is_ambiguous` was told
+        nothing about them.
+        """
+        for alias in ("capsid scaffolding protein", "capsid scaffold protein"):
+            with self.subTest(alias=alias):
+                self.assertFalse(self.d.is_ambiguous(alias),
+                                 "this name resolves, so the refusal flag is False")
+                self.assertTrue(self.d.caution_for(alias),
+                                "and nothing warns the caller about it")
+        self.assertEqual(self.d.caution_for("VP16"), "",
+                         "a name with nothing recorded against it carries no caution")
+        flagged = {e.alias for e in self.d.entries if e.confidence == "ambiguous"}
+        silent = sorted(a for a in flagged
+                        if not self.d.caution_for(a) and not self.d.is_ambiguous(a))
+        self.assertEqual(silent, [],
+                         f"{len(silent)} aliases are flagged ambiguous in the table "
+                         f"and say nothing to a caller: {silent}")
+
+    def test_a_derived_greek_key_carries_what_its_source_key_carries(self):
+        """`a-TIF` resolved to UL48 while `confidence_of` said '', which means unknown.
+
+        And `_declined` was built before the short keys existed, so a declined alias
+        spelled `alpha-...` was refused under its own spelling and answered under the
+        short one.
+        """
+        self.assertEqual(self.d.resolve("a-TIF"), "UL48")
+        self.assertEqual(self.d.confidence_of("a-TIF"),
+                         self.d.confidence_of("alpha-TIF"))
+        self.assertEqual(self.d.confidences_of("aTIF"),
+                         self.d.confidences_of("alpha-TIF"))
+        # The refusal travels too. Built here rather than asserted against the
+        # committed data, because no alias currently declined begins with a Greek
+        # word, which is what made this latent rather than live.
+        from hsv1coords.resolver import (Dictionary as _D, Entry, UnresolvableName,
+                                         normalise)
+        rows = [Entry(canonical="UL48", alias="alpha-SYNTHETIC", alias_type="protein",
+                      citation="synthetic", citation_identifier="", inventory="both",
+                      confidence="ambiguous", resolution="decline",
+                      notes="round 13 fixture: the table refuses this name")]
+        built = _D(entries=rows)
+        for e in rows:
+            built._by_key.setdefault(normalise(e.alias), set()).add(e.canonical)
+            if e.resolution == "decline":
+                built._declined.setdefault(normalise(e.alias), []).append(e)
+        built._add_single_letter_greek_keys()
+        for spelling in ("alpha-SYNTHETIC", "a-SYNTHETIC", "aSYNTHETIC"):
+            with self.subTest(spelling=spelling):
+                with self.assertRaises(UnresolvableName):
+                    built.resolve(spelling)
+
+    def test_the_weakest_and_the_strongest_citation_are_both_reachable(self):
+        """`confidence_of` returns the weakest, so 77 of 375 names read `probable`.
+
+        A caller filtering on `established` discarded ICP4 and all 68 systematic UL
+        and US names, because the 1988 and 1985 naming papers are paywalled and the
+        rows say so. The pair is reachable now, and the weakest stays the default.
+        """
+        self.assertEqual(self.d.confidence_of("ICP4"), "probable")
+        self.assertEqual(self.d.confidences_of("ICP4"), ("established", "probable"))
+        self.assertIsNone(self.d.confidences_of("nothing-like-this"))
+        self.assertEqual(self.d.confidence_of("nothing-like-this"), "")
+
+    def test_a_string_this_dictionary_does_not_hold_names_no_repeat_copy(self):
+        """`copy_named("trypsin")` was "terminal", and `copy_kept` said None.
+
+        Any string starting `tr` or `ir` was read as a repeat copy, so the two
+        accessors contradicted each other on caller input.
+        """
+        for word in ("trypsin", "transactivator", "iron", "trimmed"):
+            with self.subTest(word=word):
+                self.assertIsNone(self.d.copy_named(word))
+                self.assertIsNone(self.d.copy_kept(word))
+        # The control: the genuine repeat-copy names still answer.
+        self.assertEqual(self.d.copy_named("IRL2"), "internal")
+        self.assertEqual(self.d.copy_named("TRL2"), "terminal")
+        self.assertFalse(self.d.copy_kept("IRL2"),
+                         "IRL2 resolves to RL2, so the copy is dropped")
+
+
+
 class EveryCitationAttestsItsAlias(unittest.TestCase):
     """Round 10: 11 aliases cited a deposited record that does not contain them.
 
