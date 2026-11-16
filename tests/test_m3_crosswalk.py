@@ -1238,6 +1238,27 @@ class GenomeToGenome(unittest.TestCase):
         self.assertGreaterEqual(rate, 99.0,
                                 f"genome-to-genome round-trip agreed {rate:.2f}%")
 
+    def test_a_reference_version_is_refused_however_it_is_spelt(self):
+        """The other reference version is not a strain, and the refusal says so.
+
+        82 per cent of positions differ between NC_001806.1 and NC_001806.2, so a
+        number in the wrong one must not fall through to "no crosswalk", whose
+        advice is to pick from a list that holds only the other version. Nothing
+        tested this refusal at all until 17 November 2026; the case and padding
+        variants reached the bare message before then.
+        """
+        from hsv1coords.liftover import REFERENCE, WrongReferenceVersion
+        for spelling in ("NC_001806.1", "NC_001806", "nc_001806.1",
+                         " NC_001806.1", "NC_001806.1 "):
+            with self.subTest(spelling=spelling):
+                with self.assertRaises(WrongReferenceVersion) as refusal:
+                    Crosswalk.load(spelling, CROSSWALK)
+                said = str(refusal.exception)
+                self.assertIn("VersionCrosswalk", said)
+                self.assertIn("12 May 2015", said)
+        self.assertTrue(Crosswalk.load(REFERENCE, CROSSWALK).blocks,
+                        "the reference itself must still load")
+
     @staticmethod
     def _unique_position(cw):
         """A deposited position whose reference counterpart names one locus.

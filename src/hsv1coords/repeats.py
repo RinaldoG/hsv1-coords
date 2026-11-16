@@ -440,9 +440,16 @@ class RepeatMap:
         """What can honestly be said about one position IN NC_001806.2.
 
         Round 18: this method had no docstring at all, and it is the first call a
-        reader makes. The frame is NC_001806.2, the 2018 RefSeq version, and 82 per
-        cent of positions mean something different in NC_001806.1, which is what most
-        papers citing "NC_001806" without a version are using. Translate first with
+        reader makes. The frame is NC_001806.2, the RefSeq version NCBI has served
+        under the bare accession since 12 May 2015, and 82 per cent of positions mean
+        something different in NC_001806.1.
+
+        Round 19 removed "which is what most papers citing 'NC_001806' without a
+        version are using": nobody counted, and for anything published since May 2015
+        the implication reverses. A reviewer found nine papers from 2019 to 2025 citing
+        the bare accession, and in at least one the unversioned citation is provably
+        `.2`, because the paper also names a protein accession that only `.2` carries.
+        An unversioned citation has to be read, not dated. Translate first with
         `hsv1coords.versions.VersionCrosswalk.convert` if a coordinate came from a
         paper on the older version (standing rule 19: the frame travels with the
         value).

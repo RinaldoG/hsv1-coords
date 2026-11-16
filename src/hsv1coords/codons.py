@@ -2,9 +2,10 @@
 
 Round 18: a reviewer worked a real clinical paper through this library and could not.
 Brunnemann et al. (2016) Sci Rep 6:29903, PMC4947914, reports aciclovir resistance as
-"G61A and P84L mediate broad cross-resistance against aciclovir, penciclovir,
-brivudin", measured in single substitutions introduced into a BAC-cloned strain 17+ and
-assayed by cytopathic-effect reduction in cell culture. Those are amino acid positions
+"whereas G61A and P84L mediate broad cross-resistance against aciclovir, penciclovir,
+brivudin, and susceptibility to foscarnet", measured in single nucleotide substitutions
+introduced into the UL23 gene of HSV-1 strain 17+ cloned into a bacterial artificial
+chromosome, assayed by cytopathic-effect inhibition in Vero cells. Those are amino acid positions
 in UL23's thymidine kinase, and the whole resistance literature is written that way.
 This repository held `UL23 CDS complement(46673..47803)` and no way to get from codon
 61 to a coordinate, so the reviewer wrote a GenBank parser, a codon table and the
@@ -50,9 +51,17 @@ class Codon:
     def spans_an_intron(self) -> bool:
         """True when the three positions are not contiguous.
 
-        39 CDS rows in this record are spliced, RL2 among them, so a codon can sit
-        across a junction. A caller slicing the reference between min and max would
-        pick up intron bases without noticing.
+        Three CDS rows of NC_001806.2 are spliced, RL2's two copies and UL15, so a
+        codon can sit across a junction and a caller slicing the reference between
+        min and max would pick up intron bases without noticing.
+
+        Round 19 corrected "39 CDS rows in this record are spliced": 39 is no
+        reading of the artefact (3 is `NC_001806.2`'s spliced CDS rows, 38 is every
+        spliced row of every type across all three sources), and the figure inflated
+        a property that is never True through this function today: RL2 is refused as
+        a two-copy gene, and UL15's two junctions both fall on codon boundaries, so
+        no codon of any answerable gene crosses one. The property is here for a
+        record that changes, and it has never fired.
         """
         ordered = sorted(self.positions)
         return ordered[2] - ordered[0] != 2
@@ -104,7 +113,7 @@ def codon(gene: str, number: int) -> Codon:
     """The reference positions of codon `number` of `gene`, 1-based.
 
     >>> codon("UL23", 61).positions
-    (46620, 46619, 46618)
+    (47623, 47622, 47621)
 
     The published labels this answers are the ones in the resistance literature:
     `codon("UL23", 61)` for G61A and `codon("UL23", 84)` for P84L.

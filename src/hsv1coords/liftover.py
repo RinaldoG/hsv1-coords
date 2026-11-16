@@ -35,6 +35,19 @@ class Block:
     length: int
 
 
+def _is_a_reference_version(accession: str) -> bool:
+    """Is this spelling a reference VERSION rather than a deposited strain?
+
+    Round 19: the check was `accession.split(".")[0] == "NC_001806"` against the
+    string as given, so `nc_001806.1`, `NC_001806.1 ` and ` NC_001806.1` all fell
+    through to the bare "no crosswalk" message that sends a reader to `available()`,
+    whose only NC entry is the other version. Standing rule 63.
+    """
+    cleaned = accession.strip().casefold()
+    return (cleaned.split(".")[0] == "nc_001806"
+            and cleaned != REFERENCE.casefold())
+
+
 def _the_version_question(accession: str) -> str:
     """The message for a reference VERSION passed where a strain belongs.
 
@@ -42,7 +55,16 @@ def _the_version_question(accession: str) -> str:
     2010, which cites "NC_001806" with no version) found that nothing in this library
     asks which `NC_001806` a number is in, and that 125,072 of the genome's 152,261
     positions, 82 per cent, mean something different in the two versions, by 38 or 39
-    bases over the terminal 6,441. The refusal used to be a bare "no crosswalk for
+    bases over the terminal 6,441.
+
+    Round 19 corrected the deposit dates this message gave. It said "2018 for .2 and
+    2002 for .1". Both records state "On May 12, 2015 this sequence version replaced
+    NC_001806.1", and 13 August 2018 is only the `.2` record's last modification date;
+    nothing in either record says 2002. The error ran in the direction that hurts: by
+    the stated dates a reader resolves a 2016 or 2017 paper to `.1` when `.2` had been
+    the served version for over a year.
+
+    The refusal used to be a bare "no crosswalk for
     'NC_001806.1'" pointing at `Crosswalk.available()`, whose 183 accessions include
     `NC_001806.2`, so the reader's natural repair was to use the wrong frame in
     silence. Root cause 6b and standing rule 19 at the public entry point.
@@ -55,9 +77,14 @@ def _the_version_question(accession: str) -> str:
         f"    from hsv1coords.versions import VersionCrosswalk\n"
         f"    VersionCrosswalk.load().convert(position, 'NC_001806.1', '{REFERENCE}')\n"
         f"A coordinate already in {REFERENCE} is used as it stands, with "
-        f"'{REFERENCE}' as the source. A paper that cites the accession without a "
-        f"version has to be read for which it means: the deposit dates are 2018 for "
-        f".2 and 2002 for .1.")
+        f"'{REFERENCE}' as the source. A paper citing the accession without a version "
+        f"has to be read for which it means. NCBI has served {REFERENCE} under the "
+        f"bare accession since 12 May 2015, the date both records state, so a recent "
+        f"paper is usually already in this frame and an older one usually is not, "
+        f"but the date is a prior and not an answer: check for a versioned spelling, "
+        f"a protein accession, or a coordinate that only fits one version. "
+        f"52 of the NC_001806.1 positions have no equivalent here at all, and the "
+        f"translation above returns None for those.")
 
 
 class WrongReferenceVersion(FileNotFoundError):
@@ -143,7 +170,11 @@ class Crosswalk:
         directory = directory or DEFAULT_DIR
         # The version question comes first: a reference version is not a deposited
         # strain, and the refusal below would send the reader to `available()`.
-        if accession.split(".")[0] == "NC_001806" and accession != REFERENCE:
+        # Round 19: this compared the accession as given, so `nc_001806.1` and a
+        # whitespace-padded spelling fell through to the bare "no crosswalk" message
+        # and the reader's natural repair was still the wrong frame in silence.
+        # Standing rule 63: a name is compared whole and case-folded.
+        if _is_a_reference_version(accession):
             raise WrongReferenceVersion(_the_version_question(accession))
         path = pathlib.Path(directory) / f"{accession}.blocks.tsv"
         if not path.exists():

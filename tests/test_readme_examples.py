@@ -396,5 +396,65 @@ class EveryQuotedExampleIsExecutable(unittest.TestCase):
             f"so nothing can run them and the quoted text is unchecked: {offenders}")
 
 
+
+class EveryExampleInTheLibraryItselfRuns(unittest.TestCase):
+    """Round 19: both reviewers' first finding was a `>>>` example giving the wrong
+    answer, in the docstring of the function round 18 added as its headline feature.
+
+    `codon("UL23", 61).positions` was documented as `(46620, 46619, 46618)`. The real
+    answer is `(47623, 47622, 47621)`. The printed positions are 53 bases outside
+    UL23's CDS, in the gap between its two polyadenylation signals, and the bases
+    there spell AGA (Arg) where the real codon 61 spells GGG (Gly), which is the G of
+    the G61A substitution the module exists to serve.
+
+    Nothing could have caught it. `test_every_python_block_executes` runs the fenced
+    blocks in four documents, `codon` appears in none of them, and no runner in the
+    repository executed a `>>>` example in `src/`. Root cause 24 was closed for the
+    documents and left open for the library, which is where a reader meets an example
+    through `help()`. The gate starts green on three pre-existing examples in
+    `repeats.py`, so it cost nothing and had power the day it was written.
+    """
+
+    def test_every_doctest_in_the_package_passes(self):
+        import doctest
+
+        package = ROOT / "src" / "hsv1coords"
+        modules = sorted(p.stem for p in package.glob("*.py")
+                         if p.stem != "__init__")
+        self.assertGreater(len(modules), 5,
+                           "the package's modules are not being found")
+        attempted = 0
+        failures = []
+        for name in modules:
+            # `-I` ignores PYTHONPATH, which is the point of using it, so the
+            # package path is placed by the snippet itself.
+            code = (
+                "import doctest, sys\n"
+                f"sys.path.insert(0, {str(ROOT / 'src')!r})\n"
+                f"import hsv1coords.{name} as m\n"
+                "r = doctest.testmod(m, verbose=False, report=True)\n"
+                "print(f'ATTEMPTED {r.attempted} FAILED {r.failed}')\n"
+                "sys.exit(1 if r.failed else 0)\n")
+            proc = subprocess.run(
+                [sys.executable, "-I", "-c", code], cwd=ROOT,
+                capture_output=True, text=True,
+                env={"PYTHONPATH": str(ROOT / "src"), "PATH": "/usr/bin:/bin",
+                     "PYTHONDONTWRITEBYTECODE": "1"})
+            tail = proc.stdout.strip().splitlines()[-1] if proc.stdout else ""
+            if proc.returncode != 0:
+                failures.append(f"{name}: {proc.stdout[-1200:]}{proc.stderr[-400:]}")
+            if tail.startswith("ATTEMPTED"):
+                attempted += int(tail.split()[1])
+        self.assertEqual(
+            failures, [],
+            "a `>>>` example in the library gives a different answer than the "
+            "library does. This is how round 18 shipped a codon in a promoter for "
+            "the glycine a paper names:\n" + "\n".join(failures))
+        self.assertGreaterEqual(
+            attempted, 4,
+            f"only {attempted} examples were executed, so this gate has stopped "
+            f"reaching the library's docstrings")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

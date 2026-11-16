@@ -1236,7 +1236,7 @@ class ACodonNumberReachesACoordinate(unittest.TestCase):
             codon("thymidine kinase", 61)
 
     def test_a_spliced_gene_is_read_through_its_junctions(self):
-        """39 CDS rows here are spliced, UL15 among them.
+        """Three CDS rows of this record are spliced, UL15 among them.
 
         Measured: UL15's two junctions both fall on codon boundaries, so no codon of
         it crosses one, and `spans_an_intron` is False throughout. The property that

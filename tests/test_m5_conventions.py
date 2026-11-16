@@ -1038,11 +1038,11 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
         "test_m2_annotation": 49,
-        "test_m3_crosswalk": 53,
+        "test_m3_crosswalk": 54,
         "test_m4_repeat_map": 61,
         "test_m5_conventions": 125,
         "test_placeholder": 1,
-        "test_readme_examples": 7,
+        "test_readme_examples": 8,
     }
     """How many tests each file contributes to discovery.
 
@@ -1248,9 +1248,9 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     ASSERTIONS_PER_FILE = {
         "test_docs_match_artefacts": 28, "test_m1_dictionary": 101,
-        "test_m2_annotation": 90, "test_m3_crosswalk": 131,
+        "test_m2_annotation": 90, "test_m3_crosswalk": 135,
         "test_m4_repeat_map": 137, "test_m5_conventions": 273,
-        "test_placeholder": 1, "test_readme_examples": 16,
+        "test_placeholder": 1, "test_readme_examples": 19,
     }
     """How many assertions each test file makes, filled in below.
 
