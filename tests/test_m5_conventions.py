@@ -1038,6 +1038,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
         "test_m2_annotation": 49,
+        "test_m2_gff3": 17,
         "test_m3_crosswalk": 54,
         "test_m4_repeat_map": 61,
         "test_m5_conventions": 125,
@@ -1121,6 +1122,14 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
                        "mechanical_report.md"):
             if not (data / "derived" / report).exists():
                 absent.append(f"data/derived/{report}")
+        # The GFF3 and BED renderings, which no loader reads, so neither the manifest
+        # nor `requested()` names them. Named by the builder that writes them, so a
+        # new output is covered without retyping it here; `test_m2_gff3.py` skips
+        # outside a checkout without them.
+        import build_gff3
+        for name in build_gff3.OUTPUTS:
+            if not (data / "derived" / name).exists():
+                absent.append(f"data/derived/{name}")
         # `accessions.txt` lists the GI numbers the fetch asked for, one per genome,
         # so its line count is how many block files a complete build leaves behind.
         # Round 14's remaining skip: `tests/test_readme_examples.py` skips when the
@@ -1151,7 +1160,8 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     SKIP_SITES = {
         "test_docs_match_artefacts": 5, "test_m1_dictionary": 2,
-        "test_m2_annotation": 9, "test_m3_crosswalk": 7, "test_m4_repeat_map": 3,
+        "test_m2_annotation": 9, "test_m2_gff3": 1, "test_m3_crosswalk": 7,
+        "test_m4_repeat_map": 3,
         "test_m5_conventions": 9, "test_placeholder": 0, "test_readme_examples": 2,
     }
     r"""Every way each test file can decline to run something.
@@ -1248,7 +1258,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     ASSERTIONS_PER_FILE = {
         "test_docs_match_artefacts": 28, "test_m1_dictionary": 101,
-        "test_m2_annotation": 90, "test_m3_crosswalk": 135,
+        "test_m2_annotation": 90, "test_m2_gff3": 52, "test_m3_crosswalk": 135,
         "test_m4_repeat_map": 137, "test_m5_conventions": 273,
         "test_placeholder": 1, "test_readme_examples": 19,
     }
