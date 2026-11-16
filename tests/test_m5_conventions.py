@@ -1036,7 +1036,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m2_annotation": 27,
         "test_m3_crosswalk": 45,
         "test_m4_repeat_map": 54,
-        "test_m5_conventions": 98,
+        "test_m5_conventions": 99,
         "test_placeholder": 1,
         "test_readme_examples": 6,
     }
@@ -1525,6 +1525,46 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
         self.assertEqual(wrong, [], f"{len(wrong)} conventions disagree with their own "
                                     f"source about where their intervals came from: "
                                     f"{wrong}")
+
+    def test_every_read_row_shows_its_source_printing_the_coordinates(self):
+        """Round 13: the gate above guards only the `inferred` branch.
+
+        Everything that checked this flag asked what an `inferred` row owed, so the
+        flag could be answered by writing `read`. Flipping `whisnant2020_masked` to
+        `read` and clearing its evidence left every test in this class green, and
+        `usable(118777, 'whisnant2020_masked')` stopped reporting the inference
+        caveat: the only tests that went red were the README output quotations, which
+        catch it by coincidence because the README happens to quote a provenance line
+        that names the row. Reword the README and the mislabelling ships.
+
+        So `read` carries its own burden, and it is the burden the word means: the
+        source prints these numbers. Every edge of a read row's intervals and records
+        has to appear as a numeral in that row's verbatim quote of its source, with or
+        without thousands separators. The row's `source` field is this repository's own
+        prose about the source and is deliberately not consulted here, because quoting
+        our own commentary is how the three previous versions of the sibling check were
+        gamed.
+        """
+        wrong = []
+        for c in self.cs.conventions:
+            if c.boundaries_are_inferred:
+                continue
+            edges = [e for a, b in c.intervals for e in (a, b)]
+            edges += [e for _, a, b in c.records for e in (a, b)]
+            if not edges:
+                # `full_length` names no intervals: the convention is the deposited
+                # record as it stands, so there are no coordinates to have been read
+                # from anywhere, and the record itself is the source.
+                continue
+            printed = {int(n.replace(",", ""))
+                       for n in re.findall(r"\d[\d,]*", c.quote or "")}
+            missing = sorted(e for e in edges if e not in printed)
+            if missing:
+                wrong.append((c.name, f"says its intervals were read from the source "
+                                      f"and its quote of that source does not print "
+                                      f"{missing}"))
+        self.assertEqual(wrong, [], f"{len(wrong)} conventions claim coordinates read "
+                                    f"from a source that does not print them: {wrong}")
 
     def test_the_inference_reaches_a_caller_of_usable(self):
         """Round 10: the docstring said it reaches `usable`. It reached `report` only."""
