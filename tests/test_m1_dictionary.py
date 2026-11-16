@@ -5,6 +5,7 @@ not that the test needs adjusting.
 """
 from __future__ import annotations
 
+import collections
 import csv
 import pathlib
 import sys
@@ -390,6 +391,58 @@ class TheTableDecidesWhatResolves(unittest.TestCase):
         self.assertEqual(self.d.confidence_of("nothing-like-this"), "")
 
 
+
+
+def _annotation(record: str) -> str:
+    """A record's annotation, lowercased, without its sequence or its translations."""
+    return re.sub(r'/translation="[^"]*"', "", record.split("\nORIGIN")[0],
+                  flags=re.S).lower()
+
+
+def _features(record: str) -> list[str]:
+    """One lowercased string per feature: its /gene, /locus_tag, /product and /note.
+
+    Round 13 added this. The citation gate asked whether the alias appeared anywhere in
+    the record, which attests the STRING and not the mapping, so repointing an alias at
+    a different gene left the whole suite green: 138 of 293 (gene, alias) pairs could be
+    sent to UL30, among them ICP8, VP22, gG, ICP6 and dUTPase, and deleting `ICP8` from
+    the dictionary altogether passed too. What a record attests is that these two names
+    sit on the same feature.
+    """
+    body = record.split("\nORIGIN")[0].split("\nFEATURES", 1)[1]
+    blocks, current = [], None
+    for line in body.splitlines():
+        if re.match(r"^ {5}\S", line):
+            if current:
+                blocks.append(current)
+            current = [line.strip()]
+        elif current is not None and line.startswith(" " * 21):
+            current.append(line.strip())
+    if current:
+        blocks.append(current)
+    out = []
+    for block in blocks:
+        text = re.sub(r'/translation="[^"]*"', "", " ".join(block), flags=re.S)
+        out.append(" ; ".join(
+            re.findall(r'/(?:gene|locus_tag|product|note)="([^"]*)"', text)).lower())
+    return out
+
+
+def _says(name: str, text: str) -> bool:
+    """Whether `text` states this name as a word.
+
+    `RL2` is also stated by `TRL2` and `IRL2`: the two repeat copies of one gene, which
+    is how BK012101.1 names them (`/gene="IRL2-IRL1"`, `/product="TRL2"`). That is the
+    repository's own convention, not a fuzzy match: no other prefix is accepted.
+    """
+    patterns = [re.escape(name.lower())]
+    repeat = re.match(r"^R([LS])(\d+(?:\.\d+)?)$", name, re.I)
+    if repeat:
+        patterns.append(f"[ti]r{repeat.group(1).lower()}{re.escape(repeat.group(2))}")
+    return any(re.search(r"(?<![0-9a-z])" + p + r"(?![0-9a-z])", text)
+               for p in patterns)
+
+
 class EveryCitationAttestsItsAlias(unittest.TestCase):
     """Round 10: 11 aliases cited a deposited record that does not contain them.
 
@@ -411,12 +464,21 @@ class EveryCitationAttestsItsAlias(unittest.TestCase):
         cls.rows = [r for r in csv.DictReader(
             (ROOT / "data" / "derived" / "aliases_literature.tsv").open(),
             delimiter="\t")]
-        cls.texts = {}
+        cls.texts, cls.features = {}, {}
         for ident, filename in cls.RECORDS.items():
             path = ROOT / "data" / "raw" / filename
             if path.exists():
-                cls.texts[ident] = path.read_text().lower()
+                record = path.read_text()
+                cls.texts[ident] = _annotation(record)
+                cls.features[ident] = _features(record)
         if not cls.texts:
+            # A skip here is a hole: these three tests are the only gate tying an
+            # alias to the record it cites, and `data/raw` is gitignored, so on a
+            # clone they vanished while the suite reported OK and the discovery count
+            # stayed at 38. Round 13 added
+            # `test_a_checkout_holds_every_artefact_the_gates_skip_without` in
+            # tests/test_m5_conventions.py, which fails in a checkout before this can
+            # skip quietly.
             raise unittest.SkipTest("the deposited records are fetched, not committed")
 
     def test_the_verbatim_column_is_the_truth_about_the_record(self):
@@ -431,9 +493,14 @@ class EveryCitationAttestsItsAlias(unittest.TestCase):
             # Round 11: both used a bare substring test, so 15 rows were marked attested
             # because the record says "glycoprotein L" and "polymerase", and the gate
             # shared the defect it was meant to catch.
-            present = bool(re.search(
-                r"(?<![0-9a-z])" + re.escape(r["alias"].lower()) + r"(?![0-9a-z])",
-                text))
+            #
+            # Round 13: both then searched the whole FILE. The genome is 152,222 bp,
+            # which is 60 x 2537 + 2, so `ORIGIN`'s last line is "   152221 gc", the
+            # only occurrence of `gC` in either record, and `gI` occurs only as the
+            # last two residues of a UL50 `/translation`. Three rows were certified
+            # against the sequence. The sequence and the translations are not what the
+            # depositors wrote, so neither is searched here.
+            present = _says(r["alias"], text)
             if (r["verbatim_in_citation"] == "yes") != present:
                 wrong.append((r["alias"], r["citation_identifier"],
                               r["verbatim_in_citation"], present))
@@ -452,8 +519,12 @@ class EveryCitationAttestsItsAlias(unittest.TestCase):
             text = self.texts.get(r["citation_identifier"], "")
             if any(q.lower() in text for q in quoted):
                 continue
-            if "NOT the" in note or "conventional" in note.lower():
-                continue
+            # Round 13: there was a blanket exemption here for a note containing
+            # "NOT the" or "conventional". Measured over the 26 `verbatim=no` rows, all
+            # 26 passed on the quoted-string branch above and none used it, so it
+            # admitted nothing and stood ready to wave through any row whose note
+            # happened to use the word. Standing rule 46: an exemption inside a gate is
+            # named and counted, and an uncounted one is deleted.
             bare.append((r["canonical_systematic_name"], r["alias"], note[:60]))
         self.assertEqual(
             bare, [],
@@ -473,6 +544,183 @@ class EveryCitationAttestsItsAlias(unittest.TestCase):
                         and r["citation_identifier"] == "NC_001806.2"]
                 self.assertTrue(rows, f"{product} is not cited to the record for {gene}")
                 self.assertEqual(rows[0]["verbatim_in_citation"], "yes")
+
+
+class EveryMappingIsAttestedAndTheUngatedOnesAreCounted(unittest.TestCase):
+    """Round 13: nothing gated the (gene, alias) PAIR, only the alias string.
+
+    `Criterion1RoundTrip` cannot fail by construction: `Dictionary.load` puts
+    `canonical` into `_by_key[normalise(alias)]` for every row, so
+    `entry.canonical in resolve_all(entry.alias)` is true whatever the row says.
+    `EveryCitationAttestsItsAlias` asks whether the record prints the alias and never
+    looks at the gene beside it. `testcases_synonymy.tsv` pins 74 of 366 pairs. So a
+    reviewer repointed 138 of 293 pairs at UL30 with all 285 tests green, among them
+    ICP8, VP22, gG, ICP6, dUTPase, OBP, UDG and every ICTV functional name, and
+    deleting `ICP8` from the dictionary altogether also passed.
+
+    What can be checked offline is checked, per source class, and what cannot is
+    counted rather than left unsaid (standing rule 16):
+
+    - a GenBank-cited row claiming the record prints its alias: the alias and the gene
+      have to sit on the SAME feature. 205 of 205 repoints to another gene fail this.
+    - a row cited to the Zenodo GTF: the alias has to be an identifier in the pinned
+      file, and the gene has to be that same identifier or an identifier itself.
+    - UniProt, PubMed, DOI and ISBN rows: not checkable without the network, which the
+      suite does not use. Counted and printed, not assumed.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.rows = list(csv.DictReader(
+            (ROOT / "data" / "derived" / "aliases_literature.tsv").open(),
+            delimiter="\t"))
+        cls.features = {}
+        for ident, filename in (("NC_001806.2", "ref_NC_001806.2.gb"),
+                                ("BK012101.1", "alt_BK012101.1.gb")):
+            path = ROOT / "data" / "raw" / filename
+            if path.exists():
+                cls.features[ident] = _features(path.read_text())
+        gtf = ROOT / "data" / "raw" / "HSV1_Annotation.gtf"
+        cls.gtf_ids = set()
+        if gtf.exists():
+            for line in gtf.read_text().splitlines():
+                for field in ("gene_id", "transcript_id"):
+                    found = re.search(rf'{field} "([^"]+)"', line)
+                    if found:
+                        cls.gtf_ids.add(found.group(1))
+        if not cls.features or not cls.gtf_ids:
+            raise unittest.SkipTest("the cited records are fetched, not committed")
+
+    def _classes(self):
+        """Each row with the class of source it cites. Every row lands in one."""
+        for row in self.rows:
+            ident = row["citation_identifier"]
+            if ident in self.features:
+                yield "GenBank record", row
+            elif ident.startswith("10.5281/zenodo"):
+                yield "Zenodo GTF", row
+            elif ident.startswith("PMID:"):
+                yield "PubMed", row
+            elif ident.startswith("ISBN:"):
+                yield "book", row
+            elif ident.startswith("10."):
+                yield "DOI", row
+            else:
+                yield "UniProt", row
+
+    def _genbank_failures(self):
+        out = []
+        for kind, row in self._classes():
+            if kind != "GenBank record" or row["verbatim_in_citation"] != "yes":
+                continue
+            gene = row["canonical_systematic_name"]
+            if not any(_says(gene, f) and _says(row["alias"], f)
+                       for f in self.features[row["citation_identifier"]]):
+                out.append((gene, row["alias"], row["citation_identifier"]))
+        return out
+
+    def test_a_record_cited_for_an_alias_carries_it_on_that_gene_s_feature(self):
+        failures = self._genbank_failures()
+        self.assertEqual(
+            failures, [],
+            f"{len(failures)} rows cite a record that does not state the alias on any "
+            f"feature naming that gene, so the record attests the string and not the "
+            f"mapping: {failures}")
+
+    def test_repointing_any_gated_row_at_another_gene_fails_that_gate(self):
+        """The control, measured rather than assumed (standing rule 18).
+
+        A gate that passes on the committed data says nothing until something it
+        should reject is put through it.
+        """
+        caught = tried = 0
+        for kind, row in self._classes():
+            if kind != "GenBank record" or row["verbatim_in_citation"] != "yes":
+                continue
+            tried += 1
+            elsewhere = "UL30" if row["canonical_systematic_name"] != "UL30" else "UL29"
+            if not any(_says(elsewhere, f) and _says(row["alias"], f)
+                       for f in self.features[row["citation_identifier"]]):
+                caught += 1
+        gtf_caught = gtf_tried = 0
+        for kind, row in self._classes():
+            if kind != "Zenodo GTF":
+                continue
+            gtf_tried += 1
+            alias = row["alias"]
+            elsewhere = "UL30" if row["canonical_systematic_name"] != "UL30" else "UL29"
+            stem = alias
+            for suffix in ("_gene", "_RNA"):
+                stem = stem[:-len(suffix)] if stem.endswith(suffix) else stem
+            if elsewhere not in (alias, stem):
+                gtf_caught += 1
+        self.assertGreater(tried, 0, "no GenBank-cited row was put through the gate")
+        self.assertEqual(
+            caught, tried,
+            f"{tried - caught} of {tried} rows would still pass with their gene "
+            f"replaced by another, so the gate is not reading the pair")
+        self.assertEqual(gtf_caught, gtf_tried,
+                         f"{gtf_tried - gtf_caught} GTF-cited rows would still pass "
+                         f"repointed at another gene")
+        # Measured over the whole table by replaying the reviewer's sweep, 16 November
+        # 2026: repointing each of the 378 distinct (gene, alias) pairs in turn and
+        # running this file, 320 fail and 58 pass. Every survivor is cited only to a
+        # paper, a book or UniProt, which this suite cannot fetch. Before round 13 the
+        # same sweep caught about half.
+        print(f"\n    mapping gate: {caught} of {tried} GenBank-cited rows and "
+              f"{gtf_caught} of {gtf_tried} GTF-cited rows fail when the gene is "
+              f"replaced")
+
+    def test_every_gtf_cited_alias_is_an_identifier_in_the_pinned_file(self):
+        failures = []
+        for kind, row in self._classes():
+            if kind != "Zenodo GTF":
+                continue
+            gene, alias = row["canonical_systematic_name"], row["alias"]
+            # The GTF carries `gene_id` and `transcript_id` and no synonym field, so
+            # what it can attest is that the alias IS the gene, written as that file
+            # writes it: `LAT_gene` for `LAT` is the one row where the two differ.
+            # Round 13: requiring only that each be an identifier somewhere in the
+            # file left a repointed row passing, because the gene it was repointed to
+            # is an identifier too.
+            stem = alias
+            for suffix in ("_gene", "_RNA"):
+                stem = stem[:-len(suffix)] if stem.endswith(suffix) else stem
+            if alias not in self.gtf_ids:
+                failures.append((gene, alias, "the alias is not an identifier"))
+            elif gene not in (alias, stem):
+                failures.append((gene, alias,
+                                 f"the file states {alias!r}, which is not {gene!r} "
+                                 f"and carries no synonym field that could say it is"))
+        self.assertEqual(
+            failures, [],
+            f"{len(failures)} rows cite the Zenodo GTF for a name it does not carry: "
+            f"{failures}")
+
+    def test_the_share_of_mappings_a_gate_can_reach_is_measured_and_printed(self):
+        """Printed per class, and asserted to cover every row.
+
+        The number that matters is not how many rows pass; it is how many rows any
+        gate could fail. Round 12 recorded that as the lesson of the documentation
+        gate and the alias table was never measured the same way.
+        """
+        counted = collections.Counter(kind for kind, _ in self._classes())
+        self.assertEqual(sum(counted.values()), len(self.rows),
+                         "a row fell into no source class, so it is counted nowhere")
+        checkable = {"GenBank record", "Zenodo GTF"}
+        reachable = sum(n for kind, n in counted.items() if kind in checkable)
+        # A GenBank row that does not claim the record prints its alias is out of
+        # reach too: there is nothing in the record to compare against.
+        unclaimed = sum(1 for kind, row in self._classes()
+                        if kind == "GenBank record"
+                        and row["verbatim_in_citation"] != "yes")
+        print(f"\n    alias mappings a gate reads: {reachable - unclaimed} of "
+              f"{len(self.rows)} rows, by class {dict(counted)}, with {unclaimed} "
+              f"GenBank rows whose alias the record does not print and "
+              f"{len(self.rows) - reachable} rows cited to a paper, a book or UniProt, "
+              f"which this suite cannot fetch.")
+        self.assertGreater(reachable - unclaimed, 0)
+
 
 
 class TheDeclaredGapsAreRealGaps(unittest.TestCase):

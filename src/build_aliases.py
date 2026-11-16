@@ -1487,13 +1487,31 @@ def verbatim_in(ident: str, alias: str, raw: str) -> str:
     if not os.path.exists(path):
         return ""
     with open(path) as fh:
-        text = fh.read().lower()
+        text = annotation_text(fh.read())
     # A word-boundary match, not a substring. Round 11: `gL`, `gM`, `gH`, `gN`, `gK`,
     # `gG`, `gD`, `gE`, `gI` and `Pol` were all marked attested because the record
     # contains "glycoprotein ..." and "polymerase", so 15 of the 220 yes rows were wrong
     # and the column contradicted itself within one class of alias: gB said no.
     pattern = r"(?<![0-9a-z])" + re.escape(alias.lower()) + r"(?![0-9a-z])"
     return "yes" if re.search(pattern, text) else "no"
+
+
+def annotation_text(record: str) -> str:
+    """A record's annotation, lowercased, without its sequence or its translations.
+
+    Round 13: the match was over the whole file. The genome is 152,222 bp, which is
+    60 x 2537 + 2, so the last line of `ORIGIN` is "   152221 gc" and that is the only
+    occurrence of `gC` in either record: the alias was certified as printed by the
+    final two bases of the genome. `gI` was certified by the last two residues of a
+    UL50 `/translation`, wrapped onto a line of their own. Three rows carried `yes` on
+    that evidence, while their siblings in the same record said `no`, which is the same
+    self-contradiction round 11 rewrote this column to remove.
+
+    Protein translations are sequence too, so they go with it. What is left is what the
+    depositors wrote.
+    """
+    annotation = record.split("\nORIGIN")[0]
+    return re.sub(r'/translation="[^"]*"', "", annotation, flags=re.S).lower()
 
 # Which gene inventory each source speaks for. The inventory column is DERIVED from
 # this rather than asserted per row, so a gene/alias pair reads "both" only when it is
