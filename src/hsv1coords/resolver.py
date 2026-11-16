@@ -136,8 +136,20 @@ class Dictionary:
     """
 
     @classmethod
-    @functools.lru_cache(maxsize=4)
     def load(cls, path: pathlib.Path | None = None) -> "Dictionary":
+        """The cached loader, with its arguments normalised first.
+
+        Round 16: `lru_cache` keys on the argument tuple, so `load(x)` and
+        `load(x, None)` were two entries holding two objects, which is what the
+        immutability argument in these docstrings assumes they are not, and a mixed
+        workload held two per accession against the cache size. The public method
+        normalises its arguments and the cached one is keyed on the canonical form.
+        """
+        return cls._load(pathlib.Path(path) if path else None)
+
+    @classmethod
+    @functools.lru_cache(maxsize=4)
+    def _load(cls, path: pathlib.Path | None = None) -> "Dictionary":
         """Cached, like the other two loaders.
 
         Round 11 measured the README's own first pattern, `Dictionary.load().resolve(x)`

@@ -78,8 +78,22 @@ class Crosswalk:
         self._t_starts = [b.target_start for b in self._by_target]
 
     @classmethod
+    def load(cls, accession: str, directory: pathlib.Path | None = None
+             ) -> "Crosswalk":
+        """The cached loader, with its arguments normalised first.
+
+        Round 16: `lru_cache` keys on the argument tuple, so `load(x)` and
+        `load(x, None)` were two entries holding two objects, which is what the
+        immutability argument in these docstrings assumes they are not, and a mixed
+        workload held two per accession against the cache size. The public method
+        normalises its arguments and the cached one is keyed on the canonical form.
+        """
+        return cls._load(accession, pathlib.Path(directory) if directory else None)
+
+    @classmethod
     @functools.lru_cache(maxsize=256)   # > 183 genomes: at 64 a corpus-wide
-    def load(cls, accession: str, directory: pathlib.Path | None = None) -> "Crosswalk":
+    def _load(cls, accession: str,
+              directory: pathlib.Path | None = None) -> "Crosswalk":
         """Cached: a genome-to-genome lift loads two crosswalks, twice over.
 
         Round 8 counted four `load` calls per cross-genome lift, each re-reading and
@@ -93,7 +107,21 @@ class Crosswalk:
         directory = directory or DEFAULT_DIR
         path = pathlib.Path(directory) / f"{accession}.blocks.tsv"
         if not path.exists():
-            raise FileNotFoundError(f"no crosswalk for {accession} at {path}")
+            raise FileNotFoundError(
+                f"no crosswalk for {accession!r} at {path}. "
+                f"`Crosswalk.available()` lists the accessions that are built.")
+        # Round 16: the lookup is a filesystem probe, so on a case-insensitive
+        # filesystem `load('jq673480.1')` answered from `JQ673480.1.blocks.tsv` and
+        # returned a crosswalk whose accession `available()` does not list, while the
+        # same call on Linux raised. An accession is matched against the built set,
+        # which is the same answer on every platform (standing rule 36: a
+        # classification from the thing, not from a name).
+        built = {a for a in cls.available(directory)}
+        if accession not in built:
+            raise FileNotFoundError(
+                f"no crosswalk for {accession!r}; `Crosswalk.available()` lists "
+                f"{len(built)} accessions and the closest spellings are "
+                f"{sorted(a for a in built if a.lower() == accession.lower()) or []}")
         lines = path.read_text().splitlines(keepends=True)
         if not lines or not lines[0].startswith("#"):
             raise ValueError(

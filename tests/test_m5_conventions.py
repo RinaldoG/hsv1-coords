@@ -1039,7 +1039,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m2_annotation": 38,
         "test_m3_crosswalk": 53,
         "test_m4_repeat_map": 58,
-        "test_m5_conventions": 116,
+        "test_m5_conventions": 118,
         "test_placeholder": 1,
         "test_readme_examples": 7,
     }
@@ -1812,6 +1812,31 @@ class TheLibraryRefusesWhatItCannotAnswer(unittest.TestCase):
         with self.assertRaises(TypeError):
             Convention.INTERVAL_BASES["inferred_from_record"] = (True, "nothing")
 
+    def test_the_cached_loaders_hand_one_object_to_every_caller(self):
+        """Round 16: `load(x)` and `load(x, None)` were two cache entries.
+
+        The docstrings' "hands the same object to every caller" is the premise of the
+        immutability argument in three modules, and it was not true as written: a
+        mixed workload held two objects per accession against a cache sized for one.
+        """
+        from hsv1coords import Crosswalk, Dictionary, RepeatMap
+        accession = Crosswalk.available()[0]
+        self.assertIs(Crosswalk.load(accession), Crosswalk.load(accession, None))
+        self.assertIs(RepeatMap.load(), RepeatMap.load(None))
+        self.assertIs(Dictionary.load(), Dictionary.load(None))
+
+    def test_an_accession_is_matched_against_the_built_set(self):
+        """Round 16: the lookup was a filesystem probe, so it was platform-dependent.
+
+        On a case-insensitive filesystem `Crosswalk.load('jq673480.1')` answered from
+        `JQ673480.1.blocks.tsv` and returned a crosswalk whose accession
+        `available()` does not list; on Linux the same call raised.
+        """
+        from hsv1coords import Crosswalk
+        with self.assertRaises(FileNotFoundError) as refusal:
+            Crosswalk.load(Crosswalk.available()[0].lower())
+        self.assertIn("available()", str(refusal.exception))
+
     def test_an_impossible_position_has_no_unmapped_stretch(self):
         """None there means "that position lifts fine", which it does not."""
         from hsv1coords import Crosswalk
@@ -1956,8 +1981,10 @@ class TheCachedLoadersCannotBeCorruptedByACaller(unittest.TestCase):
         from hsv1coords import Crosswalk
         from hsv1coords.liftover import DEFAULT_DIR
         available = Crosswalk.available(CROSSWALK_DIR)
+        # Round 16 split `load` into a normalising wrapper and the cached `_load`,
+        # so the cache lives on the latter.
         self.assertGreaterEqual(
-            Crosswalk.__dict__["load"].__func__.cache_parameters()["maxsize"],
+            Crosswalk.__dict__["_load"].__func__.cache_parameters()["maxsize"],
             len(available),
             f"the cache holds fewer entries than the {len(available)} genomes in the "
             f"corpus, so a corpus-wide sweep evicts what it is about to need")
