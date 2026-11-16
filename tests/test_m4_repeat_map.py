@@ -563,6 +563,80 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
             return any(p in stated for p in parts)
         return all(p in stated for p in parts)
 
+    def test_every_within_gene_value_is_the_record_s_gene_for_that_interval(self):
+        """Round 18: the column's value was held to nothing.
+
+        The gate asserted only that three rows carry one and that it differs from the
+        region's name. Changing the builder to write `within gene UL23` for all of
+        them published UL23 over RL1, RL2 and US1 and left 351 tests green, with CI's
+        rebuild-and-diff reproducing it. Cause 46 and 62, in the column round 17
+        created to fix cause 46.
+        """
+        from build_repeat_map import spans_of as _spans_of
+        genes_at = {}
+        for f in self.features:
+            spans = _spans_of(f.get("_location", ""))
+            gene = (f.get("gene") or "").strip()
+            if not spans or not gene:
+                continue
+            whole = (min(s for s, _ in spans), max(e for _, e in spans))
+            genes_at.setdefault(whole, set()).add(gene)
+            for span in spans:
+                genes_at.setdefault(span, set()).add(gene)
+        wrong, carried = [], 0
+        for region in self.m.regions:
+            stated = (region.within_gene or "").strip()
+            if not stated:
+                continue
+            carried += 1
+            if stated not in genes_at.get((region.start, region.end), set()):
+                wrong.append((region.name, region.start, region.end, stated,
+                              sorted(genes_at.get((region.start, region.end), ()))))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} regions name a gene the record does not state at that "
+            f"interval (region, start, end, stated, record): {wrong[:6]}")
+        expected = sum(
+            1 for f in self.features
+            if f["_type"] == "repeat_region" and (f.get("gene") or "").strip()
+            and _spans_of(f.get("_location", "")))
+        self.assertEqual(
+            carried, expected,
+            f"the record annotates {expected} repeat regions with a gene and the "
+            f"artefact carries {carried}")
+
+    def test_the_regions_are_the_record_s_features_as_a_multiset(self):
+        """Round 18: a count and a one-way membership check let a substitution pass.
+
+        Replacing the `'a' sequence reiteration set 126054..126276` row with a
+        duplicate of `RL reiteration set 2` kept the count at 34, kept the covered
+        bases at 32,019, kept every interval and every name one the record states,
+        and left 351 tests green while `classify(126100)` lost a region and the
+        artefact published one region twice. Standing rules 62 and 69.
+        """
+        from build_repeat_map import spans_of as _spans_of
+        import collections as _collections
+        stated = _collections.Counter()
+        for f in self.features:
+            if f["_type"] not in ("repeat_region", "stem_loop", "rep_origin"):
+                continue
+            spans = _spans_of(f.get("_location", ""))
+            if not spans:
+                continue
+            whole = (min(s for s, _ in spans), max(e for _, e in spans))
+            stated[(f["_type"], whole[0], whole[1])] += 1
+        carried = _collections.Counter(
+            (r.kind, r.start, r.end) for r in self.m.regions
+            if r.kind in ("repeat_region", "stem_loop", "rep_origin"))
+        self.assertEqual(
+            sorted((carried - stated).items()), [],
+            f"the artefact holds features the record does not state that many times, "
+            f"so a row is duplicated or invented: {sorted((carried - stated).items())}")
+        self.assertEqual(
+            sorted((stated - carried).items()), [],
+            f"the record states features the artefact does not carry: "
+            f"{sorted((stated - carried).items())}")
+
     def test_the_region_count_is_the_record_s_own_repeat_feature_count(self):
         """Round 17: `RepeatMap.load`'s new check demanded 4 of 34 regions.
 

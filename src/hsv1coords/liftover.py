@@ -35,6 +35,41 @@ class Block:
     length: int
 
 
+def _the_version_question(accession: str) -> str:
+    """The message for a reference VERSION passed where a strain belongs.
+
+    Round 18: a reviewer working a real published miRNA coordinate (Jurak et al.
+    2010, which cites "NC_001806" with no version) found that nothing in this library
+    asks which `NC_001806` a number is in, and that 125,072 of the genome's 152,261
+    positions, 82 per cent, mean something different in the two versions, by 38 or 39
+    bases over the terminal 6,441. The refusal used to be a bare "no crosswalk for
+    'NC_001806.1'" pointing at `Crosswalk.available()`, whose 183 accessions include
+    `NC_001806.2`, so the reader's natural repair was to use the wrong frame in
+    silence. Root cause 6b and standing rule 19 at the public entry point.
+    """
+    return (
+        f"{accession!r} is a reference version, not a deposited strain, so it has no "
+        f"crosswalk. This library works in {REFERENCE}, and 125,072 of the 152,261 "
+        f"positions mean something different in NC_001806.1, so a coordinate from a "
+        f"paper citing `NC_001806` or `NC_001806.1` is translated first:\n"
+        f"    from hsv1coords.versions import VersionCrosswalk\n"
+        f"    VersionCrosswalk.load().convert(position, 'NC_001806.1', '{REFERENCE}')\n"
+        f"A coordinate already in {REFERENCE} is used as it stands, with "
+        f"'{REFERENCE}' as the source. A paper that cites the accession without a "
+        f"version has to be read for which it means: the deposit dates are 2018 for "
+        f".2 and 2002 for .1.")
+
+
+class WrongReferenceVersion(FileNotFoundError):
+    """A reference VERSION was passed where a deposited strain belongs.
+
+    Round 18: a reviewer working a real published miRNA coordinate found that nothing
+    asks which `NC_001806` a number is in, and that 82 per cent of positions differ
+    between the two versions. It subclasses `FileNotFoundError` so that code catching
+    the old refusal still catches this one, and carries the translation to run.
+    """
+
+
 class Crosswalk:
     """The ungapped blocks relating one genome to the reference.
 
@@ -106,6 +141,10 @@ class Crosswalk:
         object cannot be mutated by one caller and seen by another.
         """
         directory = directory or DEFAULT_DIR
+        # The version question comes first: a reference version is not a deposited
+        # strain, and the refusal below would send the reader to `available()`.
+        if accession.split(".")[0] == "NC_001806" and accession != REFERENCE:
+            raise WrongReferenceVersion(_the_version_question(accession))
         path = pathlib.Path(directory) / f"{accession}.blocks.tsv"
         if not path.exists():
             raise FileNotFoundError(

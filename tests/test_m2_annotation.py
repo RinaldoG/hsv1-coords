@@ -825,7 +825,7 @@ class EveryGtfRowIsALineOfTheGtf(unittest.TestCase):
             fields = line.split("\t")
             seqname, _, kind, start, end, _, strand = fields[:7]
             attributes = fields[8] if len(fields) > 8 else ""
-            gene = self_gene = cls.GENE_ID.search(attributes)
+            gene = cls.GENE_ID.search(attributes)
             cls.seqnames.add(seqname)
             cls.lines[(kind, int(start), int(end), strand,
                        gene.group(1) if gene else None)] += 1
@@ -1133,6 +1133,133 @@ class StrandSurvivesEverySource(unittest.TestCase):
                            f"only {len(noted)} GTF rows carry their comment")
         self.assertTrue(any("ICP4" in r["notes"] for r in noted),
                         "the comment naming ICP4 is not in the table")
+
+
+
+class ACodonNumberReachesACoordinate(unittest.TestCase):
+    """Round 18: the clinical literature cites codons and there was no path.
+
+    A reviewer worked Brunnemann et al. (2016) Sci Rep 6:29903, PMC4947914, through
+    this library: "G61A and P84L mediate broad cross-resistance against aciclovir,
+    penciclovir, brivudin", measured in single substitutions in a BAC-cloned strain
+    17+ by cytopathic-effect reduction in cell culture. Those are amino acid
+    positions in UL23. The repository held `UL23 CDS complement(46673..47803)` and no
+    way to get from codon 61 to a coordinate, so the reviewer wrote a GenBank parser,
+    a codon table and the minus-strand arithmetic themselves.
+
+    The test translates, which the library deliberately does not: the point is that
+    the positions `codon()` returns are the ones that spell the residues the paper
+    names, on a gene whose CDS is on the complement, where taking `min(positions)`
+    and reading forward gives the wrong three bases.
+    """
+
+    COMPLEMENT = {"A": "T", "T": "A", "G": "C", "C": "G", "N": "N"}
+    CODE = {
+        "TTT": "F", "TTC": "F", "TTA": "L", "TTG": "L", "CTT": "L", "CTC": "L",
+        "CTA": "L", "CTG": "L", "ATT": "I", "ATC": "I", "ATA": "I", "ATG": "M",
+        "GTT": "V", "GTC": "V", "GTA": "V", "GTG": "V", "TCT": "S", "TCC": "S",
+        "TCA": "S", "TCG": "S", "CCT": "P", "CCC": "P", "CCA": "P", "CCG": "P",
+        "ACT": "T", "ACC": "T", "ACA": "T", "ACG": "T", "GCT": "A", "GCC": "A",
+        "GCA": "A", "GCG": "A", "TAT": "Y", "TAC": "Y", "TAA": "*", "TAG": "*",
+        "CAT": "H", "CAC": "H", "CAA": "Q", "CAG": "Q", "AAT": "N", "AAC": "N",
+        "AAA": "K", "AAG": "K", "GAT": "D", "GAC": "D", "GAA": "E", "GAG": "E",
+        "TGT": "C", "TGC": "C", "TGA": "*", "TGG": "W", "CGT": "R", "CGC": "R",
+        "CGA": "R", "CGG": "R", "AGT": "S", "AGC": "S", "AGA": "R", "AGG": "R",
+        "GGT": "G", "GGC": "G", "GGA": "G", "GGG": "G",
+    }
+
+    @classmethod
+    def setUpClass(cls):
+        record = ROOT / "data" / "raw" / "ref_NC_001806.2.gb"
+        if not record.exists():
+            raise unittest.SkipTest("ref_NC_001806.2.gb is fetched, not committed")
+        sys.path.insert(0, str(ROOT / "src"))
+        from build_crosswalk import genbank_sequence
+        cls.sequence = genbank_sequence(record).upper()
+
+    def _residue(self, gene: str, number: int) -> str:
+        from hsv1coords import codon
+        hit = codon(gene, number)
+        bases = [self.sequence[p - 1] for p in hit.positions]
+        if hit.strand == "complement":
+            bases = [self.COMPLEMENT[b] for b in bases]
+        return self.CODE["".join(bases)]
+
+    def test_the_published_resistance_codons_are_the_residues_the_paper_names(self):
+        self.assertEqual(self._residue("UL23", 61), "G",
+                         "UL23 codon 61 is not the G of Brunnemann's G61A")
+        self.assertEqual(self._residue("UL23", 84), "P",
+                         "UL23 codon 84 is not the P of Brunnemann's P84L")
+
+    def test_every_coding_sequence_starts_with_a_methionine_and_ends_with_a_stop(self):
+        """The control, over every single-copy CDS the reference states.
+
+        If the frame or the strand were wrong anywhere, a gene would start with
+        something other than M or run through its stop.
+        """
+        from hsv1coords import coding_positions, codon
+        checked, wrong = 0, []
+        names = sorted({r["name"] for r in rows()
+                        if r["source"] == "NC_001806.2"
+                        and r["feature_type"] == "CDS"})
+        for gene in names:
+            try:
+                positions, _ = coding_positions(gene)
+            except ValueError:
+                continue          # a two-copy gene: refused, and tested below
+            if len(positions) % 3:
+                continue          # a fuzzy end: the record says `<1` or `>n`
+            checked += 1
+            first = self._residue(gene, 1)
+            last = self._residue(gene, len(positions) // 3)
+            if (first, last) != ("M", "*"):
+                wrong.append((gene, first, last))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} coding sequences do not read from M to a stop through the "
+            f"positions `codon` gives: {wrong[:6]}")
+        self.assertGreater(checked, 60,
+                           f"only {checked} genes were translated, so this proves "
+                           f"little")
+
+    def test_a_two_copy_gene_refuses_rather_than_choosing_a_copy(self):
+        from hsv1coords import codon
+        with self.assertRaises(ValueError) as refusal:
+            codon("RL2", 1)
+        self.assertIn("two copies", str(refusal.exception))
+
+    def test_a_codon_past_the_end_and_a_name_the_record_lacks_are_refused(self):
+        from hsv1coords import codon
+        with self.assertRaises(ValueError):
+            codon("UL23", 9999)
+        with self.assertRaises(KeyError):
+            codon("thymidine kinase", 61)
+
+    def test_a_spliced_gene_is_read_through_its_junctions(self):
+        """39 CDS rows here are spliced, UL15 among them.
+
+        Measured: UL15's two junctions both fall on codon boundaries, so no codon of
+        it crosses one, and `spans_an_intron` is False throughout. The property that
+        matters is the one below: the positions skip the intron, so the gene still
+        reads from M to a stop, which it would not if the spans were concatenated
+        naively or sorted.
+        """
+        from hsv1coords import coding_positions, codon
+        positions, _ = coding_positions("UL15")
+        self.assertEqual(len(positions) % 3, 0)
+        self.assertGreater(max(positions) - min(positions) + 1, len(positions),
+                           "UL15's coding positions are contiguous, so this is not "
+                           "the spliced gene this test is about")
+        self.assertEqual(self._residue("UL15", 1), "M")
+        self.assertEqual(self._residue("UL15", len(positions) // 3), "*")
+        crossing = [n for n in range(1, len(positions) // 3 + 1)
+                    if codon("UL15", n).spans_an_intron]
+        self.assertEqual(
+            crossing, [],
+            f"UL15's junctions fell on codon boundaries when this was written, and "
+            f"now {len(crossing)} codons cross one: {crossing[:4]}. Each of those "
+            f"still has to translate, which is what `spans_an_intron` exists to warn "
+            f"a caller slicing the reference about.")
 
 
 if __name__ == "__main__":

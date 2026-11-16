@@ -346,7 +346,7 @@ def derive(allow_partial: bool = False) -> list[Fact]:
         rows = _rows(coverage)
         facts.append(Fact("genomes", len(rows),
                           ("complete genomes", "genomes aligned to the reference",
-                           "genomes now agrees"),
+                           "genomes now agrees", "genomes in the corpus"),
                           prefixes=("**Built.**",)))
         facts.append(Fact(
             "median_mappable",

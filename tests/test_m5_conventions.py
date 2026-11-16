@@ -1037,10 +1037,10 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     TESTS_PER_FILE = {
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
-        "test_m2_annotation": 44,
+        "test_m2_annotation": 49,
         "test_m3_crosswalk": 53,
-        "test_m4_repeat_map": 59,
-        "test_m5_conventions": 123,
+        "test_m4_repeat_map": 61,
+        "test_m5_conventions": 125,
         "test_placeholder": 1,
         "test_readme_examples": 7,
     }
@@ -1151,7 +1151,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     SKIP_SITES = {
         "test_docs_match_artefacts": 5, "test_m1_dictionary": 2,
-        "test_m2_annotation": 8, "test_m3_crosswalk": 7, "test_m4_repeat_map": 3,
+        "test_m2_annotation": 9, "test_m3_crosswalk": 7, "test_m4_repeat_map": 3,
         "test_m5_conventions": 9, "test_placeholder": 0, "test_readme_examples": 2,
     }
     r"""Every way each test file can decline to run something.
@@ -1246,6 +1246,84 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     test if the exit status is not zero, so the assertion is one frame down.
     """
 
+    ASSERTIONS_PER_FILE = {
+        "test_docs_match_artefacts": 28, "test_m1_dictionary": 101,
+        "test_m2_annotation": 90, "test_m3_crosswalk": 131,
+        "test_m4_repeat_map": 137, "test_m5_conventions": 273,
+        "test_placeholder": 1, "test_readme_examples": 16,
+    }
+    """How many assertions each test file makes, filled in below.
+
+    Round 18: `test_every_test_method_asserts_something` compares each method against
+    ZERO, so leaving one `assertTrue(True)` in place satisfied it: a reviewer gutted 24
+    of 25 assertions in the base-agreement class, corrupted a block file, and got 351
+    tests OK with the class still printing its coverage sentence over the corruption.
+    A count per file falls when assertions are removed, whatever is left behind, and
+    it is the same shape as `TESTS_PER_FILE`, which is the table this one should have
+    copied in the first place.
+    """
+
+    @classmethod
+    def _assertions(cls, path) -> int:
+        """Assertions in the reachable body of each test method of a file.
+
+        `skipTest` is not one: standing rule 71 says a test that only skips is not a
+        test. An assertion inside a nested function that nothing calls is not one
+        either, which is the unreachable-code blind spot round 17 found in the skip
+        counter.
+        """
+        import ast
+        total = 0
+        for node in ast.walk(ast.parse(path.read_text())):
+            if not (isinstance(node, ast.FunctionDef)
+                    and node.name.startswith("test_")):
+                continue
+            nested = {inner for child in ast.walk(node)
+                      if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef))
+                      and child is not node
+                      for inner in ast.walk(child)}
+            for inner in ast.walk(node):
+                if inner in nested:
+                    continue
+                if isinstance(inner, ast.Assert):
+                    total += 1
+                elif isinstance(inner, ast.Call):
+                    function = inner.func
+                    name = (function.attr if isinstance(function, ast.Attribute)
+                            else getattr(function, "id", ""))
+                    if name.startswith("assert") or name == "fail":
+                        # A constant assertion is not an assertion:
+                        # `assertTrue(True)` is what satisfied the old gate.
+                        args = [a for a in inner.args
+                                if not isinstance(a, ast.Constant)]
+                        if name in ("assertTrue", "assertFalse") and not args:
+                            continue
+                        total += 1
+        return total
+
+    def test_no_test_file_makes_fewer_assertions_than_it_did(self):
+        counted = {path.stem: self._assertions(path)
+                   for path in sorted((ROOT / "tests").glob("test_*.py"))}
+        lost = [f"{name}: {counted[name]} assertions, {was} recorded"
+                for name, was in sorted(self.ASSERTIONS_PER_FILE.items())
+                if counted.get(name, 0) < was]
+        self.assertEqual(
+            lost, [],
+            f"{len(lost)} test files make fewer assertions than recorded. Removing "
+            f"assertions while leaving the methods in place keeps every other count "
+            f"in this repository unmoved, which is how a reviewer silenced the "
+            f"base-agreement gate over corrupted block files:\n  " + "\n  ".join(lost))
+        gained = [f"{name}: {was} -> {counted[name]}"
+                  for name, was in sorted(self.ASSERTIONS_PER_FILE.items())
+                  if counted.get(name, 0) > was]
+        self.assertEqual(
+            gained, [],
+            f"{len(gained)} test files make MORE assertions than recorded, so the "
+            f"pin has slack: raise each entry in the commit that added them:\n  "
+            + "\n  ".join(gained))
+        self.assertEqual(sorted(counted), sorted(self.ASSERTIONS_PER_FILE),
+                         "a test file is not in ASSERTIONS_PER_FILE")
+
     def test_every_test_method_asserts_something(self):
         """Round 17: the third spelling of a skip, and nothing counted it.
 
@@ -1298,7 +1376,10 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         import ast
         duplicates = []
         for path in sorted((ROOT / "tests").glob("test_*.py")):
-            names = [node.name for node in ast.parse(path.read_text()).body
+            # Round 18: both duplicate gates read only the module's top level, so a
+            # second class one block deep (`if True:`) shadowed the real one and was
+            # invisible, with the per-file count unmoved.
+            names = [node.name for node in ast.walk(ast.parse(path.read_text()))
                      if isinstance(node, ast.ClassDef)]
             for name in sorted(set(names)):
                 if names.count(name) > 1:
@@ -1323,7 +1404,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         import ast
         duplicates = []
         for path in sorted((ROOT / "tests").glob("test_*.py")):
-            for node in ast.parse(path.read_text()).body:
+            for node in ast.walk(ast.parse(path.read_text())):
                 if not isinstance(node, ast.ClassDef):
                     continue
                 names = [n.name for n in node.body
@@ -1477,15 +1558,26 @@ class ASplitReferenceHasARouteBackOut(unittest.TestCase):
         no_equivalent = [(r, o) for r, a, b in self.m.records
                          for o in range(1, b - a + 2)
                          if self.m.from_record(r, o) is None]
-        self.assertTrue(no_equivalent,
-                        "no Morse position lacks a base-version equivalent, so this "
-                        "test is comparing nothing")
-        for record, offset in no_equivalent[:4]:
+        # Round 18: this used to assert `from_record(...) is None` over a list built
+        # by that same predicate, which cannot fail, and checked four of seven with
+        # the figure living only in a comment. The set is asserted by value, so a
+        # crosswalk that stopped mapping 50,000 positions would fail here.
+        self.assertEqual(
+            sorted(no_equivalent),
+            [("RL", 8776), ("RL", 8777), ("RS", 596), ("UL", 894), ("UL", 24223),
+             ("UL", 53026), ("UL", 77111)],
+            "the Morse positions with no NC_001806.2 equivalent have changed")
+        from hsv1coords.versions import VersionCrosswalk
+        crosswalk = VersionCrosswalk.load()
+        for record, offset in no_equivalent:
             with self.subTest(record=record, offset=offset):
-                self.assertIsNone(self.m.from_record(record, offset))
+                own = self.m.from_record(record, offset, native=True)
                 self.assertIsNotNone(
-                    self.m.from_record(record, offset, native=True),
-                    "the position does exist in the convention's own version")
+                    own, "the position does exist in the convention's own version")
+                self.assertIsNone(
+                    crosswalk.convert(own, "NC_001806.1", "NC_001806.2"),
+                    "the version crosswalk does map this position, so `from_record` "
+                    "should not be answering None for it")
 
     def test_from_record_answers_in_the_base_version_by_default(self):
         """The frame travels with the value, and the two routes agree.
@@ -1874,6 +1966,40 @@ class TheLibraryRefusesWhatItCannotAnswer(unittest.TestCase):
                 (ROOT / "data" / "derived" / "repeat_map.tsv").read_text())
             with self.assertRaises(RepeatMapIncomplete):
                 RepeatMap.load(partial)
+
+    def test_report_says_when_the_ambiguity_check_did_not_run(self):
+        """Round 18: with NO map, `lift` raised and `report` answered in silence.
+
+        Round 17 stopped `report` swallowing an INCOMPLETE map and left the absent
+        case: `caveats == []`, no notice, and `comparable_everywhere` True, at the
+        repository's own worked example. A caller could not tell "checked and well
+        defined" from "not checked", which is root cause 20's outcome.
+        """
+        import hsv1coords.repeats as repeats_module
+        original = repeats_module.RepeatMap.load
+
+        def absent(cls, *args, **kwargs):
+            raise FileNotFoundError("data/derived/repeat_map.tsv is missing")
+
+        repeats_module.RepeatMap.load = classmethod(absent)
+        try:
+            report = ConventionSet.load().report(118777)
+            self.assertEqual(report.caveats, [])
+            self.assertEqual(len(report.checks_not_run), 1,
+                             "the report does not record that the ambiguity check "
+                             "could not run")
+            self.assertIn("not checked:", str(report))
+            self.assertFalse(
+                report.comparable_everywhere,
+                "a report whose ambiguity check did not run claims the position is "
+                "comparable everywhere")
+        finally:
+            repeats_module.RepeatMap.load = original
+        # The control: with the real map the list is empty and the caveat is there.
+        from hsv1coords import RepeatMap
+        with_map = ConventionSet.load().report(118777, RepeatMap.load())
+        self.assertEqual(with_map.checks_not_run, [])
+        self.assertTrue(any("not well defined" in c for c in with_map.caveats))
 
     def test_report_does_not_answer_over_an_incomplete_repeat_map(self):
         """Round 17: deleting `diploid_pairs.tsv` alone dropped the caveat.

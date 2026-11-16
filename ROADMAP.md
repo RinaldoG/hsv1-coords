@@ -61,9 +61,22 @@ annotations are not compared as though they measured the same thing.
   which was the row count, under a rule that classed any hyphenated name as a span and so
   counted AL-RNA, ORF-O, ORF-P and Ori-S among them.
 - **Outstanding:** parses with two independent GFF3 parsers, zero warnings. The current
-  release is a classed feature table, not yet GFF3. GFF3 generation waits on the coordinate
-  crosswalk (M3), because emitting one merged GFF3 across sources before the crosswalk
-  exists would assert equivalences that cannot yet be checked.
+  release is a classed feature table, not yet GFF3.
+
+  **Round 18 corrected the reason given here.** It said GFF3 generation "waits on the
+  coordinate crosswalk (M3)". M3 is built, and the blocker never applied anyway: all
+  three annotation sources, `NC_001806.2`, `BK012101.1` and the Whisnant GTF on
+  `JN555585`, describe the identical 152,222 bp of sequence, so merging them needs no
+  strain crosswalk. What actually remains is deciding whether to emit one GFF3 per source or
+  one merged file with a source attribute, which is a presentation choice, not a
+  dependency.
+
+  **And the cost of not having it is larger than this entry implied.** The only
+  machine-readable form of M2 is a TSV whose `location` column carries GenBank syntax,
+  including 39 `join(...)` rows and 22 with fuzzy `<` or `>` ends, so no standard
+  genome-browser or bioinformatics tool can read the annotation at all. A reader who
+  wants it in a browser has to write a parser first, which is what a reviewer did in
+  round 18 before they could check a codon.
 
 ## M3: strain coordinate crosswalk and lift-over - built, criteria met except the hand-checked published coordinates
 
@@ -502,8 +515,8 @@ each is only honest beside its definition:
 | Measurement | Rate | What it samples |
 |---|---|---|
 | The whole suite | **45 of 90** | A number anywhere in the four documents, changed one at a time, with the full suite re-run. Was 34 of 90 before round 7. |
-| This gate alone | **82 mutations caught** | Every standalone number in the six gated documents is changed one at a time and this is how many of those mutations the figure-to-artefact comparison catches. A COUNT, not a rate: round 14 put a floor on the rate over four documents and ten added citations failed the build; round 15 moved it to the sites that state a derived value, and three paragraphs of ordinary prose failed it too, because 21 of the gated figures are one- to three-digit numbers that occur in prose anyway. Three rates are printed for information, judged only by the figure-to-artefact comparison. Printed on every run as a count and three rates, with a floor on the count alone, and this row states the count and is checked against it for equality. Round 8 sampled 60 of these sites with a fixed seed and this row said 18 per cent, which was above the then-real figure of 15; the unchanged gate ranged from 8.3 to 23.3 per cent across other seeds, so the sample was narrower than its own spread and the row overstated it. Round 16 and 17: the rates move whenever a document gains a number, which is why none of them carries a floor any more and why this row states the count, which moves only when the gate's reach changes. |
-| `gate power` | **94 of 94** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
+| This gate alone | **83 mutations caught** | Every standalone number in the six gated documents is changed one at a time and this is how many of those mutations the figure-to-artefact comparison catches. A COUNT, not a rate: round 14 put a floor on the rate over four documents and ten added citations failed the build; round 15 moved it to the sites that state a derived value, and three paragraphs of ordinary prose failed it too, because 21 of the gated figures are one- to three-digit numbers that occur in prose anyway. Three rates are printed for information, judged only by the figure-to-artefact comparison. Printed on every run as a count and three rates, with a floor on the count alone, and this row states the count and is checked against it for equality. Round 8 sampled 60 of these sites with a fixed seed and this row said 18 per cent, which was above the then-real figure of 15; the unchanged gate ranged from 8.3 to 23.3 per cent across other seeds, so the sample was narrower than its own spread and the row overstated it. Round 16 and 17: the rates move whenever a document gains a number, which is why none of them carries a floor any more and why this row states the count, which moves only when the gate's reach changes. |
+| `gate power` | **95 of 95** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
 
 The gap between the first two is the rest of the suite: the per-occurrence reach check,
 the component-table count, the quoted-resolver output and the README example runner each

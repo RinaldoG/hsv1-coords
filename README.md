@@ -182,10 +182,13 @@ Static data validated in continuous integration. No server, no database, no host
 ## Getting started
 
 ```
-make inputs     # fetch and checksum the deposited records
-make genomes    # fetch the pinned set of 183 complete genomes
-make all        # build every derived file and run the gates
+make all        # fetch, build every derived file, and run the gates
 ```
+
+`make all` depends on `make inputs` and `make genomes`, so those two are not run
+separately. It needs `minimap2` on the PATH, which is the aligner M3's crosswalk is
+built with; without it the build and the suite both fail and name it. On this machine
+the whole build takes about four minutes, most of it aligning the 183 genomes in the corpus.
 
 Inputs are fetched rather than committed, so **run `make all` before the suite**. Round
 13 stopped a clone reporting OK over a smaller suite: sixteen classes skipped when the

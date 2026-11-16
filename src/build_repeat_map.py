@@ -98,10 +98,12 @@ def feature_name(r: dict[str, str]) -> tuple[str, str]:
     if note_name and (
             "reiteration" in note_name or "sequence" in note_name
             or "palindrome" in note_name):
-        if note_name != name:
-            within_gene, name = name, note_name
-        else:
-            name = note_name
+        # Round 18: the branch below used to reinstate the old inference,
+        # `within_gene, name = name, note_name`, throwing away the recorded `within
+        # gene X` clause this function has just read. It fires for none of the 31
+        # reference repeat rows today, so it was unreachable and waiting for the next
+        # rename of M2's name column, which is cause 77's exact mechanism.
+        name = note_name
     # A feature the record leaves unnamed gets a synthesised name from M2
     # (`{type}@{location}`). Published as a locus that reads as a parse failure, so the
     # regulatory class the record DOES state is used instead where there is one.
@@ -230,10 +232,11 @@ def main() -> int:
             # and five documents stating 32 went wrong. The frame is identified by
             # its interval, which is what `big` already holds (cause 6: a filter on a
             # derived field instead of the thing).
+            # Round 18: this had a ternary on `x.get("location")`, and `big`'s rows
+            # never carry one, so the arm its own comment described first was dead
+            # code.
             if r["feature_type"] == "repeat_region" and any(
-                    ext == extent(str(x["location"])) if x.get("location")
-                    else ext == (int(x["start"]), int(x["end"]))
-                    for x in big.values()):
+                    ext == (int(x["start"]), int(x["end"])) for x in big.values()):
                 continue
             # The same naming as `regions` above, via one function. Reading
             # `r["name"]` here is what published a 53 bp repeat under ICP34.5's name.

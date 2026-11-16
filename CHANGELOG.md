@@ -22,6 +22,18 @@ caller would notice if it were.
   method that translates, unless passed `native=True`.
 - `Convention.to_reference` and `to_convention` return None for a position outside the
   convention's own range, where they used to compute one from it.
+- `Convention.from_record` raises `ValueError` for an offset past the end of a record,
+  where it returned None, which it still returns for the seven positions that exist in
+  the convention's own version and have no NC_001806.2 equivalent.
+- `Crosswalk.load` raises `WrongReferenceVersion` for `NC_001806` or `NC_001806.1`,
+  naming the translation to run, where it raised a bare `FileNotFoundError` pointing at
+  `Crosswalk.available()`.
+- `hsv1coords.codon(gene, number)` is new: the reference positions of a codon, in
+  reading order, with the strand, for the resistance literature that cites amino acid
+  positions.
+- `Region.within_gene` and `PositionReport.checks_not_run` are new fields; the first
+  was in the artefact and dropped by the loader, the second records a check that could
+  not run so that silence is not read as a clean answer.
 - `Crosswalk.unmapped_stretch` raises `ValueError` for a position outside the deposit,
   where it returned None, which that method's docstring defines as "that position lifts
   fine".

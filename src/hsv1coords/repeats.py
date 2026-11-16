@@ -52,6 +52,16 @@ class Region:
     end: int
     orientation: str = "single"
     notes: str = ""
+    within_gene: str = ""
+    """The gene this region sits inside, where the record names one.
+
+    Round 18: `repeat_map.tsv` carries this column and the loader dropped it, which is
+    round 14's `strand_relationship` finding in the sibling dataclass (cause 34). It
+    is the difference between "a 53 bp repeat" and "a 53 bp repeat inside RL1", and
+    three of the reference's repeat regions have it.
+
+    Last in the dataclass, as standing rule 22 requires.
+    """
 
     def contains(self, position: int) -> bool:
         return self.start <= position <= self.end
@@ -264,7 +274,8 @@ class RepeatMap:
                     f"`src/build_repeat_map.py`; without it a counterpart cannot be "
                     f"computed. Rebuild with `make repeatmap`.")
             regions = [Region(r["name"], r["kind"], int(r["start"]), int(r["end"]),
-                              r.get("orientation", "single"), r.get("notes", ""))
+                              r.get("orientation", "single"), r.get("notes", ""),
+                              (r.get("within_gene") or "").strip())
                        for r in rows]
         pairs: list[DiploidPair] = []
         # Round 16: this was `if pp.exists()`, so deleting the file alone took
@@ -296,6 +307,17 @@ class RepeatMap:
         # see is the frame; the region COUNT against the annotation table's repeat
         # features is a cross-artefact check and lives in
         # tests/test_m4_repeat_map.py, where that table is in hand.
+        if not pairs:
+            # Round 18: the pairs file was checked for existence and not for
+            # content, and `build_repeat_map.py` writes it header-then-loop exactly
+            # as it writes the regions, which is the argument the sibling check three
+            # lines up already makes. A header-only file loaded as 34 regions and 0
+            # pairs, and `loci_at` answered an empty list for all 153 sampled
+            # positions (standing rules 61 and 73).
+            raise RepeatMapIncomplete(
+                f"{pp} states no diploid pairs. Every two-copy locus in the genome "
+                f"is in it, so without them `loci_at` names nothing anywhere. "
+                f"Rebuild with `make repeatmap`.")
         missing = sorted(w for w in wanted if w and w not in named)
         if missing:
             raise RepeatMapIncomplete(
@@ -415,6 +437,16 @@ class RepeatMap:
         return sorted(set(out))
 
     def classify(self, position: int) -> CoordinateStatus:
+        """What can honestly be said about one position IN NC_001806.2.
+
+        Round 18: this method had no docstring at all, and it is the first call a
+        reader makes. The frame is NC_001806.2, the 2018 RefSeq version, and 82 per
+        cent of positions mean something different in NC_001806.1, which is what most
+        papers citing "NC_001806" without a version are using. Translate first with
+        `hsv1coords.versions.VersionCrosswalk.convert` if a coordinate came from a
+        paper on the older version (standing rule 19: the frame travels with the
+        value).
+        """
         position = as_coordinate(position)
         if not 1 <= position <= GENOME_BP:
             return CoordinateStatus(

@@ -102,6 +102,42 @@ class ReferenceVersionMismatch(UnverifiedConvention):
     """
 
 
+_INTERVAL_BASES = types.MappingProxyType({
+    # basis -> (whether the intervals were read, what a reader is owed)
+    "deposited_record": (True, "the convention is the deposited record itself"),
+    "paper_transcribed": (
+        True, "transcribed by hand from a paper this repository does not hold, "
+              "so the quotation in data/conventions.tsv is the evidence"),
+    # Round 18: these two caveats are read by nothing today, because `basis_caveat`
+    # has one caller and only for `paper_transcribed` (cause 34), and the first
+    # repeated the absolute "prints no coordinates" that round 17 narrowed in the
+    # artefact and in the documents. Narrowed here too, so the constant does not
+    # outlive the correction.
+    "inferred_from_record": (
+        False, "the source prints no coordinates for these intervals, so they are "
+               "the reference record's own annotation read with what the source says "
+               "in words"),
+    "derived_from_stated_rule": (
+        False, "derived from the source's stated rule, because the coordinate "
+               "file it names has not been retrieved"),
+})
+"""What each `interval_basis` value means, and whether it counts as read.
+
+Round 15: `boundaries` was a two-valued flag whose `read` half rested on two
+columns this repository writes, `quote` and `source`. A reviewer rewrote one
+clause of `source` to dodge the contradiction check, appended one fabricated
+sentence to `quote`, flipped the flag and dropped the inference caveat out of
+`usable()` with the suite green but for two README quotations, which the same
+reviewer then updated as any developer would. Cause 49's own lesson says a burden
+checked against our own prose is not checked.
+
+A free-text flag cannot carry that burden, so the basis is a controlled value, the
+flag is derived from it, and what a reader is owed is stated per basis and
+printed. `paper_transcribed` is the honest name for the one row whose numbers we
+typed from a paper we do not hold, and it says so in the answer.
+"""
+
+
 @dataclass(frozen=True)
 class Convention:
     name: str
@@ -220,41 +256,24 @@ class Convention:
         # resolved here and stored on the frozen instance, so an object that already
         # answers with the caveat keeps answering with it whatever happens to the
         # class afterwards.
-        basis = self.INTERVAL_BASES.get(self.interval_basis)
+        basis = _INTERVAL_BASES.get(self.interval_basis)
         if basis is None:
             raise ValueError(
                 f"{self.name}'s interval_basis is {self.interval_basis!r}, which is "
-                f"not one of {sorted(self.INTERVAL_BASES)}")
+                f"not one of {sorted(_INTERVAL_BASES)}")
         object.__setattr__(self, "_basis", tuple(basis))
 
-    INTERVAL_BASES = types.MappingProxyType({
-        # basis -> (whether the intervals were read, what a reader is owed)
-        "deposited_record": (True, "the convention is the deposited record itself"),
-        "paper_transcribed": (
-            True, "transcribed by hand from a paper this repository does not hold, "
-                  "so the quotation in data/conventions.tsv is the evidence"),
-        "inferred_from_record": (
-            False, "the source prints no coordinates, so the interval is the "
-                   "reference record's own annotation read with what the source says "
-                   "in words"),
-        "derived_from_stated_rule": (
-            False, "derived from the source's stated rule, because the coordinate "
-                   "file it names has not been retrieved"),
-    })
-    """What each `interval_basis` value means, and whether it counts as read.
+    INTERVAL_BASES = _INTERVAL_BASES
+    """The controlled values, exposed for a caller that wants to read them.
 
-    Round 15: `boundaries` was a two-valued flag whose `read` half rested on two
-    columns this repository writes, `quote` and `source`. A reviewer rewrote one
-    clause of `source` to dodge the contradiction check, appended one fabricated
-    sentence to `quote`, flipped the flag and dropped the inference caveat out of
-    `usable()` with the suite green but for two README quotations, which the same
-    reviewer then updated as any developer would. Cause 49's own lesson says a burden
-    checked against our own prose is not checked.
-
-    A free-text flag cannot carry that burden, so the basis is a controlled value, the
-    flag is derived from it, and what a reader is owed is stated per basis and
-    printed. `paper_transcribed` is the honest name for the one row whose numbers we
-    typed from a paper we do not hold, and it says so in the answer.
+    Round 18: resolving the pair onto the instance was not enough, because
+    `ConventionSet.load` is not cached, so every public call builds fresh objects and
+    rebinding this attribute still turned the inference caveat off for all of them.
+    `__post_init__` reads the module-level `_INTERVAL_BASES`, which the class does not
+    expose, so this name is documentation and not the mechanism. The test that was
+    cited for the round 17 fix asserted only that item assignment on a mapping proxy
+    raises, which was true before that fix as well: it had no power over the defect
+    (standing rule 10).
     """
 
     def __post_init_basis__(self) -> None:          # documentation only
@@ -317,10 +336,7 @@ class Convention:
         """
         if not self.is_split:
             raise ValueError(f"{self.name} is not a split-record convention")
-        if not isinstance(reference_position, int) or isinstance(reference_position,
-                                                                bool):
-            raise TypeError(f"a coordinate must be an int, got "
-                            f"{reference_position!r}")
+        reference_position = as_coordinate(reference_position)
         self._require_native(reference_position, native)
         for name, a, b in self.records:
             if a <= reference_position <= b:
@@ -379,10 +395,7 @@ class Convention:
             raise ValueError(
                 f"{self.name} is a four-record reference, so a position in it is a "
                 f"pair like 'UL:50788', not an integer. Use `coordinate` or `locate`.")
-        if not isinstance(reference_position, int) or isinstance(reference_position,
-                                                                  bool):
-            raise TypeError(f"a coordinate must be an int, got "
-                            f"{reference_position!r}")
+        reference_position = as_coordinate(reference_position)
         limit = VERSION_LENGTHS.get(self.reference_version, GENOME_BP)
         if not 1 <= reference_position <= limit:
             # Round 16: there was no bounds check, so `full_length.to_convention(
@@ -507,6 +520,17 @@ class PositionReport:
     `lassalle2020_excluded`, and the answer says so now.
     """
 
+    checks_not_run: list[str] = field(default_factory=list)
+    """Checks that could not be made, so silence is not read as a clean answer.
+
+    Round 18: with no repeat map at all, `lift` raised and named the file while this
+    report answered with `caveats == []` and no notice, at the repository's own
+    worked example: a caller could not tell "checked and well defined" from "not
+    checked". Root cause 20's outcome through the one door round 17 left open.
+
+    Last in the dataclass, as standing rule 22 requires.
+    """
+
     interval_provenance: list[tuple[str, str]] = field(default_factory=list)
     """Each convention here whose intervals its source does not print, and why.
 
@@ -542,6 +566,10 @@ class PositionReport:
         every position in the genome whenever any convention is unverified, which tells
         a reader nothing. `refused` is reported separately so it is still visible.
         """
+        if self.checks_not_run:
+            # Round 18: this returned the strongest claim the type can make while the
+            # ambiguity check had not run at all.
+            return False
         return not self.unusable_under
 
     def __str__(self) -> str:
@@ -554,6 +582,8 @@ class PositionReport:
             lines.append(f"  cannot say for {name}: {why}")
         for c in self.caveats:
             lines.append(f"  caveat: {c}")
+        for missing in self.checks_not_run:
+            lines.append(f"  not checked: {missing}")
         if self.interval_provenance:
             each = "; ".join(f"{name} ({why})" for name, why in
                              self.interval_provenance)
@@ -912,7 +942,7 @@ class ConventionSet:
             try:
                 from .repeats import RepeatMap
                 repeat_map = RepeatMap.load()
-            except FileNotFoundError:
+            except FileNotFoundError as absent:
                 # Round 16: this caught EVERY exception, so a `repeat_map.tsv` whose
                 # orientation column had been dropped made `lift`, `lift_detailed`
                 # and `copies_in_the_reference` all raise and name the file, while
@@ -921,6 +951,9 @@ class ConventionSet:
                 # and the sibling here was missed (standing rules 54 and 61). Only
                 # the map's ABSENCE is a reason to answer without it.
                 repeat_map = None
+                rep.checks_not_run.append(
+                    f"the repeat map is not built, so nothing here says whether this "
+                    f"position is well defined: {absent}")
         if repeat_map is not None and rep.usable_under:
             status = repeat_map.classify(position)
             if not status.well_defined:
