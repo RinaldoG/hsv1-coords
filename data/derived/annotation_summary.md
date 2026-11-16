@@ -19,7 +19,7 @@ Produced by `src/build_annotation.py`. Every feature carries the class of thing 
 | `origin_locus` | 0 | 1 | 1 | A locus named after an origin of replication. Note that `Ori-S` here is the 2020 re-annotation's locus spanning the TRS copy and TRS1, not the oriS palindrome itself, which is a `stem_loop` feature |
 | `primary_mirna` | 0 | 0 | 2 | A primary microRNA transcript |
 | `regulatory` | 57 | 0 | 0 | A regulatory element. In this reference record 53 are polyadenylation signals and 19 are TATA boxes, which the `subtype` column now distinguishes; the earlier description said "such as a TATA box" of a set that is three quarters polyA signals |
-| `repeat_region` | 21 | 0 | 0 | A repeat, including the inverted repeats and the reiteration sets nested inside them |
+| `repeat_region` | 19 | 0 | 0 | A repeat, including the inverted repeats and the reiteration sets nested inside them |
 | `sORF` | 0 | 11 | 0 | A small open reading frame named by the 2020 re-annotation |
 | `stem_loop` | 2 | 0 | 0 | A stem-loop structure, such as an origin palindrome |
 | `transcript_span` | 0 | 37 | 0 | A transcript unit spanning more than one named gene, so not a gene itself. Both halves must be systematic names: the earlier rule matched any hyphenated name, so AL-RNA, ORF-O, ORF-P, Ori-S and gG-1 were all declared multi-gene spans |

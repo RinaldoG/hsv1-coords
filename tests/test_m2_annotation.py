@@ -234,7 +234,13 @@ class InvertedRepeatsPresent(unittest.TestCase):
         LAT copy 2 ends at 127,151 and IRL ends at 126,373, so it extends 778 bp into
         IRS. Any document in this repository asserting otherwise is wrong.
         """
-        claims = ("wholly inside the inverted repeats", "wholly inside the long repeat")
+        # Round 16: `claims` was two fixed phrases, and FINDINGS.md itself writes a
+        # third wording, "wholly inside the long inverted repeat", which neither
+        # matched, so that wording was outside the gate entirely. The rule is a
+        # property of the sentence now: "wholly inside" within a few words of LAT and
+        # of a repeat, which is what the false claim says however it is phrased
+        # (cause 51).
+        claim = re.compile(r"wholly inside[^.]{0,60}\brepeat", re.I)
         # Round 15: the exemption was any line containing the bare phrase "does not",
         # or starting with `|`, so "Because LAT sits wholly inside the inverted
         # repeats, the mask does not need IRS" was exempt, and both lines in the live
@@ -245,31 +251,42 @@ class InvertedRepeatsPresent(unittest.TestCase):
         markers = ("was wrong", "corrected", "earlier version", "no longer",
                    "retract", "does not lie", "not wholly")
         # Measured 16 November 2026: one line, the retraction table's own row.
-        expected_quotations = {("FINDINGS.md", "table row")}
-        offenders, quotations = [], set()
+        # Round 16: this was a SET of (document, marker), so a second line in the
+        # same document with the same marker collapsed into the existing entry and
+        # the equality still held: a new table row asserting the retracted claim as
+        # current passed (cause 30, a check that can only see what is added). The
+        # lines are counted per document now.
+        # Measured 16 November 2026: one line, the retraction table's own row, which
+        # carries the word "corrected".
+        expected_quotations = {("FINDINGS.md", "corrected"): 1}
+        import collections as _collections
+        offenders, quotations = [], _collections.Counter()
         for doc in ("README.md", "FINDINGS.md", "ROADMAP.md"):
             for n, line in enumerate((ROOT / doc).read_text().splitlines(), 1):
                 low = line.lower()
-                if not any(c in low for c in claims):
+                if "lat" not in low or not claim.search(line):
+                    continue
+                if re.search(r"\bIRS\b", line) and "778" in line:
+                    # The true sentence: LAT runs 778 bp past IRL into IRS.
                     continue
                 marker = next((w for w in markers if w in low), None)
                 if marker:
-                    quotations.add((doc, marker))
+                    quotations[(doc, marker)] += 1
                 elif line.lstrip().startswith("|"):
                     # A table row in the retraction table quotes the old claim, which
                     # is how a retraction reads.
-                    quotations.add((doc, "table row"))
+                    quotations[(doc, "table row")] += 1
                 else:
                     offenders.append(f"{doc}:{n}: {line.strip()[:80]}")
         self.assertEqual(offenders, [],
                          "LAT extends 778 bp past IRL into IRS; these lines assert "
                          f"otherwise: {offenders}")
         self.assertEqual(
-            quotations, expected_quotations,
-            f"the lines quoting the old LAT claim have changed: {sorted(quotations)} "
-            f"against the recorded {sorted(expected_quotations)}. Each one is a place "
-            f"a reader meets the retracted claim, so the list is kept short and "
-            f"explicit rather than left to a phrase match.")
+            dict(quotations), expected_quotations,
+            f"the lines quoting the old LAT claim have changed: {dict(quotations)} "
+            f"against the recorded {expected_quotations}. Each one is a place a "
+            f"reader meets the retracted claim, so they are counted rather than "
+            f"collected into a set.")
 
 
 class DocumentedDiscrepancy(unittest.TestCase):
@@ -325,8 +342,17 @@ class TheSummaryIsTheTableCountedUp(unittest.TestCase):
         cls.rows = rows()
 
     def _section(self, heading: str) -> dict:
+        """Every labelled row of a section, and a failure for one it cannot read.
+
+        Round 16: this skipped a row whose three cells were not all `isdigit()`, and
+        the tests iterated what it returned, so deleting the ``| `named_gene` | 74 |
+        6 | 77 |`` row and writing `| `CDS` | **7** | 300 | 309 |` both passed: the
+        published summary then said the reference carries 7 CDS features and nothing
+        at all about `named_gene`. That is root cause 63, which round 15 logged one
+        commit earlier, in round 15's own new gate.
+        """
         body = self.text.split(heading, 1)[1].split("\n## ", 1)[0]
-        out = {}
+        out, unreadable = {}, []
         for line in body.splitlines():
             found = self.CELL.match(line.strip())
             if not found:
@@ -337,11 +363,23 @@ class TheSummaryIsTheTableCountedUp(unittest.TestCase):
                 counts.append(int(cell) if cell.isdigit() else None)
             if all(c is not None for c in counts):
                 out[found.group(1)] = counts
+            else:
+                unreadable.append((found.group(1), found.groups()[1:4]))
+        self.assertEqual(
+            unreadable, [],
+            f"{len(unreadable)} rows of '{heading}' have a cell that is not a plain "
+            f"count, so nothing can compare them with the table: {unreadable}")
         return out
 
     def test_the_distinct_name_table_is_the_table_counted_up(self):
         stated = self._section("## Distinct names by class")
         self.assertTrue(stated, "no class rows were read out of the summary")
+        # Both directions, round 16: a deleted row left the gate rather than failing
+        # it (standing rule 62).
+        self.assertEqual(
+            sorted(stated), sorted({r["feature_class"] for r in self.rows}),
+            "the summary's class table and the annotation table name different "
+            "classes")
         wrong = []
         for label, counts in stated.items():
             for source, number in zip(self.SOURCES, counts):
@@ -358,6 +396,10 @@ class TheSummaryIsTheTableCountedUp(unittest.TestCase):
     def test_the_feature_type_table_is_the_table_counted_up(self):
         stated = self._section("## Rows by feature type")
         self.assertTrue(stated, "no feature-type rows were read out of the summary")
+        self.assertEqual(
+            sorted(stated), sorted({r["feature_type"] for r in self.rows}),
+            "the summary's feature-type table and the annotation table name "
+            "different types")
         wrong = []
         for label, counts in stated.items():
             for source, number in zip(self.SOURCES, counts):
@@ -385,6 +427,121 @@ class TheSummaryIsTheTableCountedUp(unittest.TestCase):
                       self.text,
                       f"the summary's prose does not state the {polya} polyA signals "
                       f"and {tata} TATA boxes the table holds")
+
+
+class TheNameArtefactsAgreeWithEachOtherAndTheirReports(unittest.TestCase):
+    """Round 16: three artefacts round 15 unstaled still had no gate.
+
+    Nothing read `names_by_source.tsv`, `name_reconciliation.tsv` or
+    `mechanical_report.md` beyond an existence check, so four mutations in one run
+    passed with 328 tests green: every `whisnant2020` row given
+    `products = protein_coding`, which is the exact cause-66 state round 15 fixed;
+    `name_reconciliation.tsv` made to claim `UL23`, the aciclovir target, absent from
+    NC_001806.2; the report's distinct-name count 232 -> 199; and
+    `strain_inventory.md`'s four headline counts replaced by the figures round 15's
+    own commit message names as the damage from a hyphen-truncating `strain_of`.
+
+    Cause 66's lesson has two halves, and round 15 did the rebuild half only. These
+    are cross-artefact and summary-versus-artefact checks, which need no parser:
+    `make names` byte-identity is what CI adds on top.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        derived = ROOT / "data" / "derived"
+        for name in ("names_by_source.tsv", "name_reconciliation.tsv",
+                     "mechanical_report.md", "strain_inventory.tsv",
+                     "strain_inventory.md"):
+            if not (derived / name).exists():
+                raise unittest.SkipTest(f"{name} is built, not committed")
+        cls.by_source = list(csv.DictReader(
+            (derived / "names_by_source.tsv").open(), delimiter="\t"))
+        cls.reconciliation = list(csv.DictReader(
+            (derived / "name_reconciliation.tsv").open(), delimiter="\t"))
+        cls.report = (derived / "mechanical_report.md").read_text()
+        cls.inventory = list(csv.DictReader(
+            (derived / "strain_inventory.tsv").open(), delimiter="\t"))
+        cls.inventory_md = (derived / "strain_inventory.md").read_text()
+
+    def test_the_reconciliation_counts_the_rows_the_other_table_holds(self):
+        per_gene: dict[str, set[str]] = {}
+        for row in self.by_source:
+            per_gene.setdefault(row["gene"], set()).add(row["source"])
+        wrong = []
+        for row in self.reconciliation:
+            gene = row["gene"]
+            sources = per_gene.get(gene, set())
+            if int(row["n_sources"]) != len(sources):
+                wrong.append((gene, row["n_sources"], sorted(sources)))
+            for source in ("NC_001806.2", "BK012101.1", "JN555585.1",
+                           "whisnant2020"):
+                stated = row[source] == "yes"
+                if stated != (source in sources):
+                    wrong.append((gene, source, row[source], source in sources))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} reconciliation cells disagree with names_by_source.tsv: "
+            f"{wrong[:6]}")
+        self.assertEqual(
+            sorted(per_gene), sorted(r["gene"] for r in self.reconciliation),
+            "the two name tables hold different genes")
+
+    def test_the_mechanical_report_is_those_tables_counted_up(self):
+        per_gene: dict[str, set[str]] = {}
+        for row in self.by_source:
+            per_gene.setdefault(row["gene"], set()).add(row["source"])
+        in_all = sum(1 for g, s in per_gene.items() if len(s) == 4)
+        # The column states the disagreement in full, prefixed `DIFFERS:`.
+        differing = sum(1 for r in self.reconciliation
+                        if r["product_agreement"].startswith("DIFFERS"))
+        for label, number in (
+                ("Distinct gene names across all sources", len(per_gene)),
+                ("Present in all 4 sources", in_all),
+                ("Genes whose `product` text differs between sources", differing)):
+            with self.subTest(figure=label):
+                self.assertIn(f"{label}: **{number}**", self.report,
+                              f"mechanical_report.md does not state {number} for "
+                              f"{label!r}, which is what the tables hold")
+
+    def test_the_strain_report_is_the_inventory_counted_up(self):
+        # The report counts every distinct value, the unlabelled placeholder
+        # included: `fetch_genomes.py` writes `len(by_label)` over all records.
+        labels = {r["strain"] for r in self.inventory}
+        groups = {r["strain_group"] for r in self.inventory}
+        sizes: dict[str, set[str]] = {}
+        lengths: dict[str, set[int]] = {}
+        for row in self.inventory:
+            if row["strain_group"] == "(UNLABELLED)":
+                continue
+            sizes.setdefault(row["strain_group"], set()).add(row["accession"])
+            lengths.setdefault(row["strain_group"], set()).add(int(row["length_bp"]))
+        repeated = sum(1 for g, a in sizes.items() if len(a) > 1)
+        disputed = sum(1 for g, seen in lengths.items() if len(seen) > 1)
+        for label, number in (
+                ("Records", len(self.inventory)),
+                ("Distinct strain labels, as deposited", len(labels)),
+                ("Distinct laboratory strains, after dropping qualifiers such as "
+                 "`isolate` and `clone`", len(groups)),
+                ("Laboratory strains deposited more than once", repeated)):
+            with self.subTest(figure=label):
+                self.assertIn(f"{label}: **{number}**", self.inventory_md,
+                              f"strain_inventory.md does not state {number} for "
+                              f"{label!r}")
+        self.assertIn(f"**disagree on length**: **{disputed}**", self.inventory_md)
+
+    def test_no_product_column_carries_a_biotype(self):
+        """Cause 66's state, asserted rather than left to a rebuild.
+
+        `protein_coding` is the GTF's `gene_type`, a biotype on all 910 lines, and it
+        spent nine rounds in a `products` column where a reader would take it for a
+        product.
+        """
+        offenders = [(r["gene"], r["source"]) for r in self.by_source
+                     if "protein_coding" in r["products"]]
+        self.assertEqual(
+            offenders, [],
+            f"{len(offenders)} rows carry the GTF's biotype in their products "
+            f"column: {offenders[:6]}")
 
 
 class TheGenbankParserHandlesTheFormatSOddities(unittest.TestCase):
@@ -493,6 +650,436 @@ class EveryColumnIsTheSourceSOwnValue(unittest.TestCase):
             f"{len(wrong)} of {len(self.rows)} rows carry a class the classifier does "
             f"not give for that name and type (name, type, stated, classifier): "
             f"{wrong[:6]}")
+
+    NON_GENE_TYPES = frozenset({"regulatory", "repeat_region", "stem_loop",
+                                "rep_origin", "misc_feature"})
+    GENE_LIKE_CLASSES = frozenset({"named_gene", "novel_orf_2020", "transcript_span",
+                                   "lat_region", "origin_locus", "sORF", "uORF",
+                                   "uoORF", "iORF", "dORF", "primary_mirna"})
+
+    def test_a_feature_s_type_decides_whether_its_class_can_be_gene_like(self):
+        """Round 16: the class check called the builder's own expression.
+
+        `test_every_row_s_class_is_what_the_classifier_gives` re-derives through
+        `classify`, which is character for character what the builder calls, so a
+        one-word change to the table BOTH paths read passed: setting
+        `UNNAMED_CLASSES["regulatory"]` to `named_gene` and rebuilding published all
+        72 reference regulatory rows, 53 of them polyadenylation signals, under a
+        class described as "a classically named gene", with 328 tests green. That is
+        root cause 36 in the artefact and cause 53's lesson about a gate sharing the
+        builder's rule.
+
+        This is written from the artefact instead: a feature whose TYPE is not
+        gene-like cannot carry a gene-like class, whatever any table says, and its
+        class is its own type. The two tests are kept together deliberately, one
+        agreeing with the classifier and one not depending on it.
+        """
+        wrong = [(r["name"], r["feature_type"], r["feature_class"]) for r in self.rows
+                 if r["feature_type"] in self.NON_GENE_TYPES
+                 and r["feature_class"] != r["feature_type"]]
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} rows whose feature type is not gene-like carry a class "
+            f"that is not their own type: {wrong[:6]}")
+        gene_like = {r["feature_class"] for r in self.rows
+                     if r["feature_type"] not in self.NON_GENE_TYPES}
+        self.assertEqual(
+            sorted(gene_like - self.GENE_LIKE_CLASSES), [],
+            f"a gene-like feature carries a class this test does not know: "
+            f"{sorted(gene_like - self.GENE_LIKE_CLASSES)}. If it is a new class, "
+            f"add it here and say in the commit what kind of thing it is.")
+        self.assertEqual(
+            sorted(self.NON_GENE_TYPES & gene_like), [],
+            "a class name is being used both for a non-gene feature type and for a "
+            "gene-like feature, so the column no longer separates them")
+
+    def test_no_repeat_region_is_named_after_a_gene_it_sits_inside(self):
+        """M4's rule, applied to M2's rows: round 16 found only M4 had it.
+
+        `RL1 repeat_region 988..1040`, `RL2 repeat_region 2466..2624` and `US1
+        repeat_region 132391..132516` were published under the names of the genes
+        they sit inside, while `repeat_map.tsv` names the identical three features
+        from their own notes. M4 has a test forbidding it (root cause 46) and M2 did
+        not share the rule, in the one subject both artefacts describe.
+        """
+        genes = {r["name"] for r in self.rows
+                 if r["feature_type"] not in self.NON_GENE_TYPES}
+        offenders = []
+        for row in self.rows:
+            if row["feature_type"] != "repeat_region":
+                continue
+            if row["name"] in genes:
+                offenders.append((row["name"], row["location"], row["notes"][:40]))
+        self.assertEqual(
+            offenders, [],
+            f"{len(offenders)} repeat regions are named after a gene that is also a "
+            f"gene-like row, so a reader cannot tell the repeat from the gene inside "
+            f"it: {offenders}")
+
+    def test_each_class_description_matches_the_rows_filed_under_it(self):
+        """A description that contradicts its own rows is how the reclass published.
+
+        The summary prints one description per class, and after the mutation the
+        `named_gene` row carried "A regulatory element. In this reference record 53
+        are polyadenylation signals and 19 are TATA boxes".
+        """
+        from build_annotation import UNNAMED_CLASSES
+        for kind, (label, description) in UNNAMED_CLASSES.items():
+            if not label:
+                # A type the builder deliberately drops, such as the whole-genome
+                # `source` record, carries an empty class and no rows.
+                self.assertEqual(
+                    [r["name"] for r in self.rows if r["feature_type"] == kind], [],
+                    f"{kind} is declared as dropped and has rows in the table")
+                continue
+            with self.subTest(feature_type=kind):
+                self.assertEqual(
+                    label, kind,
+                    f"the class for feature type {kind!r} is {label!r}; an unnamed "
+                    f"feature's class is its own type, so that a description cannot "
+                    f"end up over rows of a different kind")
+                self.assertTrue(description.strip())
+
+    def test_subtype_product_and_transcript_are_the_source_s_qualifiers(self):
+        from build_annotation import squeeze, subtype_of
+        wrong, checked = [], 0
+        for row in self.rows:
+            stated = self.features.get(
+                (row["source"], row["feature_type"], row["location"]))
+            if not stated:
+                wrong.append((row["name"], row["feature_type"], row["location"],
+                              "the source states no such feature"))
+                continue
+            checked += 1
+            for column, derive in (
+                    ("subtype", subtype_of),
+                    ("product", lambda f: squeeze(f.get("product") or "")),
+                    ("transcript_id", lambda f: squeeze(f.get("transcript") or ""))):
+                if not any(derive(f) == row[column] for f in stated):
+                    wrong.append((row["name"], column, row[column],
+                                  [derive(f) for f in stated][:2]))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} cells are not what the source states for that feature "
+            f"(name, column, stated, source): {wrong[:6]}")
+        self.assertEqual(
+            checked, len(self.rows),
+            f"{len(self.rows) - checked} rows were not compared with a source feature")
+
+
+class EveryGtfRowIsALineOfTheGtf(unittest.TestCase):
+    """Round 15: the 910 GTF-sourced rows, 51 per cent of the table, were ungated.
+
+    The strand gate looked each row up by (name, type, bare location) and skipped any
+    row it could not find, so a wrong name or a moved location left the gate rather
+    than failing it. The cross-format check sees only the 50 rows whose triple also
+    appears in `BK012101.1`, and 431 rows are `exon` or `transcript`, which that
+    record never states, so they could never enter it. 848 rows spanning 2,005,286
+    bases, 277 of them CDS, rested on an eight-name hand list.
+
+    What that cost, each replayed with the whole suite and each green before this:
+    swapping the names `UL23` and `UL27` over 12 rows, which puts gB's name on 1,306
+    bp of thymidine kinase; moving four `UL23` CDS rows 5,000 bp; and two builder
+    mutations, one shifting every exon and transcript by 137 bp (431 rows) and one
+    taking each row's `gene_id` from the previous line (169 rows pointing at the
+    neighbouring gene). The builder cases are the serious ones: CI rebuilds the
+    artefact, so its rebuild-and-diff step reproduces the corrupted table and passes
+    too.
+
+    This reads the GTF's own columns rather than `extract_names.parse_gtf`, because a
+    gate written from the parser it checks shares the parser's defects (root cause
+    53). Measured when written: 910 lines, 910 rows, 0 mismatches, no exemption.
+    """
+
+    GENE_ID = re.compile(r'gene_id "([^"]+)"')
+    SPAN = re.compile(r"^(\d+)\.\.(\d+)$")
+
+    @classmethod
+    def setUpClass(cls):
+        gtf = ROOT / "data" / "raw" / "HSV1_Annotation.gtf"
+        if not gtf.exists():
+            raise unittest.SkipTest("HSV1_Annotation.gtf is fetched, not committed")
+        cls.lines: collections.Counter = collections.Counter()
+        cls.seqnames: set[str] = set()
+        for line in gtf.read_text().splitlines():
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.split("\t")
+            seqname, _, kind, start, end, _, strand = fields[:7]
+            attributes = fields[8] if len(fields) > 8 else ""
+            gene = self_gene = cls.GENE_ID.search(attributes)
+            cls.seqnames.add(seqname)
+            cls.lines[(kind, int(start), int(end), strand,
+                       gene.group(1) if gene else None)] += 1
+        cls.rows = [r for r in rows() if r["source"] == "whisnant2020-gtf"]
+
+    @classmethod
+    def _key(cls, row) -> tuple | None:
+        bare = row["location"].replace("complement(", "").rstrip(")")
+        span = cls.SPAN.match(bare)
+        if not span:
+            return None
+        strand = "-" if row["location"].startswith("complement(") else "+"
+        return (row["feature_type"], int(span.group(1)), int(span.group(2)), strand,
+                row["name"])
+
+    def test_the_rows_are_the_file_s_lines_as_a_multiset(self):
+        """Round 16: the first version of this unioned the names at each key.
+
+        It keyed on (type, span, strand) and collected every `gene_id` AND
+        `transcript_id` at that key into a set, so 21 keys carry more than one line,
+        691 of the 910 rows sat at a key accepting more than one name, and 18 rows
+        accepted another GENE's name. Relabelling `IRL1` as `IRL2` and `TRL1` as
+        `TRL2` over four exons, 4,996 bp inside the long inverted repeats, passed with
+        all 328 tests green. Renaming all 230 `exon` rows to their `transcript_id`
+        passed this gate too, and the missing-line check compared key SETS, so a line
+        dropped at a duplicated key was invisible.
+
+        The rows are the file's lines, counted: one key per line including the
+        `gene_id`, compared as a multiset in both directions. Measured when written:
+        910 lines, 910 rows, the two multisets equal, no union and no exemption.
+        """
+        counted: collections.Counter = collections.Counter()
+        unparsed = []
+        for row in self.rows:
+            key = self._key(row)
+            if key is None:
+                unparsed.append((row["name"], row["location"]))
+            else:
+                counted[key] += 1
+        self.assertEqual(unparsed, [],
+                         f"{len(unparsed)} GTF-sourced rows have a location this gate "
+                         f"cannot read: {unparsed[:5]}")
+        missing = sorted((counted - self.lines).items())
+        invented = sorted((self.lines - counted).items())
+        self.assertEqual(
+            (missing, invented), ([], []),
+            f"the table and HSV1_Annotation.gtf are not the same multiset of "
+            f"(type, span, strand, gene name): {len(missing)} in the table and not "
+            f"the file {missing[:4]}, {len(invented)} in the file and not the table "
+            f"{invented[:4]}")
+
+    def test_the_row_count_is_the_file_s_line_count(self):
+        """Derived from the file, not a typed floor (standing rule 47)."""
+        self.assertEqual(
+            len(self.rows), sum(self.lines.values()),
+            f"{len(self.rows)} rows carry source `whisnant2020-gtf` and the file has "
+            f"{sum(self.lines.values())} feature lines")
+        self.assertGreater(sum(self.lines.values()), 0,
+                           "the GTF holds no feature lines")
+
+    def test_the_file_states_one_sequence_and_the_table_says_which(self):
+        """`parse_gtf` never reads column 1, so the frame is an unasserted default.
+
+        The GTF's coordinates are JN555585's, which is byte-identical to
+        NC_001806.2, and that identity is what makes these rows comparable with the
+        reference's. A second seqname would silently mix frames (root cause 6b), and
+        a parser that does not read the field cannot notice.
+        """
+        self.assertEqual(sorted(self.seqnames), ["JN555585"],
+                         f"the GTF states more than one sequence: {self.seqnames}")
+        provenance = {r["provenance"] for r in self.rows}
+        self.assertTrue(
+            all("JN555585" in p for p in provenance),
+            f"a GTF-sourced row does not name the sequence its coordinates are in: "
+            f"{sorted(provenance)[:2]}")
+
+
+class TheGenbankParserHandlesTheFormatSOddities(unittest.TestCase):
+    """Round 15: two parser cases nothing exercised, both found by reading.
+
+    A record none of the four committed ones resembles reaches them immediately, and
+    the project's rule is that a branch nothing exercises is where the next defect
+    lives. These are checked against synthetic records written here, which is the only
+    way to reach a case the real inputs do not contain.
+    """
+
+    @staticmethod
+    def _parse(text: str):
+        import tempfile
+        sys.path.insert(0, str(ROOT / "src"))
+        from extract_names import parse_genbank
+        path = pathlib.Path(tempfile.mkdtemp()) / "synthetic.gb"
+        path.write_text(text)
+        return parse_genbank(path)
+
+    def test_a_qualifier_with_no_value_does_not_join_the_previous_one(self):
+        features = self._parse(
+            "LOCUS       SYNTHETIC   10 bp\n"
+            "FEATURES             Location/Qualifiers\n"
+            "     gene            1..10\n"
+            '                     /gene="UL1"\n'
+            "                     /pseudo\n"
+            '                     /note="after a value-less qualifier"\n'
+            "ORIGIN\n        1 acgtacgtac\n//\n")
+        self.assertEqual(len(features), 1)
+        self.assertEqual(features[0]["gene"], "UL1",
+                         "a value-less qualifier was appended to the gene name")
+        self.assertEqual(features[0].get("pseudo"), "")
+        self.assertEqual(features[0]["note"], "after a value-less qualifier")
+
+    def test_a_repeated_qualifier_keeps_both_values(self):
+        """Round 15: the second `/rpt_type` overwrote the first on 26 real features."""
+        features = self._parse(
+            "LOCUS       SYNTHETIC   10 bp\n"
+            "FEATURES             Location/Qualifiers\n"
+            "     repeat_region   1..10\n"
+            '                     /rpt_type=direct\n'
+            '                     /rpt_type=terminal\n'
+            "ORIGIN\n        1 acgtacgtac\n//\n")
+        self.assertEqual(features[0]["rpt_type"], "direct; terminal")
+
+
+class EveryColumnIsTheSourceSOwnValue(unittest.TestCase):
+    """Round 15: four columns were checked by nothing, or by a typed floor.
+
+    Each of these left all 307 tests green, with the whole table rebuilt where the
+    mutation was in the builder:
+
+    - every one of the 31 reference repeat rows' `subtype` set to `inverted`, so the
+      24 tandem reiteration sets and the 2 terminal repeats claim to be inverted
+      repeats;
+    - the `subtype` column reversed over the 72 `regulatory` rows, which preserves the
+      53 polyA and 19 TATA counts exactly and mislabels 18 features, because the only
+      gate was two floors (`polyA > 40`, `TATA > 10`);
+    - all 599 non-empty `product` values set to `glycoprotein B`;
+    - all 693 `transcript_id` values set to one constant;
+    - all 72 reference `regulatory` rows reclassed `named_gene`, which is root cause
+      36 in the artefact: 53 polyadenylation signals published under a class whose own
+      description is "a classically named gene". Round 10 fixed that at `classify()`
+      and nothing held the TABLE to it (cause 32).
+
+    So the class is re-derived for every row by calling the classifier, and the three
+    value columns are compared with the qualifier the source states for that feature.
+    Measured when written: 1,779 of 1,779 rows agree, with no exemption.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        for name in ("ref_NC_001806.2.gb", "alt_BK012101.1.gb"):
+            if not (ROOT / "data" / "raw" / name).exists():
+                raise unittest.SkipTest(f"{name} is fetched, not committed")
+        sys.path.insert(0, str(ROOT / "src"))
+        from build_annotation import SOURCES, pre_2020_names
+        from extract_names import parse_genbank, parse_gtf
+        cls.known = pre_2020_names(SOURCES, ROOT / "data" / "raw")
+        cls.features: dict[tuple, list[dict]] = {}
+        for accession, filename, kind, _ in SOURCES:
+            path = ROOT / "data" / "raw" / filename
+            if not path.exists():
+                raise unittest.SkipTest(f"{filename} is fetched, not committed")
+            parsed = parse_genbank(path) if kind == "genbank" else parse_gtf(path)
+            for feature in parsed:
+                key = (accession, feature["_type"], feature["_location"])
+                cls.features.setdefault(key, []).append(feature)
+        cls.rows = rows()
+
+    def test_every_row_s_class_is_what_the_classifier_gives(self):
+        from build_annotation import UNNAMED_CLASSES, classify
+        wrong = []
+        for row in self.rows:
+            name, kind = row["name"], row["feature_type"]
+            if name.startswith(f"{kind}@"):
+                # The builder's placeholder for a feature the record leaves unnamed.
+                expected = UNNAMED_CLASSES.get(kind, ("", ""))[0]
+            else:
+                expected = classify(name, kind, self.known)
+            if expected != row["feature_class"]:
+                wrong.append((name, kind, row["feature_class"], expected))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} of {len(self.rows)} rows carry a class the classifier does "
+            f"not give for that name and type (name, type, stated, classifier): "
+            f"{wrong[:6]}")
+
+    NON_GENE_TYPES = frozenset({"regulatory", "repeat_region", "stem_loop",
+                                "rep_origin", "misc_feature"})
+    GENE_LIKE_CLASSES = frozenset({"named_gene", "novel_orf_2020", "transcript_span",
+                                   "lat_region", "origin_locus", "sORF", "uORF",
+                                   "uoORF", "iORF", "dORF", "primary_mirna"})
+
+    def test_a_feature_s_type_decides_whether_its_class_can_be_gene_like(self):
+        """Round 16: the class check called the builder's own expression.
+
+        `test_every_row_s_class_is_what_the_classifier_gives` re-derives through
+        `classify`, which is character for character what the builder calls, so a
+        one-word change to the table BOTH paths read passed: setting
+        `UNNAMED_CLASSES["regulatory"]` to `named_gene` and rebuilding published all
+        72 reference regulatory rows, 53 of them polyadenylation signals, under a
+        class described as "a classically named gene", with 328 tests green. That is
+        root cause 36 in the artefact and cause 53's lesson about a gate sharing the
+        builder's rule.
+
+        This is written from the artefact instead: a feature whose TYPE is not
+        gene-like cannot carry a gene-like class, whatever any table says, and its
+        class is its own type. The two tests are kept together deliberately, one
+        agreeing with the classifier and one not depending on it.
+        """
+        wrong = [(r["name"], r["feature_type"], r["feature_class"]) for r in self.rows
+                 if r["feature_type"] in self.NON_GENE_TYPES
+                 and r["feature_class"] != r["feature_type"]]
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} rows whose feature type is not gene-like carry a class "
+            f"that is not their own type: {wrong[:6]}")
+        gene_like = {r["feature_class"] for r in self.rows
+                     if r["feature_type"] not in self.NON_GENE_TYPES}
+        self.assertEqual(
+            sorted(gene_like - self.GENE_LIKE_CLASSES), [],
+            f"a gene-like feature carries a class this test does not know: "
+            f"{sorted(gene_like - self.GENE_LIKE_CLASSES)}. If it is a new class, "
+            f"add it here and say in the commit what kind of thing it is.")
+        self.assertEqual(
+            sorted(self.NON_GENE_TYPES & gene_like), [],
+            "a class name is being used both for a non-gene feature type and for a "
+            "gene-like feature, so the column no longer separates them")
+
+    def test_no_repeat_region_is_named_after_a_gene_it_sits_inside(self):
+        """M4's rule, applied to M2's rows: round 16 found only M4 had it.
+
+        `RL1 repeat_region 988..1040`, `RL2 repeat_region 2466..2624` and `US1
+        repeat_region 132391..132516` were published under the names of the genes
+        they sit inside, while `repeat_map.tsv` names the identical three features
+        from their own notes. M4 has a test forbidding it (root cause 46) and M2 did
+        not share the rule, in the one subject both artefacts describe.
+        """
+        genes = {r["name"] for r in self.rows
+                 if r["feature_type"] not in self.NON_GENE_TYPES}
+        offenders = []
+        for row in self.rows:
+            if row["feature_type"] != "repeat_region":
+                continue
+            if row["name"] in genes:
+                offenders.append((row["name"], row["location"], row["notes"][:40]))
+        self.assertEqual(
+            offenders, [],
+            f"{len(offenders)} repeat regions are named after a gene that is also a "
+            f"gene-like row, so a reader cannot tell the repeat from the gene inside "
+            f"it: {offenders}")
+
+    def test_each_class_description_matches_the_rows_filed_under_it(self):
+        """A description that contradicts its own rows is how the reclass published.
+
+        The summary prints one description per class, and after the mutation the
+        `named_gene` row carried "A regulatory element. In this reference record 53
+        are polyadenylation signals and 19 are TATA boxes".
+        """
+        from build_annotation import UNNAMED_CLASSES
+        for kind, (label, description) in UNNAMED_CLASSES.items():
+            if not label:
+                # A type the builder deliberately drops, such as the whole-genome
+                # `source` record, carries an empty class and no rows.
+                self.assertEqual(
+                    [r["name"] for r in self.rows if r["feature_type"] == kind], [],
+                    f"{kind} is declared as dropped and has rows in the table")
+                continue
+            with self.subTest(feature_type=kind):
+                self.assertEqual(
+                    label, kind,
+                    f"the class for feature type {kind!r} is {label!r}; an unnamed "
+                    f"feature's class is its own type, so that a description cannot "
+                    f"end up over rows of a different kind")
+                self.assertTrue(description.strip())
 
     def test_subtype_product_and_transcript_are_the_source_s_qualifiers(self):
         from build_annotation import squeeze, subtype_of

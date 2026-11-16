@@ -1,6 +1,7 @@
 """The M5 gate, written before the code, per ROADMAP.md."""
 from __future__ import annotations
 
+import ast
 import csv
 import fnmatch
 import pathlib
@@ -1036,10 +1037,10 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     TESTS_PER_FILE = {
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
-        "test_m2_annotation": 38,
+        "test_m2_annotation": 45,
         "test_m3_crosswalk": 53,
         "test_m4_repeat_map": 58,
-        "test_m5_conventions": 118,
+        "test_m5_conventions": 119,
         "test_placeholder": 1,
         "test_readme_examples": 7,
     }
@@ -1150,7 +1151,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     SKIP_SITES = {
         "test_docs_match_artefacts": 5, "test_m1_dictionary": 2,
-        "test_m2_annotation": 7, "test_m3_crosswalk": 7, "test_m4_repeat_map": 3,
+        "test_m2_annotation": 11, "test_m3_crosswalk": 7, "test_m4_repeat_map": 3,
         "test_m5_conventions": 9, "test_placeholder": 0, "test_readme_examples": 2,
     }
     r"""Every way each test file can decline to run something.
@@ -1167,26 +1168,66 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     """
 
     @staticmethod
-    def _skip_sites(path) -> int:
-        """Skips of every spelling: the call, the method and the decorators."""
-        import ast
+    def _names_of(node) -> str:
+        return (node.attr if isinstance(node, ast.Attribute)
+                else getattr(node, "id", ""))
+
+    @classmethod
+    def _skip_sites(cls, path) -> int:
+        """Skips of every spelling this file can hold.
+
+        Round 16: `ast.Call` matched `raise unittest.SkipTest(...)` and
+        `self.skipTest(...)` and missed `raise _ut.SkipTest` with no parentheses,
+        which is legal and raises the class. One of those as the first statement of
+        `SequenceAgreement.setUpClass` removed ten tests, among them the per-genome
+        base-agreement equality gate that closed cause 27, with the suite reporting
+        `OK (skipped=1)` and this count unchanged.
+        """
         sites = 0
         for node in ast.walk(ast.parse(path.read_text())):
             if isinstance(node, ast.Call):
-                function = node.func
-                name = (function.attr if isinstance(function, ast.Attribute)
-                        else getattr(function, "id", ""))
-                if name in ("SkipTest", "skipTest"):
+                if cls._names_of(node.func) in ("SkipTest", "skipTest"):
+                    sites += 1
+            elif isinstance(node, ast.Raise) and node.exc is not None:
+                # A bare `raise SkipTest` raises the class itself.
+                if cls._names_of(node.exc) == "SkipTest":
                     sites += 1
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 for decorator in node.decorator_list:
                     target = (decorator.func if isinstance(decorator, ast.Call)
                               else decorator)
-                    name = (target.attr if isinstance(target, ast.Attribute)
-                            else getattr(target, "id", ""))
-                    if name.startswith("skip"):
+                    if cls._names_of(target).startswith("skip"):
                         sites += 1
         return sites
+
+    @classmethod
+    def _expected_failures(cls, path) -> int:
+        """`@unittest.expectedFailure` sites, which are a skip under another name.
+
+        Round 16: the name does not begin with "skip", the test stays discovered so
+        `TESTS_PER_FILE` is unmoved, and the run reports OK. Decorating the GTF
+        multiset gate and then relabelling twelve rows reported
+        `OK (expected failures=1)`.
+        """
+        sites = 0
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef,
+                                 ast.ClassDef)):
+                for decorator in node.decorator_list:
+                    target = (decorator.func if isinstance(decorator, ast.Call)
+                              else decorator)
+                    if cls._names_of(target) == "expectedFailure":
+                        sites += 1
+        return sites
+
+    def test_no_test_is_marked_as_an_expected_failure(self):
+        """There are none, and one would be a passing test that does not pass."""
+        marked = {path.stem: self._expected_failures(path)
+                  for path in sorted((ROOT / "tests").glob("test_*.py"))}
+        self.assertEqual(
+            {k: v for k, v in marked.items() if v}, {},
+            f"a test is decorated `@unittest.expectedFailure`, which keeps it "
+            f"discovered, keeps the suite green and asserts nothing: {marked}")
 
     def test_no_test_file_gains_a_skip_the_checkout_gate_does_not_cover(self):
         counted = {path.stem: self._skip_sites(path)
@@ -1269,9 +1310,16 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
             f"class or a method has stopped being discovered, which is what round 11's "
             f"slice edit did to a whole class with the suite green:\n  "
             + "\n  ".join(lost))
-        if gained:
-            print(f"\n    TESTS_PER_FILE is behind: {', '.join(gained)}. Raise it in "
-                  f"the same commit as the new tests.")
+        # Round 16: a rise was printed, and round 15's own last commit shipped the
+        # pin one behind, so the single test holding its cause-68 fix together could
+        # be deleted with the suite green and the notice silenced. Raising the entry
+        # is one line in the commit that added the test (cause 61), and the slack is
+        # worth more than the line.
+        self.assertEqual(
+            gained, [],
+            f"{len(gained)} test files run MORE tests than TESTS_PER_FILE records, so "
+            f"the pin has slack and a new test could be deleted inside it. Raise each "
+            f"entry in the commit that added the tests:\n  " + "\n  ".join(gained))
 
 class VersionNamesAreValidatedBeforeAnswering(unittest.TestCase):
     """Round 7: `convert` short-circuited on source == target before validating.
@@ -2122,14 +2170,51 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
         self.assertGreater(len(bases), 2,
                            f"the basis column holds only {bases}, so it carries "
                            f"little more than the flag it replaced")
-        # And every basis that reads as transcription or inference reaches `report`.
-        report = str(self.cs.report(118777, RepeatMap.load()))
+        # Round 16: the obligations were a loop over the rows that HAVE a basis, so
+        # moving the one `paper_transcribed` row to `deposited_record` left nothing
+        # asserting anything about it: one cell deleted round 15's whole disclosure,
+        # and `deposited_record` carried no burden at all. That is the
+        # filtered-iteration shape of cause 6b inside the fix for cause 68.
+        #
+        # So the row set per basis is recorded, both directions, and each basis owes
+        # something checkable:
+        by_basis: dict[str, list[str]] = {}
         for row in rows:
-            basis = row["interval_basis"].strip()
-            if basis == "paper_transcribed":
-                with self.subTest(convention=row["convention"]):
-                    self.assertIn("transcription:", report)
-                    self.assertIn(row["convention"], report)
+            by_basis.setdefault(row["interval_basis"].strip(), []).append(
+                row["convention"])
+        self.assertEqual(
+            {k: sorted(v) for k, v in by_basis.items()},
+            {"deposited_record": ["full_length"],
+             "paper_transcribed": ["lassalle2020_excluded"],
+             "inferred_from_record": ["szpara2014_trimmed", "whisnant2020_masked"],
+             "derived_from_stated_rule": ["morse2017_nr"]},
+            "the interval basis of a convention has changed. That is the flag that "
+            "decides what a reader is told about where its numbers came from, so the "
+            "change is deliberate and belongs here as well as in the artefact.")
+        report = str(self.cs.report(118777, RepeatMap.load()))
+        for name in by_basis.get("deposited_record", []):
+            with self.subTest(convention=name, basis="deposited_record"):
+                # Its own caveat says "the convention is the deposited record
+                # itself", which is only true of a convention that states no
+                # intervals of its own.
+                self.assertEqual(self.cs[name].intervals, (),
+                                 "a convention whose basis is the deposited record "
+                                 "states intervals of its own, so the record is not "
+                                 "what its coordinates rest on")
+                self.assertEqual(self.cs[name].records, ())
+        for name in by_basis.get("paper_transcribed", []):
+            with self.subTest(convention=name, basis="paper_transcribed"):
+                self.assertTrue(self.cs[name].intervals,
+                                "a transcription with nothing transcribed")
+                self.assertIn("transcription:", report,
+                              "the report does not disclose the transcription")
+                self.assertIn(name, report)
+        for name in by_basis.get("inferred_from_record", []) + by_basis.get(
+                "derived_from_stated_rule", []):
+            with self.subTest(convention=name, basis="inferred"):
+                self.assertTrue(self.cs[name].boundaries_evidence,
+                                "an inferred interval quotes no evidence")
+                self.assertIn(name, report)
 
     def test_every_read_row_shows_its_source_printing_the_coordinates(self):
         """Round 13: the gate above guards only the `inferred` branch.

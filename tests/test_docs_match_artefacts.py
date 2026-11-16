@@ -105,6 +105,20 @@ def contradictions(facts, bodies: dict[str, str]) -> list[str]:
     return problems
 
 
+FUNCTION_WORDS = frozenset({
+    "of", "the", "a", "an", "in", "on", "at", "to", "for", "from", "with", "and",
+    "or", "but", "them", "it", "its", "this", "that", "these", "those", "is", "are",
+    "was", "were", "by", "as", "up", "out", "into", "over", "under", "per", "each",
+    "both", "all", "more", "fewer", "than", "which", "where", "when", "now",
+})
+"""Words that cannot be a unit, so a small number beside one is not a claim.
+
+Round 16: `partial_pairs`' noun "of them marked partial" made "of" a unit, so
+"7 of the 9 were replayed" was read as stating that figure and the reach gate failed on
+a true sentence. A unit is a word that names a kind of thing.
+"""
+
+
 def phrasings(fact) -> list[tuple[str, str]]:
     """Every phrasing on this fact, each with the regex that finds it."""
     out = [(n, rf"{NUMBER}\s+{re.escape(n)}") for n in fact.nouns]
@@ -316,9 +330,16 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
             # know about.
             small = [f for f in fact.forms if re.search(r"\d", f)
                      and "." not in f and len(re.sub(r"\D", "", f)) < 4]
-            units = {n.split()[0].strip("`,.").lower() for n in fact.nouns if n.split()}
+            # Round 16: a unit is the word that makes a small number a claim about a
+            # kind of thing, and a function word cannot do that. `partial_pairs`'
+            # noun is "of them marked partial", whose first word is "of", so the
+            # sentence "7 of the 9 were replayed" was read as a statement of that
+            # figure and failed the gate: a false failure on ordinary prose, which is
+            # cause 65's family. A unit has to be a word that can only be a unit.
+            units = {n.split()[0].strip("`,.").lower() for n in fact.nouns if n.split()
+                     } - FUNCTION_WORDS
             before_units = {p.split()[-1].strip("`,.*").lower()
-                            for p in fact.prefixes if p.split()}
+                            for p in fact.prefixes if p.split()} - FUNCTION_WORDS
             forms = [f for f in fact.forms if re.search(r"\d", f)
                      and (("." in f) or len(re.sub(r"\D", "", f)) >= 4)]
             if not forms and not (small and (units or before_units)):
@@ -641,7 +662,22 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
     shrinks the gate shows up as a number rather than as silence.
     """
 
-    FLOOR_RATE = 40.0
+    FLOOR_RATE = None
+    """No floor on any rate. Round 16 measured why.
+
+    Round 14 put the floor on every number in four documents, and ten citations added
+    to FINDINGS.md failed the build. Round 15 moved it to "sites that state a derived
+    value", which sounded immovable and is not: 21 of the 49 gated forms are one-,
+    two- or three-digit numbers (3, 5, 7, 9, 17, 22, ... 778), so every bare
+    occurrence of those digits anywhere in the six documents counts as such a site,
+    and three paragraphs of ordinary prose about the review rounds, 36 occurrences of
+    `3`, `5`, `7` and `9`, took the rate from 45.5 to 37.9 per cent and turned the
+    build red while the number caught never moved. That is cause 65 twice over, in
+    its own fix.
+
+    So the only floor is on the COUNT, which no prose edit can move, and the rates are
+    printed for information. The ROADMAP row states the count for the same reason.
+    """
     """A floor on the figure-comparison gate ALONE, not on the suite.
 
     Round 8 measured this on a 60-site sample with a fixed seed and printed 15.0 per
@@ -780,20 +816,18 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
               f"the four narrative documents {narrative_caught} of {narrative_tried} "
               f"({narrative_rate:.1f} per cent); over the sites that state a DERIVED "
               f"value {derived_caught} of {derived_tried} ({derived_rate:.1f} per "
-              f"cent), floors {self.FLOOR_CAUGHT} caught and {self.FLOOR_RATE} per "
-              f"cent of the derived sites")
+              f"cent). The only floor is {self.FLOOR_CAUGHT} caught: every rate here "
+              f"moves when prose is edited")
         self.assertGreaterEqual(
             caught, self.FLOOR_CAUGHT,
             f"the gate caught {caught} mutations, below the recorded floor of "
             f"{self.FLOOR_CAUGHT}. Unlike the rate, this count does not move when "
             f"ungated prose numbers are added or removed, so it has shrunk.")
-        self.assertGreaterEqual(
-            derived_rate, self.FLOOR_RATE,
-            f"the gate caught {derived_caught} of {derived_tried} "
-            f"({derived_rate:.1f} per cent) of the sites that state a derived value, "
-            f"below the recorded floor of {self.FLOOR_RATE} per cent. Unlike the two "
-            f"rates printed beside it, this denominator does not move when prose "
-            f"numbers are added or removed.")
+        self.assertIsNone(
+            self.FLOOR_RATE,
+            "a floor on a rate is back. Every denominator available here moves when "
+            "ordinary prose is edited, which is why round 16 removed the last one; "
+            "see FLOOR_RATE's docstring before adding another.")
 
     def test_the_roadmap_states_the_rate_this_run_measures(self):
         self._require_every_artefact()
@@ -805,25 +839,22 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
         overstated the number it was added to state honestly. The rate is not derivable
         from any artefact, so the only way to gate it is to measure it here and compare.
         """
-        self._measure()
-        # Round 15: this compared the narrative rate, whose denominator is every
-        # number in four documents, so twenty added citations moved it past the ±1.0
-        # tolerance and failed the build. It states the derived-site rate now, the
-        # same one the floor is on.
-        caught, tried = self._derived
-        rate = 100 * caught / tried
+        caught, _ = self._measure()
         body = flat("ROADMAP.md")
-        m = re.search(r"\|\s*This gate alone\s*\|\s*\*\*about ([\d.]+) per cent\*\*",
+        # Round 16: this compared a RATE, and every rate's denominator moves when
+        # prose is edited, so an honest paragraph could put the document out of step
+        # with the run. The count does not: it moves when the gate's reach changes,
+        # which is exactly when this row should be rewritten.
+        m = re.search(r"\|\s*This gate alone\s*\|\s*\*\*(\d+) mutations caught\*\*",
                       body)
         self.assertIsNotNone(
-            m, "ROADMAP.md no longer states this gate's own catch rate in the form "
-               "`| This gate alone | **about N per cent**`, so nothing ties the "
-               "document to the measurement")
-        stated = float(m.group(1))
-        self.assertLess(
-            abs(stated - rate), 1.0,
-            f"ROADMAP.md states about {stated} per cent for this gate and the run "
-            f"measures {rate:.1f} per cent ({caught} of {tried})")
+            m, "ROADMAP.md no longer states this gate's own measured count in the "
+               "form `| This gate alone | **N mutations caught**`, so nothing ties "
+               "the document to the measurement")
+        self.assertEqual(
+            int(m.group(1)), caught,
+            f"ROADMAP.md states {m.group(1)} mutations caught by this gate and the "
+            f"run catches {caught}")
 
 
 if __name__ == "__main__":

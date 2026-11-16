@@ -197,6 +197,22 @@ def main() -> int:
         feats = parse_genbank(path) if kind == "genbank" else parse_gtf(path)
         for f in feats:
             name = (f.get("gene") or "").strip()
+            if name and f["_type"] in UNNAMED_CLASSES and f["_type"] != "source":
+                # Round 16: a repeat region that carries a `/gene` qualifier was
+                # named after the gene it sits INSIDE, so `RL1 repeat_region
+                # 988..1040`, `RL2 repeat_region 2466..2624` and `US1 repeat_region
+                # 132391..132516` were published under gene names while
+                # `repeat_map.tsv` names the identical three features from their own
+                # notes: `RL reiteration set 6`, `RL reiteration set 5` and `IRS
+                # reiteration set 3`. M4 has a test forbidding exactly that
+                # (`test_no_repeat_region_is_named_after_a_gene_it_sits_inside`, from
+                # root cause 46) and M2 did not share the rule, in the one case where
+                # both artefacts describe the same feature. The note wins for a
+                # feature that is not a gene.
+                note = squeeze(f.get("note") or "")
+                first = note.split(";")[0].strip() if note else ""
+                if first:
+                    name = first
             if not name:
                 ftype = f["_type"]
                 if ftype not in UNNAMED_CLASSES or UNNAMED_CLASSES[ftype][0] is None:
