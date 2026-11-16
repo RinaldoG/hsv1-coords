@@ -593,7 +593,7 @@ US8-US9	transcript_span	mRNA	143252..143695	BK012101.1	US9				Whisnant et al. 20
 'a' sequence reiteration set	repeat_region	repeat_region	151921..152143	NC_001806.2		direct; tandem		'a' sequence reiteration set	RefSeq reference annotation, provisional, last modified 13 August 2018
 IRL	repeat_region	repeat_region	117161..126373	NC_001806.2		inverted		IRL; inverted repeat flanking UL	RefSeq reference annotation, provisional, last modified 13 August 2018
 IRS	repeat_region	repeat_region	125975..132607	NC_001806.2		inverted		IRS; inverted repeat flanking US	RefSeq reference annotation, provisional, last modified 13 August 2018
-IRS reiteration set 3	repeat_region	repeat_region	132391..132516	NC_001806.2		direct; tandem		IRS reiteration set 3	RefSeq reference annotation, provisional, last modified 13 August 2018
+IRS reiteration set 3	repeat_region	repeat_region	132391..132516	NC_001806.2		direct; tandem		IRS reiteration set 3; within gene US1	RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	lat_region	gene	complement(<1..7569)	NC_001806.2					RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	lat_region	gene	118777..127151	NC_001806.2					RefSeq reference annotation, provisional, last modified 13 August 2018
 LAT	lat_region	ncRNA	complement(join(<1..4953,6910..7569))	NC_001806.2	LAT	other			RefSeq reference annotation, provisional, last modified 13 August 2018
@@ -609,9 +609,9 @@ RL reiteration set 3	repeat_region	repeat_region	8554..8585	NC_001806.2		direct;
 RL reiteration set 3	repeat_region	repeat_region	117789..117820	NC_001806.2		direct; tandem		RL reiteration set 3	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL reiteration set 4	repeat_region	repeat_region	5732..5878	NC_001806.2		direct; tandem		RL reiteration set 4	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL reiteration set 4	repeat_region	repeat_region	120496..120642	NC_001806.2		direct; tandem		RL reiteration set 4	RefSeq reference annotation, provisional, last modified 13 August 2018
-RL reiteration set 5	repeat_region	repeat_region	2466..2624	NC_001806.2		direct; tandem		RL reiteration set 5	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 5	repeat_region	repeat_region	2466..2624	NC_001806.2		direct; tandem		RL reiteration set 5; within gene RL2	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL reiteration set 5	repeat_region	repeat_region	123750..123908	NC_001806.2		direct; tandem		RL reiteration set 5	RefSeq reference annotation, provisional, last modified 13 August 2018
-RL reiteration set 6	repeat_region	repeat_region	988..1040	NC_001806.2		direct; tandem		RL reiteration set 6	RefSeq reference annotation, provisional, last modified 13 August 2018
+RL reiteration set 6	repeat_region	repeat_region	988..1040	NC_001806.2		direct; tandem		RL reiteration set 6; within gene RL1	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL reiteration set 6	repeat_region	repeat_region	125334..125386	NC_001806.2		direct; tandem		RL reiteration set 6	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL1	named_gene	CDS	513..1259	NC_001806.2	neurovirulence protein ICP34.5			virion protein; inhibits stress-induced translational arrest; related to eIF2 phosphatase regulatory subunit GADD34; binds protein phosphatase 1 to form a holoenzyme capable of dephosphorylating eIF2-alpha; involved in translational regulation	RefSeq reference annotation, provisional, last modified 13 August 2018
 RL1	named_gene	CDS	complement(125115..125861)	NC_001806.2	neurovirulence protein ICP34.5			virion protein; inhibits stress-induced translational arrest; related to eIF2 phosphatase regulatory subunit GADD34; binds protein phosphatase 1 to form a holoenzyme capable of dephosphorylating eIF2-alpha; involved in translational regulation	RefSeq reference annotation, provisional, last modified 13 August 2018

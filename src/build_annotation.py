@@ -212,6 +212,13 @@ def main() -> int:
                 note = squeeze(f.get("note") or "")
                 first = note.split(";")[0].strip() if note else ""
                 if first:
+                    # Round 17: renaming the row from its note discarded the `/gene`
+                    # value, which is the gene the repeat sits INSIDE, and
+                    # `build_repeat_map.py` publishes that in its `within_gene`
+                    # column. It is recorded here instead of inferred downstream from
+                    # a difference between two names.
+                    f = dict(f)
+                    f["note"] = f"{note}; within gene {name}"
                     name = first
             if not name:
                 ftype = f["_type"]

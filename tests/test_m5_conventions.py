@@ -1037,10 +1037,10 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     TESTS_PER_FILE = {
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
-        "test_m2_annotation": 45,
+        "test_m2_annotation": 44,
         "test_m3_crosswalk": 53,
         "test_m4_repeat_map": 58,
-        "test_m5_conventions": 119,
+        "test_m5_conventions": 121,
         "test_placeholder": 1,
         "test_readme_examples": 7,
     }
@@ -1151,7 +1151,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     SKIP_SITES = {
         "test_docs_match_artefacts": 5, "test_m1_dictionary": 2,
-        "test_m2_annotation": 11, "test_m3_crosswalk": 7, "test_m4_repeat_map": 3,
+        "test_m2_annotation": 8, "test_m3_crosswalk": 7, "test_m4_repeat_map": 3,
         "test_m5_conventions": 9, "test_placeholder": 0, "test_readme_examples": 2,
     }
     r"""Every way each test file can decline to run something.
@@ -1238,6 +1238,32 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
             "not run, so each one's condition belongs in "
             "test_a_checkout_holds_every_artefact_the_gates_skip_without, which fails "
             "in a checkout rather than skipping. Update that gate, then this count.")
+
+    def test_no_module_defines_the_same_test_class_twice(self):
+        """Round 17: three classes were pasted twice into one file.
+
+        Python keeps the last definition, so the first is dead, and one of the three
+        pairs was not identical: the surviving copy of `EveryGtfRowIsALineOfTheGtf`
+        was round 15's set-valued gate, the one root cause 70 is about, shadowing
+        round 16's multiset replacement. Round 16's own attack then passed again,
+        relabelling an exon as another gene with 45 tests green, and
+        `TESTS_PER_FILE` matched the shadowed count exactly, so it ratified the loss.
+        Round 16's duplicate check looked for duplicate METHODS inside one class and
+        could not see a duplicate class.
+        """
+        import ast
+        duplicates = []
+        for path in sorted((ROOT / "tests").glob("test_*.py")):
+            names = [node.name for node in ast.parse(path.read_text()).body
+                     if isinstance(node, ast.ClassDef)]
+            for name in sorted(set(names)):
+                if names.count(name) > 1:
+                    duplicates.append(f"{path.name}:{name} x{names.count(name)}")
+        self.assertEqual(
+            duplicates, [],
+            f"{len(duplicates)} test classes are defined twice in one module, so only "
+            f"the last definition runs and the earlier one is dead code that may be "
+            f"the better gate: {duplicates}")
 
     def test_no_test_class_defines_the_same_method_twice(self):
         """Round 15, twice in one session, both times mine.
@@ -1770,13 +1796,39 @@ class TheLibraryRefusesWhatItCannotAnswer(unittest.TestCase):
                 RepeatMap.load(empty)
             self.assertIn("make repeatmap", str(refusal.exception))
         # And the pair table is required, not optional: deleting it emptied every
-        # locus list in silence.
+        # locus list in silence. Round 17: it raised `FileNotFoundError`, which
+        # `ConventionSet.report` catches to mean "no map at all", so `report` went on
+        # answering without the ambiguity caveat while `lift` raised. An incomplete
+        # map has its own exception, and `report` does not swallow it.
+        from hsv1coords.repeats import RepeatMapIncomplete
         with tempfile.TemporaryDirectory() as tmp:
             partial = pathlib.Path(tmp)
             (partial / "repeat_map.tsv").write_text(
                 (ROOT / "data" / "derived" / "repeat_map.tsv").read_text())
-            with self.assertRaises(FileNotFoundError):
+            with self.assertRaises(RepeatMapIncomplete):
                 RepeatMap.load(partial)
+
+    def test_report_does_not_answer_over_an_incomplete_repeat_map(self):
+        """Round 17: deleting `diploid_pairs.tsv` alone dropped the caveat.
+
+        `lift` and `RepeatMap.load` raised and named the file; `report` answered in
+        full, minus the line that says the position is not well defined, which is the
+        most load-bearing line this library prints.
+        """
+        from hsv1coords.repeats import RepeatMap, RepeatMapIncomplete
+        import shutil
+        with tempfile.TemporaryDirectory() as tmp:
+            partial = pathlib.Path(tmp)
+            shutil.copy(ROOT / "data" / "derived" / "repeat_map.tsv", partial)
+            with self.assertRaises(RepeatMapIncomplete):
+                RepeatMap.load(partial)
+        # And with the real map, the caveat is there: the control, so this test
+        # cannot pass by the caveat being absent everywhere.
+        self.assertTrue(
+            any("not well defined" in c
+                for c in ConventionSet.load().report(118777,
+                                                    RepeatMap.load()).caveats),
+            "the ambiguity caveat is missing on a position inside IRL")
 
     def test_an_empty_convention_table_is_refused(self):
         """It made `comparable_everywhere` True over zero conventions."""

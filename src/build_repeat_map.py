@@ -86,10 +86,22 @@ def feature_name(r: dict[str, str]) -> tuple[str, str]:
     name = r["name"].split(";")[0].strip()
     note_name = r["notes"].split(";")[0].strip()
     within_gene = ""
-    if note_name and note_name != name and (
+    for clause in str(r.get("notes") or "").split(";"):
+        clause = clause.strip()
+        if clause.lower().startswith("within gene "):
+            within_gene = clause[len("within gene "):].strip()
+    # Round 17: the gene a repeat sits inside was detected as `note_name != name`,
+    # and round 16 made M2 name these rows FROM the note, so the two became equal and
+    # the `/gene` value was dropped from the `within_gene` column for all three
+    # reiteration sets. M2 carries the gene itself now, in the column below, so this
+    # reads it rather than inferring it from a difference between two names.
+    if note_name and (
             "reiteration" in note_name or "sequence" in note_name
             or "palindrome" in note_name):
-        within_gene, name = name, note_name
+        if note_name != name:
+            within_gene, name = name, note_name
+        else:
+            name = note_name
     # A feature the record leaves unnamed gets a synthesised name from M2
     # (`{type}@{location}`). Published as a locus that reads as a parse failure, so the
     # regulatory class the record DOES state is used instead where there is one.
@@ -209,9 +221,19 @@ def main() -> int:
             ext = extent(r["location"])
             if not ext:
                 continue
-            # The four big repeats are the frame, not loci inside it.
-            if any(r["name"].startswith(x) and r["feature_type"] == "repeat_region"
-                   for pair in REPEAT_PAIRS for x in pair):
+            # The four big repeats are the frame, not loci inside it. Round 17:
+            # this was `r["name"].startswith(x)`, a filter on the name, and round
+            # 16's rename of M2's rows to their own notes made `IRS reiteration set
+            # 3` start with `IRS`, so a real 126 bp repeat inside IRS was excluded as
+            # though it were IRS itself and `diploid_pairs.tsv` silently lost the
+            # pair `IRS reiteration set 3 / RS reiteration set 3`: 32 pairs became 31
+            # and five documents stating 32 went wrong. The frame is identified by
+            # its interval, which is what `big` already holds (cause 6: a filter on a
+            # derived field instead of the thing).
+            if r["feature_type"] == "repeat_region" and any(
+                    ext == extent(str(x["location"])) if x.get("location")
+                    else ext == (int(x["start"]), int(x["end"]))
+                    for x in big.values()):
                 continue
             # The same naming as `regions` above, via one function. Reading
             # `r["name"]` here is what published a 53 bp repeat under ICP34.5's name.

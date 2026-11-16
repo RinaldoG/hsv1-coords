@@ -307,11 +307,12 @@ print(ConventionSet.load().report(118777, RepeatMap.load()))
 #   copies. It could equally be 7597 (opposite strand, so complement the
 #   allele)
 #   provenance: the intervals used here were not read from the source
-#   for whisnant2020_masked (The paper prints no coordinates);
-#   szpara2014_trimmed (The paper prints no coordinates for the trimmed
-#   genome); morse2017_nr (because the deposited package has not been
-#   retrieved). The edges are exact to the base; which features they are
-#   is the inference. See the source column of data/conventions.tsv
+#   for whisnant2020_masked (The paper prints no coordinates for the
+#   masked repeats); szpara2014_trimmed (The paper prints no coordinates
+#   for the trimmed genome); morse2017_nr (because Supplementary File 5,
+#   the BED, has not been retrieved). The edges are exact to the base;
+#   which features they are is the inference. See the source column of
+#   data/conventions.tsv
 #   transcription: the intervals used here are the source's own numbers,
 #   typed in by hand, for lassalle2020_excluded (transcribed by hand
 #   from a paper this repository does not hold, so the quotation in

@@ -2,8 +2,8 @@ name	kind	start	end	length	orientation	within_gene	notes
 'a' sequence	repeat_region	1	399	399	forward		'a' sequence
 TRL	repeat_region	1	9213	9213	single		TRL; inverted repeat flanking UL
 'a' sequence reiteration set	repeat_region	98	320	223	forward		'a' sequence reiteration set
-RL reiteration set 6	repeat_region	988	1040	53	forward	RL1	RL reiteration set 6
-RL reiteration set 5	repeat_region	2466	2624	159	forward	RL2	RL reiteration set 5
+RL reiteration set 6	repeat_region	988	1040	53	forward	RL1	RL reiteration set 6; within gene RL1
+RL reiteration set 5	repeat_region	2466	2624	159	forward	RL2	RL reiteration set 5; within gene RL2
 RL reiteration set 4	repeat_region	5732	5878	147	forward		RL reiteration set 4
 RL reiteration set 3	repeat_region	8554	8585	32	forward		RL reiteration set 3
 RL reiteration set 2	repeat_region	8806	8826	21	forward		RL reiteration set 2
@@ -23,7 +23,7 @@ IRS	repeat_region	125975	132607	6633	single		IRS; inverted repeat flanking US
 RS reiteration set 1	repeat_region	126573	126712	140	forward		RS reiteration set 1
 RS reiteration set 2	repeat_region	126813	127145	333	forward		RS reiteration set 2
 oriS palindrome	stem_loop	131980	132024	45	forward		oriS palindrome
-IRS reiteration set 3	repeat_region	132391	132516	126	single	US1	IRS reiteration set 3
+IRS reiteration set 3	repeat_region	132391	132516	126	single	US1	IRS reiteration set 3; within gene US1
 US reiteration set 1	repeat_region	143716	143868	153	single		US reiteration set 1
 US reiteration set 2	repeat_region	144787	145003	217	single		US reiteration set 2
 TRS	repeat_region	145590	152222	6633	single		TRS; inverted repeat flanking US

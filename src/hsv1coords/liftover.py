@@ -20,6 +20,7 @@ import csv
 import functools
 import pathlib
 
+from ._coordinates import as_coordinate
 from ._paths import data_path
 from dataclasses import dataclass, field
 
@@ -168,8 +169,7 @@ class Crosswalk:
 
     def to_reference(self, position: int) -> int | None:
         """Lift a 1-based deposited position in this genome to the reference, or None."""
-        if not isinstance(position, int) or isinstance(position, bool):
-            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        position = as_coordinate(position)
         if position < 1:
             return None
         if self.deposited_length and position > self.deposited_length:
@@ -185,8 +185,7 @@ class Crosswalk:
 
     def from_reference(self, position: int) -> int | None:
         """Lift a 1-based reference position into this genome's deposited frame."""
-        if not isinstance(position, int) or isinstance(position, bool):
-            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        position = as_coordinate(position)
         if position < 1:
             return None
         p = position - 1
@@ -206,8 +205,7 @@ class Crosswalk:
         insertion was described as a missing segment. The size of the stretch the
         position actually sits in is the thing that distinguishes them.
         """
-        if not isinstance(position, int) or isinstance(position, bool):
-            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        position = as_coordinate(position)
         limit = self.deposited_length or 0
         if position < 1 or (limit and position > limit):
             # Round 16: None here means "that position lifts fine", which is what
@@ -356,15 +354,7 @@ def lift_detailed(position: int, source: str, target: str,
             return "forward"
         return Crosswalk.load(accession, directory).orientation
 
-    if not isinstance(position, int) or isinstance(position, bool):
-        # Round 16: when the source was the reference the position never reached a
-        # type check, so `lift(None, REFERENCE, target)` returned None and
-        # `str(lift_detailed(None, ...))` printed "NC_001806.2:None does not lift to
-        # JQ780693.1: no reference coordinate for this position", which asserts a
-        # fact about a position that does not exist. Every other entry point in this
-        # library refuses a non-int, and the chaining idiom
-        # `lift(lift(p, A, REF), REF, B)` needs one error path, not two.
-        raise TypeError(f"a coordinate must be an int, got {position!r}")
+    position = as_coordinate(position)
     if source == REFERENCE:
         ref_pos: int | None = position
     else:

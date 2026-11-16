@@ -51,6 +51,7 @@ import functools
 import pathlib
 import types
 
+from ._coordinates import as_coordinate
 from ._paths import data_path, require
 from dataclasses import dataclass, field
 from typing import Sequence
@@ -171,6 +172,13 @@ class Convention:
     Last in the dataclass, as standing rule 22 requires.
     """
 
+    _basis: tuple = ()
+    """`(whether the intervals were read, what a reader is owed)`, resolved once.
+
+    Set by `__post_init__` from `INTERVAL_BASES`, so the answer belongs to the
+    instance. Round 17: rebinding the class attribute used to change it.
+    """
+
     interval_basis: str = "deposited_record"
     """Where this convention's intervals came from, as a controlled value.
 
@@ -205,6 +213,19 @@ class Convention:
                            tuple(tuple(i) for i in self.intervals))
         object.__setattr__(self, "records",
                            tuple(tuple(r) for r in self.records))
+        # Round 17: `MappingProxyType` blocks item assignment and not rebinding, and
+        # the class itself is not frozen, so `Convention.INTERVAL_BASES = {...}` in
+        # one statement turned the inference caveat off for every later caller: the
+        # outcome causes 49 and 68 are about, in the fix for them. The pair is
+        # resolved here and stored on the frozen instance, so an object that already
+        # answers with the caveat keeps answering with it whatever happens to the
+        # class afterwards.
+        basis = self.INTERVAL_BASES.get(self.interval_basis)
+        if basis is None:
+            raise ValueError(
+                f"{self.name}'s interval_basis is {self.interval_basis!r}, which is "
+                f"not one of {sorted(self.INTERVAL_BASES)}")
+        object.__setattr__(self, "_basis", tuple(basis))
 
     INTERVAL_BASES = types.MappingProxyType({
         # basis -> (whether the intervals were read, what a reader is owed)
@@ -241,11 +262,11 @@ class Convention:
 
     @property
     def boundaries_are_inferred(self) -> bool:
-        return not self.INTERVAL_BASES[self.interval_basis][0]
+        return not self._basis[0]
 
     @property
     def basis_caveat(self) -> str:
-        return self.INTERVAL_BASES[self.interval_basis][1]
+        return self._basis[1]
 
     def near_a_boundary(self, position: int) -> bool:
         if not self.boundary_uncertainty_bp:
@@ -396,7 +417,11 @@ class Convention:
         """
         if not self.is_split:
             raise ValueError(f"{self.name} is not a split-record convention")
-        if not isinstance(offset, int) or isinstance(offset, bool) or offset < 1:
+        try:
+            offset = as_coordinate(offset, "an offset within a record")
+        except TypeError as wrong:
+            raise ValueError(str(wrong)) from wrong
+        if offset < 1:
             raise ValueError(f"an offset within a record is a positive int, got "
                              f"{offset!r}")
         for name, a, b in self.records:
@@ -434,8 +459,7 @@ class Convention:
                 f"{self.name} is a four-record reference, so a position in it is a "
                 f"pair like 'UL:50788', not an integer. Use `from_record('UL', 50788)`.")
         limit = self.length(genome_bp)
-        if not isinstance(position, int) or isinstance(position, bool):
-            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        position = as_coordinate(position)
         if not 1 <= position <= limit:
             # Round 16: there was no bounds check, so `to_reference(0)` gave 9,213,
             # inside the TRL that `szpara2014_trimmed` removes and which
@@ -730,8 +754,7 @@ class ConventionSet:
         # Round 11: `usable(5.5, ...)` answered while `report(5.5)` raised, which is the
         # same package disagreeing with itself about what a coordinate is. Every other
         # entry point in the library refuses a non-int.
-        if not isinstance(position, int) or isinstance(position, bool):
-            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        position = as_coordinate(position)
         limit = VERSION_LENGTHS.get(c.reference_version, GENOME_BP)
         if not 1 <= position <= limit:
             return False, (f"outside {c.reference_version}, which is 1 to {limit:,}")
@@ -816,8 +839,7 @@ class ConventionSet:
 
     def coordinate_in(self, position: int, convention: str) -> str | None:
         """A base-version position, as the named convention's own files would print it."""
-        if not isinstance(position, int) or isinstance(position, bool):
-            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        position = as_coordinate(position)
         c = self[convention]
         self._require_verified(c)
         native = self._to_convention_version(position, c)
