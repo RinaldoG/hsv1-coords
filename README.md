@@ -12,10 +12,9 @@ to trust a coordinate from here, read that section.
 **Status: early, and usable in part.** Seven components are built and gated: the gene
 dictionary, the annotation, the strain crosswalk, the repeat map, the convention
 resolver, the version crosswalk and the documentation gate that keeps the figures in
-this file true. Two acceptance criteria are outstanding: the annotation is still a
-classed feature table rather than GFF3, and no published coordinate has yet been
-resolved from the literature by hand across several papers and strains. See `ROADMAP.md`
-for the criteria
+this file true. One acceptance criterion is outstanding: no published coordinate has
+yet been resolved from the literature by hand across several papers and strains. See
+`ROADMAP.md` for the criteria
 each component must clear, and `FINDINGS.md` for what building it established, including
 corrections to this repository's own earlier claims.
 
@@ -170,9 +169,9 @@ boundary, and is split across the two ends of the reference sequence.
 | Component | What it is |
 |---|---|
 | Gene dictionary | Every gene with its systematic name, protein name and historical aliases, each alias carrying a citation |
-| Annotation | 1,779 feature rows, each carrying its class, its source record and that record's provenance |
+| Annotation | 1,779 feature rows, each carrying its class, its source record and that record's provenance, as a table and as GFF3 (one file per source record) |
 | Strain crosswalk | Coordinate lift-over across 183 complete genomes, declining rather than guessing |
-| Repeat map | Which positions are not well defined, and which other positions they could equally be |
+| Repeat map | Which positions are not well defined, and which other positions they could equally be, as a table and as BED |
 | Convention resolver | Whether a position is usable under each published handling of the repeats, and what it is called there |
 | Version crosswalk | `NC_001806.1` against `.2`, whose offset is not constant |
 | Documentation gate | Every load-bearing figure in these documents derived from its artefact, so a stale number fails the suite |

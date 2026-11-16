@@ -61,10 +61,10 @@ annotations are not compared as though they measured the same thing.
   reference annotation describes none of either. This sentence said 452 until round 10,
   which was the row count, under a rule that classed any hyphenated name as a span and so
   counted AL-RNA, ORF-O, ORF-P and Ori-S among them.
-- **Met on 17 November 2026, locally; the CI step is new and has not yet run:** parses
+- **Met on 17 November 2026, locally and in continuous integration:** parses
   with two independent GFF3 parsers, zero warnings. `make gff3` renders one GFF3 per
   source, and `make validate-gff3` runs GenomeTools `gt gff3validator -strict
-  -typecheck so` (1.6.5) and bcbio-gff (0.7.1), which report nothing on any of the
+  -typecheck so` (1.6.5 locally, 1.6.6 in CI) and bcbio-gff (0.7.1), which report nothing on any of the
   three files. A third validator, `gff3` (1.0.1), reports four phases as wrong on the
   two GTF transcripts that carry two ORFs each, because its phase check assumes one CDS
   per parent; the suite confirms those phases by translation.
@@ -73,16 +73,16 @@ annotations are not compared as though they measured the same thing.
   coordinate crosswalk (M3)". M3 is built, and the blocker never applied anyway: all
   three annotation sources, `NC_001806.2`, `BK012101.1` and the Whisnant GTF on
   `JN555585`, describe the identical 152,222 bp of sequence, so merging them needs no
-  strain crosswalk. What actually remains is deciding whether to emit one GFF3 per source or
-  one merged file with a source attribute, which is a presentation choice, not a
-  dependency.
+  strain crosswalk. What remained was whether to emit one GFF3 per source or one merged
+  file with a source attribute. It is one file per source: each is then a rendering of
+  one record under that record's own sequence name, which can be checked against it,
+  and features the sources share are not presented twice as one annotation.
 
-  **And the cost of not having it is larger than this entry implied.** The only
-  machine-readable form of M2 is a TSV whose `location` column carries GenBank syntax,
-  including 39 `join(...)` rows and 22 with fuzzy `<` or `>` ends, so no standard
-  genome-browser or bioinformatics tool can read the annotation at all. A reader who
-  wants it in a browser has to write a parser first, which is what a reviewer did in
-  round 18 before they could check a codon.
+  **Why it mattered.** Until then the only machine-readable form of M2 was a TSV whose
+  `location` column carries GenBank syntax, spliced `join(...)` rows and fuzzy `<` or
+  `>` ends included, so no standard genome browser or bioinformatics tool could read
+  the annotation, and a reviewer in round 18 had to write a parser before they could
+  check a codon.
 
 ## M3: strain coordinate crosswalk and lift-over - built, criteria met except the hand-checked published coordinates
 
@@ -294,7 +294,8 @@ matters.
   and that does not reproduce. The builder's own fallback catches a same-name length
   mismatch as a partial pair, so a 1 bp asymmetry on a same-named locus could not be
   missed.
-- Output is TSV only. A specialist would want BED and GFF3, and that is cheap to add.
+- Output was TSV only until 17 November 2026. `make gff3` now also writes the repeat map
+  as `repeat_map.bed` and the diploid pairs as `diploid_pairs.bedpe`.
 - Resolving a coordinate between the conventions the field uses was the highest-value
   gap here when M4 was written. M5 does it now, and `ConventionSet.report` is the entry
   point.
