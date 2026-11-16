@@ -179,17 +179,18 @@ make genomes    # fetch the pinned set of 183 complete genomes
 make all        # build every derived file and run the gates
 ```
 
-Inputs are fetched rather than committed, so `make test` on a fresh clone skips every
-check that needs the deposited records, and tells you which command to run. That is five
-test classes and a handful of individual tests: the base-agreement gate, the
-record-derived repeat checks, the strand check on each alternative, the version crosswalk
-and the genome-length cross-check. The rest of the suite runs. Those five are not
-incidental: the base-agreement gate is the one that actually tests the coordinate
-mapping, so a clone that has not fetched its inputs has not checked the lift-over.
+Inputs are fetched rather than committed, so **run `make all` before the suite**. Round
+13 stopped a clone reporting OK over a smaller suite: sixteen classes skipped when the
+deposited records or the built artefacts were absent, among them the only gate tying a
+gene alias to the record it cites, and the test-count gate could not see it, because
+discovery is unaffected by a skip. In a git checkout the suite now fails instead, names
+the missing file and names the command that builds it; outside a checkout, where
+nothing can be built, it still skips.
 
-Round 9 found this paragraph claiming two classes, and found the suite failing rather
-than skipping on a fresh clone, because two checks added in that same round compared a
-count against a build that was not there.
+Round 9 found the paragraph that stood here claiming two classes where five skipped,
+and found the suite failing rather than skipping on a fresh clone for a different
+reason: two checks added in that round compared a count against a build that was not
+there.
 
 ## Defects found by review
 

@@ -80,6 +80,27 @@ MEASUREMENTS: dict[str, Callable[[], object]] = {
     "lat_gene_qualifiers": lambda: _ref().read_text().count('/gene="LAT"'),
 }
 
+# Which record each measurement reads. Round 14: the sensitivity tests moved the input
+# and asked only whether the value CHANGED, never which file produced it.
+# `base_JN555585.1.gb` holds the identical sequence to the reference, 152,222 bp, 77
+# CDS, `repeat_region   1..9213` and 6 `/gene="LAT"`, so swapping `_ref()` for
+# `_base()` in four measurements left `make check` certifying four assumptions about
+# NC_001806.2 against a different accession, with all 301 tests green and an upstream
+# change to NC_001806.2 no longer able to move them.
+#
+# This is a declaration, so the suite checks it rather than trusting it: stubbing one
+# record must move exactly the measurements that name it and no others.
+READS: dict[str, tuple[str, ...]] = {
+    "ref_length": ("ref_NC_001806.2.gb",),
+    "alt_length": ("alt_BK012101.1.gb",),
+    "ref_base_relationship": ("ref_NC_001806.2.gb", "base_JN555585.1.gb"),
+    "ref_cds": ("ref_NC_001806.2.gb",),
+    "alt_cds": ("alt_BK012101.1.gb",),
+    "trl_annotation": ("ref_NC_001806.2.gb",),
+    "lat_first_copy_truncated": ("ref_NC_001806.2.gb",),
+    "lat_gene_qualifiers": ("ref_NC_001806.2.gb",),
+}
+
 # One literal per assumption, and the sentence it is stated as. No expression here may
 # mention a measurement: that is the whole point of the split.
 EXPECTED: dict[str, tuple[object, str]] = {
@@ -114,9 +135,10 @@ class Assumption(NamedTuple):
 
 def assumptions() -> list[Assumption]:
     """Every assumption, measured and compared. The only comparison in this file."""
-    if set(MEASUREMENTS) != set(EXPECTED):
-        missing = set(MEASUREMENTS) ^ set(EXPECTED)
-        raise RuntimeError(f"the measurement and expectation tables disagree: {missing}")
+    if set(MEASUREMENTS) != set(EXPECTED) or set(MEASUREMENTS) != set(READS):
+        missing = (set(MEASUREMENTS) ^ set(EXPECTED)) | (set(MEASUREMENTS) ^ set(READS))
+        raise RuntimeError(f"the measurement, expectation and reads tables disagree: "
+                           f"{missing}")
     out = []
     for key, measure in MEASUREMENTS.items():
         want, label = EXPECTED[key]

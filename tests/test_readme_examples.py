@@ -208,6 +208,13 @@ class TheReadmeExamplesRun(unittest.TestCase):
             f"{len(unquoted)} example blocks print something and quote none of it, so "
             f"whatever they claim in prose is unchecked: {unquoted}")
 
+    PROSE_MARKED: tuple = ()
+    """Inline comments this gate cannot evaluate, each one a hole in it.
+
+    Empty, and that is the point: round 14 showed that an unbounded `# prose:` escape
+    lets every expectation in the quickstart leave the gate with the suite green.
+    """
+
     def test_an_inline_expectation_comment_matches_the_value(self):
         """`expr  # value` comments, such as `resolve("VP16")  # 'UL48'`.
 
@@ -230,6 +237,7 @@ class TheReadmeExamplesRun(unittest.TestCase):
           or marked, and the three numbers have to add up (standing rule 47).
         """
         found, checked, marked = [], [], []
+        # The exemptions, in the order the documents state them.
         for i, block in enumerate(self.blocks):
             where = self.source_of.get(block, "?")
             for indent, code, comment, row in inline_comments(block):
@@ -260,10 +268,28 @@ class TheReadmeExamplesRun(unittest.TestCase):
                 checked.append((where, row))
         self.assertTrue(found, "the documents hold no inline expectation at all, so "
                                "this gate ran on nothing")
+        # Round 14: the accounting below cannot fail. Every iteration appends once to
+        # `found` and once to `marked` or `checked`, because `subTest` swallows the
+        # failures and control always reaches the append, so the identity held in
+        # every reachable state (standing rule 28). And `# prose:` was an unbounded
+        # escape: rewriting all six inline expectations as `# prose: ...` left
+        # `checked` at 0 with the suite green, which is the two-space regex's hole
+        # with a different spelling.
+        #
+        # So the escape is an exemption list, named and counted (standing rule 46),
+        # and it is empty: no inline comment in these documents needs it today, and
+        # adding one is a deliberate edit here as well as in the document.
         self.assertEqual(
-            len(checked) + len(marked), len(found),
-            f"{len(found) - len(checked) - len(marked)} inline comments were neither "
-            f"evaluated nor marked as prose")
+            marked, list(self.PROSE_MARKED),
+            f"{len(marked)} inline comments are marked `# prose:` and the recorded "
+            f"list holds {len(self.PROSE_MARKED)}. A comment this gate cannot "
+            f"evaluate is a hole in it, so each one is listed here with its document "
+            f"and line: {marked}")
+        self.assertEqual(
+            len(checked), len(found) - len(self.PROSE_MARKED),
+            f"{len(checked)} of {len(found)} inline comments were evaluated against "
+            f"the code, and {len(self.PROSE_MARKED)} are exempt, so some were "
+            f"skipped by neither route")
         for where, row, comment in marked:
             with self.subTest(source=where, line=row):
                 self.assertIsNone(

@@ -399,15 +399,23 @@ def _annotation(record: str) -> str:
                   flags=re.S).lower()
 
 
-def _features(record: str) -> list[str]:
-    """One lowercased string per feature: its /gene, /locus_tag, /product and /note.
+def _features(record: str) -> list[dict]:
+    """One entry per feature: the names that are its IDENTITY, and all its text.
 
-    Round 13 added this. The citation gate asked whether the alias appeared anywhere in
-    the record, which attests the STRING and not the mapping, so repointing an alias at
-    a different gene left the whole suite green: 138 of 293 (gene, alias) pairs could be
-    sent to UL30, among them ICP8, VP22, gG, ICP6 and dUTPase, and deleting `ICP8` from
-    the dictionary altogether passed too. What a record attests is that these two names
-    sit on the same feature.
+    Round 13 added this because the citation gate asked whether the alias appeared
+    anywhere in the record, which attests the string and not the mapping. Round 14
+    found the replacement nearly as weak: it asked only whether the gene and the alias
+    both appeared somewhere in one feature, and co-occurrence is not identity. A
+    `/note` cross-referencing a neighbour, a transcript spanning two genes or a
+    compound `/gene="TRL1-TRL2"` all satisfy it, so 113 of 202 rows could still be
+    repointed at another real gene in the table, `UL26.5 / VP22a` to `UL26` among
+    them. The reviewer's own control hid it by only ever trying `UL30`.
+
+    So a feature has an identity, which is what it is called, and a text, which is
+    everything the depositors wrote on it. `/product` wins where there is one, because
+    that is how BK012101.1 disambiguates a compound gene (`/gene="TRL1-TRL2"` with
+    `/product="TRL2"`); otherwise `/gene` and `/locus_tag`. The whole compound string
+    stays in the set as well, so a row may cite it as such.
     """
     body = record.split("\nORIGIN")[0].split("\nFEATURES", 1)[1]
     blocks, current = [], None
@@ -423,17 +431,44 @@ def _features(record: str) -> list[str]:
     out = []
     for block in blocks:
         text = re.sub(r'/translation="[^"]*"', "", " ".join(block), flags=re.S)
-        out.append(" ; ".join(
-            re.findall(r'/(?:gene|locus_tag|product|note)="([^"]*)"', text)).lower())
+
+        def q(fields: str) -> list[str]:
+            return re.findall(rf'/(?:{fields})="([^"]*)"', text)
+
+        gene, product = q("gene|locus_tag"), q("product")
+        identity = {_fold(n) for n in (product or gene) if n.strip()}
+        for name in (product or gene):
+            identity.update(_fold(tok) for tok in re.split(r"[-/,\s]+", name)
+                            if tok.strip())
+        identity.update(_fold(n) for n in gene if n.strip())
+        out.append({
+            "identity": identity,
+            "text": " ; ".join(q("gene|locus_tag|product|note")).lower(),
+        })
     return out
+
+
+def _fold(name: str) -> str:
+    """A name with its repeat-copy letter removed: `TRL2` and `IRL2` are both `RL2`.
+
+    The repository's own convention for the two copies of one gene, which is how
+    BK012101.1 writes them. No other prefix is folded.
+    """
+    bare = name.strip().upper()
+    repeat = re.match(r"^[TI](R[LS]\d+(?:\.\d+)?)$", bare)
+    return repeat.group(1) if repeat else bare
+
+
+def _is_the_feature(name: str, feature: dict) -> bool:
+    """Whether this feature IS that gene, rather than merely mentioning it."""
+    return _fold(name) in feature["identity"]
 
 
 def _says(name: str, text: str) -> bool:
     """Whether `text` states this name as a word.
 
-    `RL2` is also stated by `TRL2` and `IRL2`: the two repeat copies of one gene, which
-    is how BK012101.1 names them (`/gene="IRL2-IRL1"`, `/product="TRL2"`). That is the
-    repository's own convention, not a fuzzy match: no other prefix is accepted.
+    `RL2` is also stated by `TRL2` and `IRL2`, for the reason `_fold` gives. That is
+    the repository's own convention, not a fuzzy match: no other prefix is accepted.
     """
     patterns = [re.escape(name.lower())]
     repeat = re.match(r"^R([LS])(\d+(?:\.\d+)?)$", name, re.I)
@@ -441,6 +476,21 @@ def _says(name: str, text: str) -> bool:
         patterns.append(f"[ti]r{repeat.group(1).lower()}{re.escape(repeat.group(2))}")
     return any(re.search(r"(?<![0-9a-z])" + p + r"(?![0-9a-z])", text)
                for p in patterns)
+
+
+def _attested_on_a_feature(gene: str, alias: str, features: list[dict]) -> bool:
+    """The record states this alias on the feature that IS this gene.
+
+    Either way round: the gene is the feature's identity and the alias is written on
+    it, or the alias is the identity and the gene is written on it. The second case is
+    the 2020 re-annotation's, where `/product="UL49.5"` carries `/note="ul49a"`.
+    """
+    for feature in features:
+        if _is_the_feature(gene, feature) and _says(alias, feature["text"]):
+            return True
+        if _is_the_feature(alias, feature) and _says(gene, feature["text"]):
+            return True
+    return False
 
 
 class WhatTheAnswerSaysBesidesTheName(unittest.TestCase):
@@ -473,6 +523,22 @@ class WhatTheAnswerSaysBesidesTheName(unittest.TestCase):
                                  "a unique gene is reported as diploid")
         self.assertIsNone(self.d.copies_in_the_reference("nothing-like-this"),
                           "an unknown name must be unknown, not single-copy")
+        # Round 14: a canonical that IS a repeat copy answered 1, so the two
+        # accessors contradicted each other, inside the one written to stop that.
+        for alias in ("IRL2.5", "TRL2.5", "IRL1.5", "TRL3"):
+            with self.subTest(alias=alias):
+                self.assertEqual(self.d.copies_in_the_reference(alias), 2,
+                                 "a name that denotes one copy of a two-copy locus "
+                                 "reports one copy")
+                self.assertIsNotNone(self.d.copy_named(alias))
+        # The two accessors are compared directly, which is standing rule 55: a name
+        # that names a copy is a name for a locus that has two of them.
+        disagree = [e.alias for e in self.d.entries
+                    if self.d.copy_named(e.alias)
+                    and self.d.copies_in_the_reference(e.alias) != 2]
+        self.assertEqual(sorted(set(disagree)), [],
+                         f"{len(set(disagree))} names name a repeat copy and are "
+                         f"reported as single-copy: {sorted(set(disagree))[:8]}")
         # And it is not folded into the refusal: these names still resolve.
         self.assertEqual(self.d.resolve("ICP0"), "RL2")
 
@@ -733,8 +799,8 @@ class EveryMappingIsAttestedAndTheUngatedOnesAreCounted(unittest.TestCase):
             if kind != "GenBank record" or row["verbatim_in_citation"] != "yes":
                 continue
             gene = row["canonical_systematic_name"]
-            if not any(_says(gene, f) and _says(row["alias"], f)
-                       for f in self.features[row["citation_identifier"]]):
+            if not _attested_on_a_feature(
+                    gene, row["alias"], self.features[row["citation_identifier"]]):
                 out.append((gene, row["alias"], row["citation_identifier"]))
         return out
 
@@ -746,49 +812,59 @@ class EveryMappingIsAttestedAndTheUngatedOnesAreCounted(unittest.TestCase):
             f"feature naming that gene, so the record attests the string and not the "
             f"mapping: {failures}")
 
-    def test_repointing_any_gated_row_at_another_gene_fails_that_gate(self):
-        """The control, measured rather than assumed (standing rule 18).
+    def test_repointing_a_gated_row_at_any_other_gene_in_the_table_fails(self):
+        """The control, swept over every gene rather than one.
 
-        A gate that passes on the committed data says nothing until something it
-        should reject is put through it.
+        Round 14: this tried `UL30` and nothing else, printed "202 of 202 ... fail
+        when the gene is replaced", and 113 of those 202 rows could be repointed at
+        some OTHER real gene with the suite green, `UL26.5 / VP22a` to `UL26` among
+        them, which is the pair PITFALLS cause 56 is about. A mutant set assembled
+        from one target is root cause 13.
+
+        The sweep is every canonical in the table against every gated row. What
+        remains repointable is printed rather than asserted away: it is the evidence
+        the records themselves cannot separate, mostly BK012101.1's compound-gene
+        features and the genuine repeat-copy twins, where `IRL2.5` and `TRL2.5` ARE
+        one locus in two copies.
         """
-        caught = tried = 0
-        for kind, row in self._classes():
-            if kind != "GenBank record" or row["verbatim_in_citation"] != "yes":
-                continue
-            tried += 1
-            elsewhere = "UL30" if row["canonical_systematic_name"] != "UL30" else "UL29"
-            if not any(_says(elsewhere, f) and _says(row["alias"], f)
-                       for f in self.features[row["citation_identifier"]]):
-                caught += 1
-        gtf_caught = gtf_tried = 0
+        genes = sorted({r["canonical_systematic_name"] for r in self.rows})
+        rows = [row for kind, row in self._classes()
+                if kind == "GenBank record" and row["verbatim_in_citation"] == "yes"]
+        self.assertTrue(rows, "no GenBank-cited row was put through the gate")
+        loose = []
+        for row in rows:
+            gene, alias = row["canonical_systematic_name"], row["alias"]
+            features = self.features[row["citation_identifier"]]
+            others = [g for g in genes
+                      if _fold(g) != _fold(gene)
+                      and _attested_on_a_feature(g, alias, features)]
+            if others:
+                loose.append((gene, alias, others[:3]))
+        print(f"\n    mapping gate: of {len(rows)} GenBank-cited rows, "
+              f"{len(rows) - len(loose)} can be repointed at no other gene in the "
+              f"table and {len(loose)} can; of the GTF-cited rows, all can be "
+              f"repointed at none")
+        # Asserted: no row can be repointed at a gene the record does not write on
+        # that feature at all. The floor is the measurement itself, recorded on 16
+        # November 2026 as 39 of 202 loose, and it may fall but not rise.
+        self.assertLessEqual(
+            len(loose), 39,
+            f"{len(loose)} rows can be repointed at another gene and the recorded "
+            f"figure is 39, so the gate has weakened: {loose[:6]}")
+        gtf_loose = []
         for kind, row in self._classes():
             if kind != "Zenodo GTF":
                 continue
-            gtf_tried += 1
             alias = row["alias"]
-            elsewhere = "UL30" if row["canonical_systematic_name"] != "UL30" else "UL29"
             stem = alias
             for suffix in ("_gene", "_RNA"):
                 stem = stem[:-len(suffix)] if stem.endswith(suffix) else stem
-            if elsewhere not in (alias, stem):
-                gtf_caught += 1
-        self.assertGreater(tried, 0, "no GenBank-cited row was put through the gate")
-        self.assertEqual(
-            caught, tried,
-            f"{tried - caught} of {tried} rows would still pass with their gene "
-            f"replaced by another, so the gate is not reading the pair")
-        self.assertEqual(gtf_caught, gtf_tried,
-                         f"{gtf_tried - gtf_caught} GTF-cited rows would still pass "
-                         f"repointed at another gene")
-        # Measured over the whole table by replaying the reviewer's sweep, 16 November
-        # 2026: repointing each of the 378 distinct (gene, alias) pairs in turn and
-        # running this file, 320 fail and 58 pass. Every survivor is cited only to a
-        # paper, a book or UniProt, which this suite cannot fetch. Before round 13 the
-        # same sweep caught about half.
-        print(f"\n    mapping gate: {caught} of {tried} GenBank-cited rows and "
-              f"{gtf_caught} of {gtf_tried} GTF-cited rows fail when the gene is "
-              f"replaced")
+            gtf_loose += [g for g in genes
+                          if g != row["canonical_systematic_name"]
+                          and g in (alias, stem)]
+        self.assertEqual(gtf_loose, [],
+                         f"{len(gtf_loose)} GTF-cited rows would still pass repointed "
+                         f"at another gene")
 
     def test_every_gtf_cited_alias_is_an_identifier_in_the_pinned_file(self):
         failures = []

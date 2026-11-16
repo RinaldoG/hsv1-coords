@@ -224,8 +224,12 @@ def derive(allow_partial: bool = False) -> list[Fact]:
             covered.update(range(int(r["start"]), int(r["end"]) + 1))
         facts.append(Fact("repeat_covered_bp", len(covered),
                           ("bp of repeated or ambiguous sequence",)))
+        # Round 14: this divided by a typed 152222, the fifth genome-length literal
+        # and the one outside `TheGenomeLengthsAreNotJustTypedIn`, in the module whose
+        # docstring says every load-bearing figure is derived rather than typed.
+        from .conventions import GENOME_BP as _GENOME_BP
         facts.append(Fact("repeat_covered_percent",
-                          f"{100 * len(covered) / 152222:.1f}",
+                          f"{100 * len(covered) / _GENOME_BP:.1f}",
                           ("per cent of the genome",)))
         facts.append(Fact("diploid_pairs", len(pairs), ("diploid locus pairs",)))
         facts.append(Fact("partial_pairs", partial,

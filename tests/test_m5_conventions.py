@@ -1036,7 +1036,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m1_dictionary": 48,
         "test_m2_annotation": 27,
         "test_m3_crosswalk": 46,
-        "test_m4_repeat_map": 54,
+        "test_m4_repeat_map": 55,
         "test_m5_conventions": 103,
         "test_placeholder": 1,
         "test_readme_examples": 6,
@@ -1436,25 +1436,52 @@ class TheInputGateIsActuallyRun(unittest.TestCase):
                 f"{len(answered)} M0 measurements answered with their records absent, "
                 f"so they are not reading them: {answered}")
 
-            with tempfile.TemporaryDirectory() as tmp:
-                stubs = pathlib.Path(tmp)
-                # A distinct sequence per record, so the two measurements that compare
-                # records to each other move as well. No feature table at all.
-                for name, base in (("ref_NC_001806.2.gb", "acgt"),
-                                   ("alt_BK012101.1.gb", "ggca"),
-                                   ("base_JN555585.1.gb", "tttt")):
-                    (stubs / name).write_text(
-                        f"LOCUS       STUB   4 bp    DNA     linear   VRL\n"
-                        f"FEATURES             Location/Qualifiers\n"
-                        f"ORIGIN\n        1 {base}\n//\n")
-                stubbed = measured_with(stubs)
-            unmoved = [(k, committed[k]) for k in check_inputs.MEASUREMENTS
-                       if stubbed[k] == committed[k]]
+            # Round 14: stubbing every record at once asks only whether the value
+            # moved, never which file produced it. `base_JN555585.1.gb` is the
+            # identical sequence to the reference, so swapping `_ref()` for `_base()`
+            # in four measurements left `make check` certifying four assumptions about
+            # NC_001806.2 against a different accession, with the whole suite green.
+            # Each record is stubbed on its own now, and `check_inputs.READS`, which
+            # declares what each measurement reads, is checked against what moves
+            # rather than trusted.
+            records = sorted({name for names in check_inputs.READS.values()
+                              for name in names})
+            self.assertTrue(records, "no measurement declares a record")
+            stubs_for = {"ref_NC_001806.2.gb": "acgt",
+                         "alt_BK012101.1.gb": "ggca",
+                         "base_JN555585.1.gb": "tttt"}
+            self.assertEqual(sorted(stubs_for), records,
+                             "a declared record has no stub here, so stubbing it "
+                             "would delete it rather than replace it")
+            wrong = []
+            for target in records:
+                with tempfile.TemporaryDirectory() as tmp:
+                    stubs = pathlib.Path(tmp)
+                    for name in records:
+                        body = (stubs_for[name] if name == target
+                                else (real / name).read_text())
+                        if name == target:
+                            (stubs / name).write_text(
+                                f"LOCUS       STUB   4 bp    DNA     linear   VRL\n"
+                                f"FEATURES             Location/Qualifiers\n"
+                                f"ORIGIN\n        1 {body}\n//\n")
+                        else:
+                            (stubs / name).write_text(body)
+                    stubbed = measured_with(stubs)
+                for key, declared in check_inputs.READS.items():
+                    moved = stubbed[key] != committed[key]
+                    if target in declared and not moved:
+                        wrong.append((key, f"declares {target} and did not move when "
+                                           f"it was replaced by a stub"))
+                    elif target not in declared and moved:
+                        wrong.append((key, f"moved when {target} was stubbed and does "
+                                           f"not declare reading it"))
             self.assertEqual(
-                unmoved, [],
-                f"{len(unmoved)} M0 measurements returned the same value from a stub "
-                f"record carrying none of what they measure, so they are constants "
-                f"rather than measurements: {unmoved}")
+                wrong, [],
+                f"{len(wrong)} M0 measurements disagree with check_inputs.READS about "
+                f"which record they read, so a measurement is either a constant or is "
+                f"reading a different accession from the one its sentence names: "
+                f"{wrong}")
         finally:
             check_inputs.RAW = real
         # And the committed values are unchanged by the detour.

@@ -400,6 +400,15 @@ class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
             # `in_range` was answering True with no coordinate to be in range.
             "dropped from the crosswalk, so declined":
                 lift_detailed(1, "ON783215.1", self.REFERENCE, CROSSWALK),
+            # Round 14: the third no-coordinate path. The SOURCE leg lifts and the
+            # TARGET leg declines, so the old code fell through to the ordinary
+            # return and reported position None with well_defined True, in_range
+            # True, the repeat map's verdict on the reference position as the reason,
+            # and `complemented` as computed, which was True for every
+            # reverse-complemented target. 53 of 17,220 sampled lifts across 60
+            # genome pairs returned no coordinate while calling it well defined.
+            "the target leg declines":
+                lift_detailed(109473, "AB618031.1", "GU734771.1", CROSSWALK),
         }
 
     def test_no_coordinate_is_never_reported_as_well_defined(self):
@@ -437,6 +446,7 @@ class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
         # the test below requires to differ. Three distinct triples over four cases.
         self.assertEqual(flags["dropped from the crosswalk, so declined"],
                          (False, False, False))
+        self.assertEqual(flags["the target leg declines"], (False, False, False))
 
     def test_the_two_no_coordinate_answers_say_which_one_they_are(self):
         """They share their flags, so the reason is the only thing that separates them.
@@ -446,6 +456,19 @@ class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
         cases = self._cases()
         declined = cases["dropped from the crosswalk, so declined"]
         past_end = cases["past the end of the reference"]
+        target_leg = cases["the target leg declines"]
+        self.assertFalse(target_leg.complemented,
+                         "a lift that produced no coordinate says the two coordinates "
+                         "are on opposite strands, and one of them does not exist")
+        self.assertEqual(target_leg.alternatives, [],
+                         "a lift that produced no coordinate offers alternatives to it")
+        self.assertIn(target_leg.target, target_leg.reason,
+                      "the reason for a declined target leg does not name the target, "
+                      "so a reader cannot tell it from a source-side decline")
+        self.assertEqual(
+            len({c.reason for c in cases.values() if c.position is None}), 3,
+            "two of the three no-coordinate answers give the same reason, and the "
+            "reason is all that separates them")
         self.assertTrue(declined.reason.strip(), "a declined lift states no reason")
         self.assertNotEqual(declined.reason, past_end.reason,
                             "the two no-coordinate answers give the same reason, so a "

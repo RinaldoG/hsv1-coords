@@ -268,19 +268,34 @@ class Dictionary:
             return 2
         except KeyError:
             return None
+        # Round 14: a canonical that IS a repeat copy answered 1. `IRL2.5` and
+        # `TRL2.5` are one locus in two copies, which is why `resolve("pri-miRNA-H1")`
+        # raises `RepeatPairedName`, and asking under the copy's own name said
+        # single-copy: two accessors answering the same question differently, inside
+        # the accessor written for that defect. The sibling copy being a canonical of
+        # this dictionary is the evidence, and it is the same evidence
+        # `repeat_pair_of` uses.
+        sibling = re.match(r"^(I|T)(R[LS]\d+(?:\.\d+)?)$", canonical, re.I)
+        if sibling:
+            other = ("T" if sibling.group(1).upper() == "I" else "I") + sibling.group(2)
+            if other.upper() in {c.upper() for c in self.canonical_names}:
+                return 2
         try:
             from .repeats import RepeatMap
             pairs = RepeatMap.load().pairs
-        except Exception:                       # the map is optional here
+        except FileNotFoundError:
+            # The map is a separate artefact. Round 14: this caught every exception,
+            # so a broken map answered "this gene has one copy" in the same words as
+            # an unknown name. Only its absence is an answer of None.
             return None
-        bare = canonical.upper()
-        for prefix in ("IR", "TR"):
-            if bare.startswith(prefix) and len(bare) > len(prefix):
-                bare = bare[len(prefix):]
-                break
+        # `IRL2` names the internal copy of `RL2`, which is how the diploid map writes
+        # the locus. Round 14: this stripped two characters, so `IRL2` became `L2`,
+        # and the branch fired for no canonical in the table, which is why the
+        # off-by-one never showed.
+        folded = re.sub(r"^[IT](R[LS]\d+(?:\.\d+)?)$", r"\1", canonical, flags=re.I)
+        wanted = {canonical.upper(), folded.upper()}
         for pair in pairs:
-            locus = pair.locus.upper()
-            if locus in (canonical.upper(), bare):
+            if any(part.strip().upper() in wanted for part in pair.locus.split("/")):
                 return 2
         return 1
 

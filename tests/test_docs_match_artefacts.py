@@ -113,7 +113,8 @@ def phrasings(fact) -> list[tuple[str, str]]:
 
 
 REACHED_SITES = {
-    "alias_citations": 1, "alias_genes": 2, "alias_rows": 1, "alt_cds": 3,
+    "alias_citations": 2, "alias_genes": 2, "alias_paper_citations": 1,
+    "alias_rows": 1, "alt_cds": 3,
     "alt_genes": 3, "annotation_rows": 5, "conventions": 4, "diploid_pairs": 2,
     "genome_bp": 11, "genome_v1_bp": 7, "genomes": 7, "inputs": 1,
     "lat_in_szpara": 3, "lat_overhang_bp": 7, "long_repeat_bp": 1,
@@ -148,14 +149,32 @@ raising one is ordinary. Lowering one needs a reason in the commit message.
 """
 
 
+def _derive_or_explain():
+    """The figures, or the right kind of refusal for where we are running.
+
+    Round 13 made `derive()` raise rather than return a short list, and left its two
+    callers carrying `if not cls.facts: raise SkipTest(...)`, which can no longer run:
+    in an sdist-like tree the suite ERRORED out of `setUpClass` instead of skipping,
+    so the two round 13 fixes disagreed about what a non-checkout should do. The
+    policy is one line: in a git checkout the artefacts are buildable, so an absent
+    one fails and names the command; outside a checkout nothing can be built, so it
+    skips.
+    """
+    from hsv1coords.facts import ArtefactsMissing
+    try:
+        return derive()
+    except ArtefactsMissing as absent:
+        if (ROOT / ".git").exists():
+            raise AssertionError(f"{absent}. Run `make all`.") from absent
+        raise unittest.SkipTest(str(absent)) from absent
+
+
 class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
     """The gate. One subtest per (document, phrasing) pair that appears."""
 
     @classmethod
     def setUpClass(cls):
-        cls.facts = derive()
-        if not cls.facts:
-            raise unittest.SkipTest("no artefacts built; run `make all` first")
+        cls.facts = _derive_or_explain()
         cls.bodies = {d: flat(d) for d in DOCS}
 
     def test_no_document_states_a_wrong_value_for_a_derived_figure(self):
@@ -204,6 +223,14 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                 len(re.findall(pattern, body, re.I))
                 for _, pattern in phrasings(fact)
                 for body in self.bodies.values())
+        # Round 14: this iterates the TABLE, so a fact with no entry was checked by
+        # nothing, and round 13's own new fact, `alias_paper_citations`, went in
+        # without one. The two sets have to match before the counts mean anything.
+        unpinned = sorted({f.key for f in self.facts} - set(REACHED_SITES))
+        self.assertEqual(
+            unpinned, [],
+            f"{len(unpinned)} facts have no entry in REACHED_SITES, so nothing "
+            f"notices if their phrasings stop reaching the documents: {unpinned}")
         lost, gained = [], []
         for key, was in sorted(REACHED_SITES.items()):
             now = measured.get(key)
@@ -217,6 +244,9 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
                 lost.append(f"{key}: reaches {now} sentences, {was} recorded; "
                             f"phrasings reaching nothing: {sites or 'none'}")
             elif now > was:
+                # Round 14: a rise was only printed, so a figure that gained a
+                # sentence could lose it again and still meet its entry. The entry is
+                # the measurement, so it is raised in the commit that earns it.
                 gained.append(f"{key}: {was} -> {now}")
         self.assertEqual(
             lost, [],
@@ -226,6 +256,12 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
             f"878 in README.md with the suite otherwise green. Restore the phrasing, or "
             f"lower the entry and say why in the commit message:\n  "
             + "\n  ".join(lost))
+        self.assertEqual(
+            gained, [],
+            f"{len(gained)} figures now reach MORE sentences than REACHED_SITES "
+            f"records, so the entry is behind the measurement and the gain could be "
+            f"lost again unnoticed. Raise each entry in the commit that earned it:\n  "
+            + "\n  ".join(gained))
         if gained:
             print(f"\n    REACHED_SITES is behind: {', '.join(gained)}. Raising an "
                   f"entry is ordinary; do it in the same commit as the new sentence.")
@@ -630,9 +666,7 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.facts = derive()
-        if not cls.facts:
-            raise unittest.SkipTest("no artefacts built; run `make all` first")
+        cls.facts = _derive_or_explain()
         cls.bodies = {d: flat(d) for d in DOCS}
 
     @classmethod
@@ -700,9 +734,13 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
     def _require_every_artefact(self) -> None:
         absent = missing_inputs()
         if absent:
+            if (ROOT / ".git").exists():
+                self.fail(f"{len(absent)} artefacts are not built, so this gate is "
+                          f"smaller than the one the rate describes: {absent}. Run "
+                          f"`make all`.")
             raise unittest.SkipTest(
-                f"{len(absent)} artefacts are not built, so the gate is smaller than "
-                f"the one this rate describes: run `make all`")
+                f"{len(absent)} artefacts are not built and there is no checkout to "
+                f"build them in: {absent}")
 
     def test_the_measured_catch_rate_is_printed_and_above_its_floor(self):
         caught, tried = self._measure()

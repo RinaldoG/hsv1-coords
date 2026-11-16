@@ -337,6 +337,27 @@ def lift_detailed(position: int, source: str, target: str,
         ref_pos if target == REFERENCE
         else Crosswalk.load(target, directory).from_reference(ref_pos))
 
+    if out is None:
+        # Round 14: the THIRD no-coordinate path, and the one nothing guarded. The
+        # source leg lifted and the target leg declined, so `out` is None and this
+        # fell through to the ordinary return below, which carries
+        # `well_defined=status.well_defined`, `in_range=status.in_range`,
+        # `complemented` as computed and the repeat map's verdict on the REFERENCE
+        # position as the reason: facts about a coordinate that was never produced.
+        # Measured over 17,220 lifts across 60 genome pairs, 53 returned no
+        # coordinate with `well_defined` True and 177 with some flag contradicting
+        # the absence, including `complemented=True` for every reverse-complemented
+        # target, which is the round 9 defect the first branch was fixed for.
+        #
+        # `reference_position` is kept, because the source leg did produce one and it
+        # is what the caller needs to carry on; the flags and the reason describe the
+        # answer, which does not exist.
+        return LiftResult(None, source, target, ref_pos, False, [], [],
+                          f"the reference position {ref_pos:,} has no coordinate in "
+                          f"{target}: that stretch of the reference is not represented "
+                          f"in its alignment",
+                          complemented=False, in_range=False)
+
     # The repeat map describes the reference, not the crosswalk, so it is not read from
     # `directory`. Round 9 noted the mismatch: `directory` names a crosswalk directory
     # and was being silently ignored here, which reads like a bug even though the

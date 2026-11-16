@@ -492,7 +492,32 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
             cls.extents.add((min(s for s, _ in spans), max(e for _, e in spans)))
             for span in spans:
                 cls.extents.add(span)
+        # Round 14: every name the record states at each interval, so the NAME can be
+        # checked against the interval and not only the interval against the record.
+        cls.names_at = {}
+        for f in cls.features:
+            spans = spans_of(f.get("_location", ""))
+            if not spans:
+                continue
+            stated = {str(v) for k, v in f.items()
+                      if not k.startswith("_") and isinstance(v, str)}
+            stated.add(f.get("_type", ""))
+            whole = (min(s for s, _ in spans), max(e for _, e in spans))
+            for interval in [whole] + list(spans):
+                cls.names_at.setdefault(interval, set()).update(stated)
         cls.m = RepeatMap.load(DERIVED)
+
+    @classmethod
+    def _record_names_it(cls, name: str, interval) -> bool:
+        """Does the record state this name at this interval?
+
+        A composite locus, `US1 / US12` or `TATA_box / LAT`, is the builder's way of
+        naming a pair whose two copies the record names differently, so one part is
+        enough; the point is that the name belongs to the interval at all.
+        """
+        stated = cls.names_at.get(tuple(interval), ())
+        return any(any(part.strip().lower() in value.lower() for value in stated)
+                   for part in name.split("/"))
 
     def test_every_region_interval_is_one_the_record_states(self):
         strays = [(r.name, r.start, r.end) for r in self.m.regions
@@ -519,6 +544,40 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
         self.assertGreaterEqual(len(self.m.pairs), 25,
                                 "the pair count collapsed, so this gate is checking "
                                 "almost nothing")
+
+    def test_every_name_in_both_artefacts_is_the_record_s_name_for_that_interval(self):
+        """Round 14: the two tests above check the interval and not the name.
+
+        That is the easy half of the tuple, which is root cause 46, and M2 had the
+        same defect fixed in round 12 (`test_every_genbank_location_matches_the_record
+        _it_came_from`, "it checked the location and not the name") while these two
+        sibling artefacts never received it. Relabelling the RS1 CDS pair in
+        `diploid_pairs.tsv` as `US1`, in both intervals, left all 301 tests green and
+        put ICP22's name on 7,794 reference positions where ICP4 belongs, printed by
+        `LiftResult.__str__` as "NOT well defined (RS1, US1)". Round 12 fixed the same
+        defect in the same file at 700 positions.
+
+        Measured when written: 34 of 34 regions and 64 of 64 diploid copies pass, with
+        no exemption.
+        """
+        wrong = [(r.name, r.kind, r.start, r.end) for r in self.m.regions
+                 if not self._record_names_it(r.name, (r.start, r.end))]
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} regions in repeat_map.tsv carry a name the record does not "
+            f"state at that interval: {wrong[:6]}")
+        strays = []
+        for pair in self.m.pairs:
+            for label, copy in (("copy_1", pair.copy_1), ("copy_2", pair.copy_2)):
+                if not self._record_names_it(pair.locus, copy):
+                    strays.append((pair.locus, label, tuple(copy)))
+        self.assertEqual(
+            strays, [],
+            f"{len(strays)} diploid-pair copies carry a locus name the record does not "
+            f"state at that interval, so a position would be reported under the wrong "
+            f"gene: {strays[:6]}")
+        self.assertGreaterEqual(len(self.m.regions) + 2 * len(self.m.pairs), 90,
+                                "the artefacts collapsed, so this gate checked little")
 
     def test_each_pair_sits_in_the_two_copies_of_its_repeat(self):
         """A copy that moved out of its repeat is the 90 kb mutation the reviewer made."""

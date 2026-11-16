@@ -225,8 +225,19 @@ class RepeatMap:
         return cls(regions, pairs)
 
     def _repeat(self, label: str) -> Region | None:
+        """The repeat region called exactly `label`.
+
+        Round 14: this matched by prefix, so `IRS` also matched `IRS reiteration set
+        3`, 126 bp, and returned the right region only because `repeat_map.tsv`
+        happens to be sorted by start coordinate. That is word for word the defect
+        round 12 removed from `build_repeat_map.py`, where the frame of the short
+        repeat pair rested on a sort order (standing rule 44). Moving that one row to
+        the top of the artefact, with no value changed, moved live answers:
+        `classify(130000).alternatives` went from [148197] to [], and
+        `classify(132400)` from 145797 to 152213.
+        """
         for r in self.regions:
-            if r.name.startswith(label) and r.kind == "repeat_region":
+            if r.name == label and r.kind == "repeat_region":
                 return r
         return None
 
@@ -331,9 +342,13 @@ class RepeatMap:
                 f"outside the reference, which is 1 to {GENOME_BP:,}",
                 in_range=False)
         hits = [r for r in self.regions if r.contains(position)]
+        # Exact, for the reason `_repeat` gives: by prefix, `IRS reiteration set 3`
+        # counted as one of the two large inverted repeats, and 126 positions were
+        # told they were "inside IRS, IRS reiteration set 3, which overlap and are
+        # each present in two copies".
         inverted = [r for r in hits
                     if r.kind == "repeat_region"
-                    and any(r.name.startswith(x)
+                    and any(r.name == x
                             for pair in self.inverted_pairs for x in pair)]
         a_seq_detailed = self._multi_copy_counterparts(position)
         a_seq = sorted({p for p, _ in a_seq_detailed} - {position})
