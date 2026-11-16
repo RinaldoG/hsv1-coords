@@ -391,6 +391,15 @@ class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
                 lift_detailed(118777, self.REFERENCE, "JQ780693.1", CROSSWALK),
             "outside the repeats, so unique":
                 lift_detailed(60000, "JQ673480.1", "JQ780693.1", CROSSWALK),
+            # Round 13: the three cases above all reach the out-of-reference return or
+            # answer a coordinate, so the OTHER no-coordinate return, the declined
+            # lift, was covered by nothing. It is the reachable one: 26 of 150 sampled
+            # positions in ON783215.1, whose short segment the builder drops, take it,
+            # against one synthetic position for the out-of-reference branch. Putting
+            # its `well_defined` back to True left all 289 tests green, and its
+            # `in_range` was answering True with no coordinate to be in range.
+            "dropped from the crosswalk, so declined":
+                lift_detailed(1, "ON783215.1", self.REFERENCE, CROSSWALK),
         }
 
     def test_no_coordinate_is_never_reported_as_well_defined(self):
@@ -416,12 +425,33 @@ class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
         """Otherwise the flags carry no information a caller can act on."""
         flags = {label: (r.position is not None, r.well_defined, r.in_range)
                  for label, r in self._cases().items()}
-        self.assertEqual(len(set(flags.values())), 3,
-                         f"two of the three kinds of answer look identical to a caller "
-                         f"reading the flags: {flags}")
+        self.assertEqual(
+            len(set(flags.values())), 3,
+            f"two kinds of answer that a caller must tell apart look identical to one "
+            f"reading the flags: {flags}")
         self.assertEqual(flags["outside the repeats, so unique"], (True, True, True))
         self.assertEqual(flags["inside a repeat, so ambiguous"], (True, False, True))
         self.assertEqual(flags["past the end of the reference"], (False, False, False))
+        # A declined lift and an out-of-reference position are deliberately the same
+        # triple: both mean "no coordinate", and what separates them is `reason`, which
+        # the test below requires to differ. Three distinct triples over four cases.
+        self.assertEqual(flags["dropped from the crosswalk, so declined"],
+                         (False, False, False))
+
+    def test_the_two_no_coordinate_answers_say_which_one_they_are(self):
+        """They share their flags, so the reason is the only thing that separates them.
+
+        Round 13: the declined lift's reason is the live one, and nothing asserted it.
+        """
+        cases = self._cases()
+        declined = cases["dropped from the crosswalk, so declined"]
+        past_end = cases["past the end of the reference"]
+        self.assertTrue(declined.reason.strip(), "a declined lift states no reason")
+        self.assertNotEqual(declined.reason, past_end.reason,
+                            "the two no-coordinate answers give the same reason, so a "
+                            "reader cannot tell a dropped segment from a position that "
+                            "is not in the genome")
+        self.assertIn("no reference coordinate", declined.reason)
 
 
 class ADroppedSegmentSaysSo(unittest.TestCase):

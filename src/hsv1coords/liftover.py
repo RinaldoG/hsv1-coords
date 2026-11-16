@@ -323,9 +323,15 @@ def lift_detailed(position: int, source: str, target: str,
         # exists precisely so a caller branching on it does not treat a coordinate that
         # does not exist as an ordinary one. No coordinate is not a well defined
         # coordinate.
+        # Round 13: `in_range` kept its default True here, so a declined lift answered
+        # "no coordinate, and it is in range", which is a claim about a coordinate that
+        # does not exist. This is the reachable no-coordinate branch: 26 of 150 sampled
+        # positions in ON783215.1 take it, against one synthetic position for the
+        # out-of-reference branch below. The invariant both branches now hold to is
+        # that a result with no position is neither well defined nor in range.
         return LiftResult(None, source, target, None, False, [], [],
                           _why_no_coordinate(source, target, position, directory),
-                          complemented=False)
+                          complemented=False, in_range=False)
 
     out = position if source == target else (
         ref_pos if target == REFERENCE

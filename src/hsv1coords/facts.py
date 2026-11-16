@@ -12,6 +12,15 @@ a document states a different value for any of them.
 
 Adding a figure to a document without adding it here leaves it ungated, which is the
 remaining hole and is stated as such in the roadmap rather than papered over.
+
+This module reads `data/raw` as well as `data/derived`, and `data/raw` is fetched rather
+than committed, so it cannot ship inside a wheel. It is therefore a checkout-side
+helper: part of the package only because the suite imports it through the package.
+Round 13: in an installed copy it degraded silently instead, returning 13 of 35 facts,
+because round 12's fix to its data paths left `derive()` dropping any fact whose
+artefact is absent. That is the same shrinking-gate shape `missing_inputs` was written
+to catch, inside the module that defines it, so `derive()` now refuses rather than
+answers short.
 """
 from __future__ import annotations
 
@@ -112,8 +121,30 @@ def missing_inputs() -> list[str]:
     return sorted(name for name, path in needed.items() if not path.exists())
 
 
-def derive() -> list[Fact]:
-    """Every gated figure. Anything unavailable is omitted rather than guessed."""
+class ArtefactsMissing(FileNotFoundError):
+    """Raised by `derive` when the figures it would return are an incomplete set.
+
+    Round 13: `derive` omitted any fact whose artefact was absent and returned what was
+    left, so an installed copy, which carries no `data/raw`, produced 13 facts of 35
+    and the documentation gate covered a third of what it reports covering, with
+    nothing raised and nothing printed. `missing_inputs` exists precisely to stop a
+    smaller gate looking like a bigger one, and it was advisory.
+    """
+
+
+def derive(allow_partial: bool = False) -> list[Fact]:
+    """Every gated figure, or a refusal naming the artefacts that are absent.
+
+    `allow_partial=True` is for a caller that has already read `missing_inputs()` and
+    means to work with a subset. It is not what the documentation gate does.
+    """
+    absent = missing_inputs()
+    if absent and not allow_partial:
+        raise ArtefactsMissing(
+            f"{len(absent)} artefacts these figures are derived from are absent, so "
+            f"any gate over the result would be smaller than it looks: {absent}. Run "
+            f"`make all` in a checkout. This module reads data/raw, which is fetched "
+            f"rather than committed and does not ship in a wheel.")
     facts: list[Fact] = []
 
     manifest = RAW / "MANIFEST.tsv"

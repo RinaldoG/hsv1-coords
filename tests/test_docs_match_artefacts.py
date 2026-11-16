@@ -476,8 +476,37 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
         absent = missing_inputs()
         context = (f" WITHOUT {len(absent)} artefacts, so this is a smaller gate than a "
                    f"full checkout, not a better one: {absent}" if absent else "")
+        # Round 13: this line counted FACTS, and the gate works per occurrence, so
+        # "35 of 35 derived figures are stated in the documents and gated" was printed
+        # over a document holding a figure the gate had skipped. (The reviewer added
+        # "overruns `IRL` by 878 bases" to FINDINGS.md against an artefact value of
+        # 778; small numbers are in scope only beside a unit the fact declares, which
+        # is `bp` here and not `bases`, and the printed rate did not move.) So the
+        # occurrences are counted too, and the line says what share of them carries a
+        # phrasing. The limit itself is unchanged and stated in ROADMAP.md: it is the
+        # price of not flagging every "a further 37" in the prose.
+        reached_sites, loose_sites = 0, []
+        for fact in self.facts:
+            for form in sorted(fact.forms):
+                if not re.search(r"\d", form):
+                    continue
+                for doc, body in self.bodies.items():
+                    for m in re.finditer(
+                            rf"(?<![\d,.]){re.escape(form)}(?![\d,.])", body):
+                        after = body[m.end():m.end() + 60]
+                        before = body[max(0, m.start() - 60):m.start()]
+                        if any(after.lower().startswith(" " + n.lower())
+                               or re.search(rf"{re.escape(n)}\s*$", before, re.I)
+                               for n in fact.nouns + fact.prefixes):
+                            reached_sites += 1
+                        else:
+                            loose_sites.append(f"{fact.key} in {doc}")
+        total_sites = reached_sites + len(loose_sites)
         print(f"\n    {len(gated)} of {len(self.facts)} derived figures are stated in "
               f"the documents and gated; ungated: {ungated}{context}")
+        print(f"    per occurrence: {reached_sites} of {total_sites} occurrences of a "
+              f"derived value carry one of its phrasings. The rest are numbers that "
+              f"coincide with a figure, or small numbers out of the gate's scope.")
         if absent:
             self.skipTest(f"artefacts missing, so the floor does not apply: {absent}")
         self.assertGreaterEqual(

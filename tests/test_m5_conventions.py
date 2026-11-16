@@ -1035,9 +1035,9 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 38,
         "test_m2_annotation": 27,
-        "test_m3_crosswalk": 45,
+        "test_m3_crosswalk": 46,
         "test_m4_repeat_map": 54,
-        "test_m5_conventions": 102,
+        "test_m5_conventions": 103,
         "test_placeholder": 1,
         "test_readme_examples": 6,
     }
@@ -1054,6 +1054,57 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     failure says so. A number that falls is a test that stopped running, and that needs
     a reason in the commit message rather than a quiet edit here.
     """
+
+    def test_a_checkout_holds_every_artefact_the_gates_skip_without(self):
+        """Round 13: the counting gate counts DISCOVERED tests, and a skip discovers.
+
+        Sixteen `setUpClass` methods raise `SkipTest` when a fetched input or a built
+        artefact is absent, and `data/raw/*` and the derived tables are gitignored, so
+        on a fresh clone whole classes do not run while the suite reports OK. The three
+        tests of `EveryCitationAttestsItsAlias`, which are the only gate tying an alias
+        to the record it cites, are among them: 35 tests ran where 38 were recorded,
+        and `TESTS_PER_FILE` saw 38 either way because discovery is unaffected by a
+        skip. That is root cause 15's compounding cause, a red suite reported as green,
+        reached by a different route.
+
+        Rather than one assertion per skip site, which would be sixteen typed lists,
+        this asserts the condition they all share: in a git checkout every input and
+        artefact the library and the gates read is present. The set is derived from the
+        manifest, from what the loaders request, and from `facts.missing_inputs`, so a
+        new input is covered by whichever of those names it.
+        """
+        if not (ROOT / ".git").exists():
+            raise unittest.SkipTest(
+                "not a git checkout, so the artefacts cannot be built here. This is "
+                "the sdist or installed case; in a checkout this test is the one that "
+                "turns a silent skip into a failure.")
+        import check_inputs
+        from hsv1coords import _paths
+        from hsv1coords.facts import missing_inputs
+        data = ROOT / "data"
+        absent = [f"data/raw/{row[0]}" for row in check_inputs.manifest_rows()
+                  if not (data / "raw" / row[0]).exists()]
+        absent += [f"data/raw/{name}" for name in sorted(check_inputs.PINNED_ELSEWHERE)
+                   if not (data / "raw" / name).exists()]
+        # Exercise every loader first: `requested()` reports what has been asked for in
+        # this process, so a loader nothing called contributes nothing.
+        import hsv1coords
+        hsv1coords.Dictionary.load()
+        hsv1coords.ConventionSet.load()
+        hsv1coords.RepeatMap.load()
+        hsv1coords.VersionCrosswalk.load()
+        available = hsv1coords.Crosswalk.available()
+        if available:
+            hsv1coords.Crosswalk.load(available[0])
+        absent += [f"data/{rel}" for rel in _paths.requested()
+                   if not data.joinpath(*rel.split("/")).exists()]
+        absent += missing_inputs()
+        # `HSV1_Annotation.gtf` is in the manifest, so the first loop names it.
+        self.assertEqual(
+            sorted(set(absent)), [],
+            f"{len(set(absent))} inputs or artefacts are absent in a git checkout, so "
+            f"the classes that read them are skipping and the suite is smaller than it "
+            f"reports. Run `make all`. Missing: {sorted(set(absent))}")
 
     def test_no_file_contributes_fewer_tests_than_it_did(self):
         import unittest as _unittest
@@ -1944,7 +1995,16 @@ class ThePackageCarriesItsOwnData(unittest.TestCase):
         """
         staged = ROOT / "src" / "hsv1coords" / "data"
         if not staged.is_dir():
-            self.skipTest("no staged copy; run `make package-data`")
+            # Round 13: this skipped, and the staged tree is gitignored, so the skip
+            # was unconditional on every clone and in any run that had not staged. The
+            # defect it exists for is a STALE staged copy, which is only visible to a
+            # reader who has one, so an absent one is a reason to build it rather than
+            # to pass. `make all` stages before it tests.
+            if (ROOT / ".git").exists():
+                self.fail("no staged copy in a checkout, so nothing compares what a "
+                          "wheel would ship with what these tests pass against. Run "
+                          "`make package-data`.")
+            self.skipTest("no staged copy and no checkout to build one from")
         differing, checked = [], 0
         for path in sorted(staged.rglob("*")):
             if not path.is_file():
@@ -1960,9 +2020,40 @@ class ThePackageCarriesItsOwnData(unittest.TestCase):
             f"{len(differing)} staged files are not what data/ holds, so a wheel built "
             f"now would ship a different library from the one these tests pass "
             f"against: {differing[:5]}")
-        self.assertGreater(checked, 150,
-                           f"only {checked} staged files were compared; the crosswalk "
-                           f"alone is 183")
+        # Round 13: this was `assertGreater(checked, 150)`, a number typed beside the
+        # thing it measures, so a third of the crosswalk could go unstaged and
+        # uncompared (standing rule 47). The count is derived from the paths the
+        # loaders read: every file under each of them has to be in the staged tree.
+        # In a subprocess, because `_paths.requested()` is per process and accumulates:
+        # anything else this suite has imported (`facts`, which names the whole of
+        # `data/derived`) would otherwise be counted as something the staging script
+        # stages, which it is not. The script runs alone, so the derivation is measured
+        # alone. Round 13.
+        import subprocess as _subprocess
+        reader = _subprocess.run(
+            [sys.executable, "-I", "-c",
+             "import sys; sys.path.insert(0, 'src');"
+             "import stage_package_data as s;"
+             "print('\\n'.join(s.what_the_loaders_read()))"],
+            cwd=ROOT, capture_output=True, text=True)
+        self.assertEqual(reader.returncode, 0, reader.stderr[-800:])
+        expected: set[str] = set()
+        for relative in reader.stdout.split():
+            source = ROOT / "data" / pathlib.Path(relative)
+            if source.is_dir():
+                expected.update(f"{relative}/{p.name}" for p in source.iterdir()
+                                if p.is_file())
+            elif source.is_file():
+                expected.add(relative)
+        present = {str(p.relative_to(staged)) for p in staged.rglob("*") if p.is_file()}
+        self.assertEqual(
+            sorted(expected - present), [],
+            f"{len(expected - present)} files the loaders read are not in the staged "
+            f"tree, so a wheel built now would not carry them: "
+            f"{sorted(expected - present)[:5]}")
+        self.assertEqual(
+            checked, len(present),
+            "the comparison above did not read every staged file")
 
     def test_an_absent_crosswalk_directory_raises_rather_than_answering(self):
         from hsv1coords import Crosswalk
