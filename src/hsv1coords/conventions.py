@@ -49,6 +49,7 @@ from __future__ import annotations
 import csv
 import functools
 import pathlib
+import types
 
 from ._paths import data_path, require
 from dataclasses import dataclass, field
@@ -205,7 +206,7 @@ class Convention:
         object.__setattr__(self, "records",
                            tuple(tuple(r) for r in self.records))
 
-    INTERVAL_BASES = {
+    INTERVAL_BASES = types.MappingProxyType({
         # basis -> (whether the intervals were read, what a reader is owed)
         "deposited_record": (True, "the convention is the deposited record itself"),
         "paper_transcribed": (
@@ -218,7 +219,7 @@ class Convention:
         "derived_from_stated_rule": (
             False, "derived from the source's stated rule, because the coordinate "
                    "file it names has not been retrieved"),
-    }
+    })
     """What each `interval_basis` value means, and whether it counts as read.
 
     Round 15: `boundaries` was a two-valued flag whose `read` half rested on two
@@ -261,14 +262,48 @@ class Convention:
     def is_split(self) -> bool:
         return self.kind == "split_records"
 
-    def locate(self, reference_position: int) -> tuple[str, int] | None:
-        """For a split convention: the record and 1-based offset within it, or None."""
+    def _require_native(self, position: int, native: bool) -> None:
+        """Refuse a base-version position on a convention defined in another version.
+
+        Round 16: `locate`, `coordinate` and `from_record` took a parameter named
+        `reference_position` and applied it straight to Morse's NC_001806.1 records,
+        while `ConventionSet.coordinate_in` translated first, so the two disagreed at
+        109,639 of the 152,222 positions, four of them naming a DIFFERENT record:
+        `cs['morse2017_nr'].coordinate(60000)` gave 'UL:50788' against the set's
+        'UL:50787', and at 9,213 'UL:1' against 'RL:9212'. 72 per cent is the same
+        figure root cause 6b records for `convert` before its fix; the fix went to
+        `ConventionSet` and not to these three methods next door.
+
+        They are reachable and useful for a caller who already holds a native
+        coordinate, which is why they take `native=True` rather than being made
+        private.
+        """
+        if native or self.reference_version == ConventionSet.BASE_VERSION:
+            return
+        raise ReferenceVersionMismatch(
+            f"{self.name} is defined against {self.reference_version} and this "
+            f"position looks like a {ConventionSet.BASE_VERSION} one. Use "
+            f"`ConventionSet.coordinate_in(position, {self.name!r})`, which "
+            f"translates first, or pass `native=True` if the position is already a "
+            f"{self.reference_version} coordinate.")
+
+    def locate(self, reference_position: int,
+               native: bool = False) -> tuple[str, int] | None:
+        """For a split convention: the record and 1-based offset within it, or None.
+
+        `reference_position` is a coordinate in THIS convention's own reference
+        version; see `_require_native`.
+        """
         if not self.is_split:
             raise ValueError(f"{self.name} is not a split-record convention")
+        if not isinstance(reference_position, int) or isinstance(reference_position,
+                                                                bool):
+            raise TypeError(f"a coordinate must be an int, got "
+                            f"{reference_position!r}")
+        self._require_native(reference_position, native)
         for name, a, b in self.records:
             if a <= reference_position <= b:
                 return name, reference_position - a + 1
-            
         return None
 
     @property
@@ -298,11 +333,17 @@ class Convention:
     def length(self, genome_bp: int | None = None) -> int:
         return sum(b - a + 1 for a, b in self.retained_blocks(genome_bp))
 
-    def coordinate(self, reference_position: int) -> str | None:
-        """A coordinate as this convention's own files would print it."""
+    def coordinate(self, reference_position: int,
+                   native: bool = False) -> str | None:
+        """A coordinate as this convention's own files would print it.
+
+        `reference_position` is a coordinate in THIS convention's own reference
+        version; see `_require_native`.
+        """
         if self.is_split:
-            hit = self.locate(reference_position)
+            hit = self.locate(reference_position, native=native)
             return None if hit is None else f"{hit[0]}:{hit[1]}"
+        self._require_native(reference_position, native)
         v = self.to_convention(reference_position)
         return None if v is None else str(v)
 
@@ -317,6 +358,17 @@ class Convention:
             raise ValueError(
                 f"{self.name} is a four-record reference, so a position in it is a "
                 f"pair like 'UL:50788', not an integer. Use `coordinate` or `locate`.")
+        if not isinstance(reference_position, int) or isinstance(reference_position,
+                                                                  bool):
+            raise TypeError(f"a coordinate must be an int, got "
+                            f"{reference_position!r}")
+        limit = VERSION_LENGTHS.get(self.reference_version, GENOME_BP)
+        if not 1 <= reference_position <= limit:
+            # Round 16: there was no bounds check, so `full_length.to_convention(
+            # 1000000)` answered 1,000,000 and `to_convention(-5)` answered -5,
+            # which is the unchecked identity case round 9 closed in
+            # `VersionCrosswalk.convert` and round 11 in `lift_detailed`.
+            return None
         if not self.changes_coordinates:
             return reference_position
         offset = 0
@@ -326,13 +378,21 @@ class Convention:
             offset += b - a + 1
         return None
 
-    def from_record(self, record: str, offset: int) -> int | None:
+    def from_record(self, record: str, offset: int,
+                    native: bool = False) -> int | None:
         """For a split convention: a record and 1-based offset back to the reference.
 
         The inverse of `locate`, and the route a user holding `UL:50788` from the
         deposited VCFs actually needs. Round 8 found there was none, and that
         `convert`'s error message sent them to `coordinate_in`, which goes the other
         way.
+
+        The answer is in this library's base version, NC_001806.2, like every other
+        coordinate it hands out. Round 16: it returned the convention's own
+        NC_001806.1 position under a docstring reading "back to the reference", so a
+        user holding `UL:50788` got a number in a frame nothing told them about
+        (standing rule 19). `native=True` returns the untranslated one, which is what
+        `locate` round-trips against.
         """
         if not self.is_split:
             raise ValueError(f"{self.name} is not a split-record convention")
@@ -341,7 +401,21 @@ class Convention:
                              f"{offset!r}")
         for name, a, b in self.records:
             if name == record:
-                return a + offset - 1 if offset <= b - a + 1 else None
+                if offset > b - a + 1:
+                    return None
+                own = a + offset - 1
+                if native:
+                    return own
+                if self.reference_version != ConventionSet.BASE_VERSION:
+                    # Round 16: this returned an NC_001806.1 position under a
+                    # docstring reading "back to the reference", and `convert`'s own
+                    # error message sends users here. The frame travels with the
+                    # value: it is translated to the base version, which is what
+                    # every other coordinate this library hands out is in.
+                    from .versions import VersionCrosswalk
+                    return VersionCrosswalk.load().convert(
+                        own, self.reference_version, ConventionSet.BASE_VERSION)
+                return own
         raise KeyError(
             f"{self.name} has no record {record!r}; it has "
             f"{[n for n, _, _ in self.records]}")
@@ -359,6 +433,17 @@ class Convention:
             raise ValueError(
                 f"{self.name} is a four-record reference, so a position in it is a "
                 f"pair like 'UL:50788', not an integer. Use `from_record('UL', 50788)`.")
+        limit = self.length(genome_bp)
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
+        if not 1 <= position <= limit:
+            # Round 16: there was no bounds check, so `to_reference(0)` gave 9,213,
+            # inside the TRL that `szpara2014_trimmed` removes and which
+            # `to_convention(9213)` answers None for, and
+            # `to_reference(-20)` gave 9,193. That is the identity-case hole round 9
+            # closed in `VersionCrosswalk.convert` and round 11 in `lift_detailed`,
+            # still open in the exported `Convention`.
+            return None
         if not self.changes_coordinates:
             return position
         remaining = position
@@ -508,6 +593,15 @@ class ConventionSet:
                 boundaries_evidence=(r.get("boundaries_evidence") or "").strip(),
                 records=_parse_records(r.get("records", "")),
             ))
+        if not out:
+            # Round 16: an empty table gave `comparable_everywhere` True, because
+            # `not self.unusable_under` is vacuously true over zero conventions, so
+            # the strongest claim the type can make came out of the weakest possible
+            # data (cause 55 inside library code).
+            raise ValueError(
+                f"{require(pathlib.Path(path) if path else DATA)} states no "
+                f"conventions, so every question about a position would be answered "
+                f"by silence. Rebuild or restore the file.")
         return cls(out)
 
     def __getitem__(self, name: str) -> Convention:
@@ -642,7 +736,7 @@ class ConventionSet:
         if not 1 <= position <= limit:
             return False, (f"outside {c.reference_version}, which is 1 to {limit:,}")
         if c.is_split:
-            hit = c.locate(position)
+            hit = c.locate(position, native=True)
             if hit is None:
                 removed = next((f"{a:,}-{b:,}" for a, b in c.intervals
                                 if a <= position <= b), "a removed block")
@@ -662,8 +756,16 @@ class ConventionSet:
     def convert(self, position: int, source: str, target: str) -> int | None:
         """The equivalent position under another convention, or None if it is not there.
 
-        Conventions that only drop data do not move coordinates, so this returns the
-        same number and `usable` is what tells you whether it means anything.
+        "Not there" covers both ends: a position either convention drops has no
+        equivalent under the pair, and `usable` is what says which end dropped it and
+        why. Conventions that only exclude data do not MOVE the coordinate, so where
+        both ends retain the position the number is unchanged; `coordinate_in` is the
+        way to ask how one convention would print a position without asking whether a
+        second one keeps it.
+
+        Round 16 corrected this docstring and the asymmetry under it: the text said
+        the number came back with `usable` carrying the caveat, the code returned None
+        for an excluded target, and nothing checked the source end at all.
 
         **This says nothing about repeat ambiguity.** A reference position inside an
         inverted repeat has two or three equally valid counterparts, and this returns
@@ -697,6 +799,16 @@ class ConventionSet:
         native_target = self._to_convention_version(base, ct)
         if native_target is None:
             return None
+        # Round 16: the exclusion check was applied to the TARGET only, so
+        # `convert(118777, 'full_length', 'lassalle2020_excluded')` was None while
+        # `convert(118777, 'lassalle2020_excluded', 'full_length')` answered 118,777:
+        # the same pair of conventions, opposite answers, depending on which way the
+        # question was asked (cause 56). Both ends are checked now. The contract that
+        # several rounds built and tested is kept: a position a convention excludes
+        # has no equivalent under it, and `usable` says why.
+        source_ok, _ = self._usable_native(native_ref, cs)
+        if not source_ok:
+            return None
         if not ct.changes_coordinates:
             ok, _ = self._usable_native(native_target, ct)
             return native_target if ok else None
@@ -704,10 +816,14 @@ class ConventionSet:
 
     def coordinate_in(self, position: int, convention: str) -> str | None:
         """A base-version position, as the named convention's own files would print it."""
+        if not isinstance(position, int) or isinstance(position, bool):
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         c = self[convention]
         self._require_verified(c)
         native = self._to_convention_version(position, c)
-        return None if native is None else c.coordinate(native)
+        # `native=True`: this has already translated into the convention's own
+        # version, which is the whole point of going through the set.
+        return None if native is None else c.coordinate(native, native=True)
 
     def _to_base_version(self, position: int, c: Convention) -> int | None:
         if c.reference_version == self.BASE_VERSION:
@@ -763,7 +879,14 @@ class ConventionSet:
             try:
                 from .repeats import RepeatMap
                 repeat_map = RepeatMap.load()
-            except Exception:                      # the map is optional here
+            except FileNotFoundError:
+                # Round 16: this caught EVERY exception, so a `repeat_map.tsv` whose
+                # orientation column had been dropped made `lift`, `lift_detailed`
+                # and `copies_in_the_reference` all raise and name the file, while
+                # `report` answered with no caveats and no notice. Round 14 narrowed
+                # the identical clause in `copies_in_the_reference` for this reason
+                # and the sibling here was missed (standing rules 54 and 61). Only
+                # the map's ABSENCE is a reason to answer without it.
                 repeat_map = None
         if repeat_map is not None and rep.usable_under:
             status = repeat_map.classify(position)

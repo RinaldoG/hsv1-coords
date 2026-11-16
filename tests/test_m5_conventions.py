@@ -1039,7 +1039,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m2_annotation": 38,
         "test_m3_crosswalk": 53,
         "test_m4_repeat_map": 58,
-        "test_m5_conventions": 106,
+        "test_m5_conventions": 116,
         "test_placeholder": 1,
         "test_readme_examples": 7,
     }
@@ -1317,21 +1317,57 @@ class ASplitReferenceHasARouteBackOut(unittest.TestCase):
         cls.m = cls.cs["morse2017_nr"]
 
     def test_from_record_is_the_inverse_of_locate(self):
+        # Native throughout: `locate` takes a position in the convention's own
+        # version and these are NC_001806.1 positions, which round 16 made explicit.
         for ref in (1, 5000, 9212, 9213, 60000, 117159, 125974, 132604, 132605,
                     145584):
-            hit = self.m.locate(ref)
+            hit = self.m.locate(ref, native=True)
             if hit is None:
                 continue
             with self.subTest(reference=ref, pair=hit):
-                self.assertEqual(self.m.from_record(*hit), ref)
+                self.assertEqual(self.m.from_record(*hit, native=True), ref)
 
     def test_every_record_boundary_round_trips(self):
+        """In the convention's own version, which is what `locate` speaks.
+
+        Round 16: `from_record` answered in the convention's own NC_001806.1 frame
+        under a docstring promising "back to the reference", so it now translates to
+        the base version by default and `native=True` is the untranslated route. The
+        round trip against `locate` is a native-to-native question, so it asks for
+        the native answer explicitly.
+        """
         for name, a, b in self.m.records:
             for offset, expected in ((1, a), (b - a + 1, b)):
                 with self.subTest(record=name, offset=offset):
-                    self.assertEqual(self.m.from_record(name, offset), expected)
+                    self.assertEqual(self.m.from_record(name, offset, native=True),
+                                     expected)
+                    self.assertEqual(self.m.locate(expected, native=True),
+                                     (name, offset))
             with self.subTest(record=name, offset="past the end"):
-                self.assertIsNone(self.m.from_record(name, b - a + 2))
+                self.assertIsNone(self.m.from_record(name, b - a + 2, native=True))
+
+    def test_from_record_answers_in_the_base_version_by_default(self):
+        """The frame travels with the value, and the two routes agree.
+
+        A user holding `UL:50788` from Morse's deposited VCFs asks `from_record`, and
+        the number they get must be the one `coordinate_in` would turn back into
+        `UL:50788`. Round 16 found 109,639 of 152,222 positions where the
+        `Convention` methods and the set disagreed, because the version translation
+        lived only in the set.
+        """
+        from hsv1coords.versions import VersionCrosswalk
+        for record, offset in (("UL", 50788), ("RL", 1), ("US", 12391)):
+            with self.subTest(record=record, offset=offset):
+                base = self.m.from_record(record, offset)
+                own = self.m.from_record(record, offset, native=True)
+                self.assertEqual(
+                    base,
+                    VersionCrosswalk.load().convert(own, "NC_001806.1",
+                                                    "NC_001806.2"),
+                    "from_record's answer is not the base-version coordinate")
+                self.assertEqual(self.cs.coordinate_in(base, "morse2017_nr"),
+                                 f"{record}:{offset}",
+                                 "the two routes disagree about the same position")
 
     def test_a_split_reference_refuses_a_bare_integer_in_both_directions(self):
         with self.assertRaises(ValueError):
@@ -1658,6 +1694,132 @@ class TheInputGateIsActuallyRun(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertTrue((ROOT / pin).exists(),
                                 f"{name} says it is pinned by {pin}, which is missing")
+
+
+class TheLibraryRefusesWhatItCannotAnswer(unittest.TestCase):
+    """Round 16, from a review that used the library as a stranger would.
+
+    Each of these was a wrong answer or an undiagnosable crash at a public entry
+    point, and each is now a refusal that names the fix.
+    """
+
+    def test_an_empty_or_truncated_repeat_map_is_refused(self):
+        """A header-only artefact made every position well defined.
+
+        `repeats.py`'s structural check was `if rows and ...`, so an empty table
+        skipped it: 0 regions, 0 pairs, no error, `classify(118777)` well defined,
+        `lift(118777, ref, 'JQ780693.1')` answering 118,185 where the README
+        documents None, and the report's ambiguity caveat gone. Reachable without
+        tampering, because the builder writes the header and then loops.
+        """
+        from hsv1coords import RepeatMap
+        with tempfile.TemporaryDirectory() as tmp:
+            empty = pathlib.Path(tmp)
+            for name in ("repeat_map.tsv", "diploid_pairs.tsv"):
+                source = (ROOT / "data" / "derived" / name).read_text()
+                (empty / name).write_text(source.splitlines()[0] + "\n")
+            with self.assertRaises(ValueError) as refusal:
+                RepeatMap.load(empty)
+            self.assertIn("make repeatmap", str(refusal.exception))
+        # And the pair table is required, not optional: deleting it emptied every
+        # locus list in silence.
+        with tempfile.TemporaryDirectory() as tmp:
+            partial = pathlib.Path(tmp)
+            (partial / "repeat_map.tsv").write_text(
+                (ROOT / "data" / "derived" / "repeat_map.tsv").read_text())
+            with self.assertRaises(FileNotFoundError):
+                RepeatMap.load(partial)
+
+    def test_an_empty_convention_table_is_refused(self):
+        """It made `comparable_everywhere` True over zero conventions."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = pathlib.Path(tmp) / "conventions.tsv"
+            source = (ROOT / "data" / "conventions.tsv").read_text()
+            path.write_text(source.splitlines()[0] + "\n")
+            with self.assertRaises(ValueError):
+                ConventionSet.load(path)
+
+    def test_a_coordinate_must_be_an_int_at_every_entry_point(self):
+        """Round 16: five public methods leaked a raw comparison TypeError.
+
+        `RepeatMap.counterparts('900')` gave "'<=' not supported between instances of
+        'int' and 'str'", which names nothing a caller can act on, and
+        `lift(None, REFERENCE, target)` answered None and printed a decline about a
+        position that does not exist.
+        """
+        from hsv1coords import Crosswalk, Dictionary, RepeatMap, lift
+        from hsv1coords.liftover import lift_detailed
+        m, cs = RepeatMap.load(), ConventionSet.load()
+        for label, call in (
+                ("counterparts", lambda: m.counterparts("900")),
+                ("counterparts_detailed", lambda: m.counterparts_detailed("900")),
+                ("loci_at", lambda: m.loci_at("900")),
+                ("convert", lambda: cs.convert("60000", "full_length",
+                                               "szpara2014_trimmed")),
+                ("coordinate_in", lambda: cs.coordinate_in("60000", "full_length")),
+                ("to_reference", lambda: cs["szpara2014_trimmed"].to_reference("1")),
+                ("locate", lambda: cs["morse2017_nr"].locate("60000")),
+                ("lift(None) from the reference",
+                 lambda: lift(None, "NC_001806.2", "JQ780693.1")),
+                ("lift_detailed(None) from the reference",
+                 lambda: lift_detailed(None, "NC_001806.2", "JQ780693.1")),
+                ("resolve(None)", lambda: Dictionary.load().resolve(None))):
+            with self.subTest(entry_point=label):
+                with self.assertRaises(TypeError) as refusal:
+                    call()
+                self.assertRegex(str(refusal.exception),
+                                 r"must be an int|must be a string")
+
+    def test_a_convention_in_another_version_refuses_a_base_position(self):
+        """109,639 of 152,222 positions disagreed with the set, four of them naming a
+        different record."""
+        from hsv1coords.conventions import ReferenceVersionMismatch
+        cs = ConventionSet.load()
+        morse = cs["morse2017_nr"]
+        for call in (lambda: morse.coordinate(60000), lambda: morse.locate(60000)):
+            with self.assertRaises(ReferenceVersionMismatch) as refusal:
+                call()
+            self.assertIn("coordinate_in", str(refusal.exception))
+        self.assertEqual(morse.coordinate(60000, native=True), "UL:50788")
+        self.assertEqual(cs.coordinate_in(60000, "morse2017_nr"), "UL:50787")
+
+    def test_a_position_outside_a_convention_has_no_reference_coordinate(self):
+        """`to_reference(0)` gave 9,213, inside the interval the convention removes."""
+        cs = ConventionSet.load()
+        trimmed = cs["szpara2014_trimmed"]
+        for bad in (0, -20, trimmed.length() + 1):
+            with self.subTest(position=bad):
+                self.assertIsNone(trimmed.to_reference(bad))
+        self.assertIsNone(cs["full_length"].to_convention(1000000))
+
+    def test_convert_answers_the_same_way_in_both_directions(self):
+        """The exclusion check was applied to the target only."""
+        cs = ConventionSet.load()
+        excluded = 118777
+        self.assertIsNone(cs.convert(excluded, "full_length",
+                                     "lassalle2020_excluded"))
+        self.assertIsNone(cs.convert(excluded, "lassalle2020_excluded",
+                                     "full_length"))
+        retained = 60000
+        self.assertEqual(cs.convert(retained, "full_length",
+                                    "lassalle2020_excluded"), retained)
+        self.assertEqual(cs.convert(retained, "lassalle2020_excluded",
+                                    "full_length"), retained)
+
+    def test_the_interval_bases_table_cannot_be_rewritten_by_a_caller(self):
+        """One assignment turned the inference caveat off for every later caller."""
+        from hsv1coords.conventions import Convention
+        with self.assertRaises(TypeError):
+            Convention.INTERVAL_BASES["inferred_from_record"] = (True, "nothing")
+
+    def test_an_impossible_position_has_no_unmapped_stretch(self):
+        """None there means "that position lifts fine", which it does not."""
+        from hsv1coords import Crosswalk
+        cw = Crosswalk.load(Crosswalk.available()[0])
+        for bad in (0, -1, (cw.deposited_length or 0) + 5000):
+            with self.subTest(position=bad):
+                with self.assertRaises(ValueError):
+                    cw.unmapped_stretch(bad)
 
 
 class TheCachedLoadersCannotBeCorruptedByACaller(unittest.TestCase):

@@ -198,7 +198,7 @@ there.
 
 ## Defects found by review
 
-Reviewed nine times, each round briefed to find what the last one missed. Every
+Reviewed fifteen times, each round briefed to find what the last one missed. Every
 round so far has found something, and the last two each found a defect inside the
 previous round's fix. The rounds are not numbered in this file for decoration: a
 defect that recurred is worth more than a defect that did not, and the round it
@@ -260,8 +260,14 @@ were themselves the defect: a gate that is a mathematical identity returns 100 p
 on anything. So the gates that carry the most weight are mutation-tested against
 deliberately broken inputs: the strain crosswalk, the convention resolver and the
 documentation gate, which reports how many figure-in-document mutations it catches on
-every run. The M1, M2 and M4 gates are not yet mutation-tested, and a check measured as
-having no power is recorded as a sanity check rather than counted as a gate.
+every run. Rounds 13 to 16 extended that to M1, M2 and M4: the alias dictionary's
+mapping gate sweeps every gene in the table against every row and prints the residue
+(23 of 202 rows can still be repointed, all of them where the record itself cannot
+separate the two names), the annotation gates were built against five replayed
+mutations including a 137 bp coordinate shift over 431 rows in the builder, and the
+repeat map's name gate carries its own sweep (89 of 98 name slots accept no other name
+in the artefacts). A check measured as having no power is recorded as a sanity check
+rather than counted as a gate.
 
 ## Credit
 

@@ -182,7 +182,14 @@ class Crosswalk:
             raise TypeError(f"a coordinate must be an int, got {position!r}")
         limit = self.deposited_length or 0
         if position < 1 or (limit and position > limit):
-            return None
+            # Round 16: None here means "that position lifts fine", which is what
+            # this method's own docstring says, and an out-of-range position does not
+            # lift at all. The two answers are different facts and the caller cannot
+            # tell them apart, so the impossible one is refused.
+            raise ValueError(
+                f"{position:,} is not a position in {self.accession}, which is 1 to "
+                f"{limit:,}, so it has no unmapped stretch. `to_reference` returns "
+                f"None for it.")
         if not limit:
             # Round 11: with no stated length this returned a one-base stretch that did
             # not contain the position, so a position a million bases away was described
@@ -321,6 +328,15 @@ def lift_detailed(position: int, source: str, target: str,
             return "forward"
         return Crosswalk.load(accession, directory).orientation
 
+    if not isinstance(position, int) or isinstance(position, bool):
+        # Round 16: when the source was the reference the position never reached a
+        # type check, so `lift(None, REFERENCE, target)` returned None and
+        # `str(lift_detailed(None, ...))` printed "NC_001806.2:None does not lift to
+        # JQ780693.1: no reference coordinate for this position", which asserts a
+        # fact about a position that does not exist. Every other entry point in this
+        # library refuses a non-int, and the chaining idiom
+        # `lift(lift(p, A, REF), REF, B)` needs one error path, not two.
+        raise TypeError(f"a coordinate must be an int, got {position!r}")
     if source == REFERENCE:
         ref_pos: int | None = position
     else:
@@ -423,6 +439,13 @@ def _why_no_coordinate(source: str, target: str, position: int,
         cw = Crosswalk.load(source, directory)
     except FileNotFoundError:          # pragma: no cover
         return plain
+    limit = cw.deposited_length or 0
+    if limit and not 1 <= position <= limit:
+        # Round 16 made `unmapped_stretch` refuse an impossible position rather than
+        # answer None, which this path must not propagate: a position past the end of
+        # the deposit has no stretch AND no coordinate, and the plain reason is the
+        # true one.
+        return f"{plain}. {position:,} is outside {source}, which is 1 to {limit:,}"
     gap = cw.unmapped_stretch(position)
     if gap is None:
         return plain

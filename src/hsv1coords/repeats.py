@@ -213,7 +213,21 @@ class RepeatMap:
         d = pathlib.Path(directory) if directory else DERIVED
         with require(d / "repeat_map.tsv").open() as fh:
             rows = list(csv.DictReader(fh, delimiter="\t"))
-            if rows and "orientation" not in rows[0]:
+            if not rows:
+                # Round 16: `rows and ...` exempted an empty table from the only
+                # structural check this loader has, so a header-only artefact loaded
+                # as 0 regions and 0 pairs with no error, and `classify(118777)`
+                # called the LAT TATA box well defined, `lift` answered 118,185 where
+                # the README documents None, and the report lost its ambiguity
+                # caveat: root cause 20 reinstated in full. It is reachable without
+                # tampering, because `build_repeat_map.py` opens the file, writes the
+                # header and then loops, so a failure in the loop leaves exactly this.
+                raise ValueError(
+                    f"{d / 'repeat_map.tsv'} states no regions. This map is what "
+                    f"tells a caller a position is ambiguous, so an empty one would "
+                    f"silently make every position well defined. Rebuild with "
+                    f"`make repeatmap`.")
+            if "orientation" not in rows[0]:
                 raise ValueError(
                     f"{d / 'repeat_map.tsv'} has no orientation column. Each copy's "
                     f"orientation is measured against the sequence by "
@@ -223,8 +237,12 @@ class RepeatMap:
                               r.get("orientation", "single"), r.get("notes", ""))
                        for r in rows]
         pairs: list[DiploidPair] = []
-        pp = d / "diploid_pairs.tsv"
-        if pp.exists():
+        # Round 16: this was `if pp.exists()`, so deleting the file alone took
+        # `loci_at(118777)` from ['LAT', 'TATA_box / LAT'] to [] and emptied the
+        # locus list on every lift, silently. It is built by the same command as the
+        # regions and is not optional.
+        pp = require(d / "diploid_pairs.tsv")
+        if True:
             with pp.open() as fh:
                 for r in csv.DictReader(fh, delimiter="\t"):
                     pairs.append(DiploidPair(
@@ -233,6 +251,17 @@ class RepeatMap:
                         (int(r["copy_2_start"]), int(r["copy_2_end"])),
                         r.get("offset_delta", ""),
                         r.get("strand_relationship", "")))
+        # The repeats the pair table says exist, derived rather than hand-listed:
+        # `test_no_repeat_geometry_is_hand_listed_in_the_library` forbids naming them
+        # here, and rightly, since the artefact is the source of that geometry.
+        named = {r.name for r in regions if r.kind == "repeat_region"}
+        wanted = {label for p in pairs for label in p.repeat_pair.split("/")}
+        missing = sorted(w for w in wanted if w and w not in named)
+        if missing:
+            raise ValueError(
+                f"{d / 'repeat_map.tsv'} is missing the repeat regions {missing}, "
+                f"which diploid_pairs.tsv says its pairs sit in, and they are what "
+                f"makes a coordinate ambiguous at all. Rebuild with `make repeatmap`.")
         return cls(regions, pairs)
 
     def _repeat(self, label: str) -> Region | None:
@@ -293,6 +322,11 @@ class RepeatMap:
         earlier version returned whichever pair it checked first, which silently gave
         the wrong one for the junction.
         """
+        if not isinstance(position, int) or isinstance(position, bool):
+            # Round 16: a string leaked "'<=' not supported between
+            # instances of 'int' and 'str'", which names nothing the caller
+            # can act on. `classify` already refuses this way.
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         return [p for p, _ in self.counterparts_detailed(position)]
 
     def counterparts_detailed(self, position: int) -> list[tuple[int, bool]]:
@@ -312,6 +346,11 @@ class RepeatMap:
         repeats of each other, so that counterpart is on the same strand, while the
         internal copy is inverted relative to both.
         """
+        if not isinstance(position, int) or isinstance(position, bool):
+            # Round 16: a string leaked "'<=' not supported between
+            # instances of 'int' and 'str'", which names nothing the caller
+            # can act on. `classify` already refuses this way.
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         out: list[tuple[int, bool]] = []
         for a, b in self.inverted_pairs:
             ra, rb = self._repeat(a), self._repeat(b)
@@ -335,6 +374,11 @@ class RepeatMap:
         return alts[0] if len(alts) == 1 else None
 
     def loci_at(self, position: int) -> list[str]:
+        if not isinstance(position, int) or isinstance(position, bool):
+            # Round 16: a string leaked "'<=' not supported between
+            # instances of 'int' and 'str'", which names nothing the caller
+            # can act on. `classify` already refuses this way.
+            raise TypeError(f"a coordinate must be an int, got {position!r}")
         out = []
         for p in self.pairs:
             if (p.copy_1[0] <= position <= p.copy_1[1]

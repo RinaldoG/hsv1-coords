@@ -52,6 +52,11 @@ GREEK = {
 
 def normalise(name: str) -> str:
     """Fold a name to a comparison key: case, separators and Greek rendering only."""
+    if not isinstance(name, str):
+        # Round 16: a non-string leaked `TypeError: normalize() argument 2 must be
+        # str, not None` from `unicodedata`, naming an argument position in a
+        # function the caller never called.
+        raise TypeError(f"a gene name must be a string, got {name!r}")
     s = unicodedata.normalize("NFKC", name).strip()
     for ch, word in GREEK.items():
         s = s.replace(ch, word)
