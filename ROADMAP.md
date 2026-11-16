@@ -40,13 +40,14 @@ suite, and so does a listed gap that has quietly started resolving, so the list 
 rot. The largest category is the viral microRNAs, deferred because their reference
 sequences need a sourcing decision of their own (see `FINDINGS.md`).
 
-## M2: canonical versioned annotation - v0.1.0 released, GFF3 generation still to come
+## M2: canonical versioned annotation - v0.1.0 released, and rendered as GFF3
 
 One semantically versioned annotation with a changelog and per-feature provenance, stating
 which annotation class each feature belongs to, so that counts from differently scoped
 annotations are not compared as though they measured the same thing.
 
-**Criteria, two of three met** and enforced by `tests/test_m2_annotation.py`:
+**Criteria, all three met** and enforced by `tests/test_m2_annotation.py` and
+`tests/test_m2_gff3.py`:
 
 - **Met:** every feature carries a provenance record naming its source, plus the class of
   feature it is, plus its location. 1,779 rows across three sources, after review found the first build dropped every feature without a /gene qualifier.
@@ -60,8 +61,13 @@ annotations are not compared as though they measured the same thing.
   reference annotation describes none of either. This sentence said 452 until round 10,
   which was the row count, under a rule that classed any hyphenated name as a span and so
   counted AL-RNA, ORF-O, ORF-P and Ori-S among them.
-- **Outstanding:** parses with two independent GFF3 parsers, zero warnings. The current
-  release is a classed feature table, not yet GFF3.
+- **Met on 17 November 2026, locally; the CI step is new and has not yet run:** parses
+  with two independent GFF3 parsers, zero warnings. `make gff3` renders one GFF3 per
+  source, and `make validate-gff3` runs GenomeTools `gt gff3validator -strict
+  -typecheck so` (1.6.5) and bcbio-gff (0.7.1), which report nothing on any of the
+  three files. A third validator, `gff3` (1.0.1), reports four phases as wrong on the
+  two GTF transcripts that carry two ORFs each, because its phase check assumes one CDS
+  per parent; the suite confirms those phases by translation.
 
   **Round 18 corrected the reason given here.** It said GFF3 generation "waits on the
   coordinate crosswalk (M3)". M3 is built, and the blocker never applied anyway: all

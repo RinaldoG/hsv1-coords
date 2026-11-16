@@ -3,6 +3,31 @@
 Semantic versioning. The annotation is versioned because the thing being fixed is partly
 that the reference has no versioning discipline.
 
+## Unreleased - the annotation as GFF3, and the repeat map as BED
+
+**Added**
+
+- `data/derived/annotation_v0.1.0_<source>.gff3`, one file per annotation source
+  (`NC_001806.2`, `BK012101.1`, `whisnant2020-gtf`), each under that source's own
+  sequence name, rendered from the v0.1.0 table by `make gff3` (`src/build_gff3.py`).
+  The table is unchanged: these are its rows in a format genome browsers and GFF3 tools
+  read. How joins, partial ends, phase and parents are represented is stated in the
+  builder's docstring.
+- `data/derived/repeat_map.bed` (BED6+2) and `data/derived/diploid_pairs.bedpe`
+  (BEDPE): the repeat map and the diploid pairs in BED's 0-based, half-open frame.
+- `tests/test_m2_gff3.py`: each table row in its GFF3 exactly once, compared as whole
+  tuples; every CDS phase checked by translating against the record's `/translation`;
+  the BED frame checked by reading bases.
+- `make validate-gff3` (`src/validate_gff3.py`), also run in CI: GenomeTools
+  `gt gff3validator`, bcbio-gff and the `gff3` validator. They are validation tools
+  only; the library still needs nothing beyond the standard library.
+
+**Changed, with no change to any artefact**
+
+- `build_annotation.annotation_rows()` returns each table row with the source feature
+  it came from, and `extract_names.parse_gtf` also keeps the GTF's sequence name, phase
+  and `orf_id`. The table and its summary rebuild byte-identical.
+
 ## Unreleased - library behaviour changed in rounds 16 and 17
 
 Round 17: the library's own API changed in four ways across rounds 16 and 17 and none
