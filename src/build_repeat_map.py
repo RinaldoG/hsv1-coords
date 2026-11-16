@@ -98,9 +98,12 @@ def feature_name(r: dict[str, str]) -> tuple[str, str]:
     return name, within_gene
 
 
-def strand_relationship(repeat_pair: str, copy_1: tuple[int, int],
+def strand_relationship(copy_1: tuple[int, int],
                         copy_2: tuple[int, int], sequence: str) -> str:
     """Whether the two copies of a pair read in the same direction.
+
+    Round 14: this took a `repeat_pair` argument and never read it, so a caller could
+    pass any pair name and get the same answer.
 
     Measured against the sequence, not asserted: the two copies are compared directly
     and as reverse complements, over whichever length they share. Round 10 found
@@ -260,7 +263,7 @@ def main() -> int:
                         "offset_delta": "partial: lengths differ by "
                                         f"{abs((ext_b[1] - ext_b[0]) - len_a)} bp",
                     "strand_relationship": strand_relationship(
-                        f"{a}/{b}", ext_a, ext_b, reference_sequence),
+                        ext_a, ext_b, reference_sequence),
                     })
                     break
             if best is not None:
@@ -278,7 +281,7 @@ def main() -> int:
                     "feature_type": type_a,
                     "offset_delta": best_delta,
                     "strand_relationship": strand_relationship(
-                        f"{a}/{b}", ext_a, ext_b, reference_sequence),
+                        ext_a, ext_b, reference_sequence),
                 })
 
     # Orientation of each copy of a multi-copy region, measured against the sequence
@@ -391,11 +394,18 @@ def main() -> int:
             for p in sorted(pairs, key=lambda p: int(p["copy_1_start"]))[:40]:
                 len_1 = int(p["copy_1_end"]) - int(p["copy_1_start"]) + 1
                 len_2 = int(p["copy_2_end"]) - int(p["copy_2_start"]) + 1
-                if len_1 == len_2:
-                    pairing = f"exact, offset delta {int(p['offset_delta'])}"
-                else:
+                # Round 14: this decided "exact" by recomputing the lengths while the
+                # artefact's own marker is the `offset_delta` cell, which holds either
+                # an integer delta or a `partial: ...` sentence. Two rules for one
+                # question, and `int()` on the sentence would raise if they ever
+                # disagreed. The marker decides, and the suite requires the two to
+                # agree so the dual-typed column cannot drift.
+                stated = str(p["offset_delta"])
+                if stated.startswith("partial"):
                     pairing = (f"**partial**, lengths differ by "
                                f"{abs(len_1 - len_2):,} bp")
+                else:
+                    pairing = f"exact, offset delta {int(stated)}"
                 fh.write(f"| `{p['locus']}` | {p['repeat_pair']} | {p['feature_type']} | "
                          f"{int(p['copy_1_start']):,}..{int(p['copy_1_end']):,} | "
                          f"{int(p['copy_2_start']):,}..{int(p['copy_2_end']):,} | "

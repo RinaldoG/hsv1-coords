@@ -1037,7 +1037,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m1_dictionary": 48,
         "test_m2_annotation": 27,
         "test_m3_crosswalk": 48,
-        "test_m4_repeat_map": 56,
+        "test_m4_repeat_map": 57,
         "test_m5_conventions": 104,
         "test_placeholder": 1,
         "test_readme_examples": 6,
@@ -1121,6 +1121,18 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
                 absent.append(f"data/derived/{report}")
         # `accessions.txt` lists the GI numbers the fetch asked for, one per genome,
         # so its line count is how many block files a complete build leaves behind.
+        # Round 14's remaining skip: `tests/test_readme_examples.py` skips when the
+        # documents state no Python block at all, which is a condition about the
+        # documents rather than about an artefact, and it silences the gate that runs
+        # the quickstart a new reader runs first.
+        import re as _re
+        blocks = sum(len(_re.findall(r"```python\n", (ROOT / name).read_text()))
+                     for name in ("README.md", "ROADMAP.md", "FINDINGS.md",
+                                  "CHANGELOG.md")
+                     if (ROOT / name).exists())
+        if not blocks:
+            absent.append("any ```python block in the documents; the README examples "
+                          "gate skips without one")
         accessions = data / "accessions.txt"
         if accessions.exists():
             wanted = len([line for line in accessions.read_text().splitlines()

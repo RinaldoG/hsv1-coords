@@ -602,6 +602,37 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
                            f"the strand relationship is a constant, {kinds}, so it "
                            f"distinguishes nothing")
 
+    def test_the_three_rules_for_whether_a_pair_is_exact_agree(self):
+        """Round 14: three places answered it and none of them asked the others.
+
+        `DiploidPair.exact` reads the note's `partial` marker, `facts.py` reads the
+        same marker off the raw row, and `build_repeat_map.py`'s markdown writer
+        recomputed it from the two copies' lengths and then called `int()` on a cell
+        that holds a sentence whenever the marker says partial. They agree today only
+        because the builder creates a partial pair only when no equal-length match
+        exists, which is a property of one branch rather than a stated invariant.
+        Stated here: the marker, the lengths and the library's own property are one
+        question.
+        """
+        import csv as _csv
+        with (DERIVED / "diploid_pairs.tsv").open() as fh:
+            rows = list(_csv.DictReader(fh, delimiter="\t"))
+        self.assertEqual(len(rows), len(self.m.pairs))
+        disagreements = []
+        for row, pair in zip(rows, self.m.pairs):
+            marker = not str(row["offset_delta"]).startswith("partial")
+            lengths = ((int(row["copy_1_end"]) - int(row["copy_1_start"]))
+                       == (int(row["copy_2_end"]) - int(row["copy_2_start"])))
+            if not (marker == lengths == pair.exact):
+                disagreements.append((pair.locus, marker, lengths, pair.exact))
+        self.assertEqual(
+            disagreements, [],
+            f"{len(disagreements)} pairs where the `partial` marker, the two copies' "
+            f"lengths and `DiploidPair.exact` do not agree: {disagreements}")
+        self.assertTrue(any(p.exact for p in self.m.pairs))
+        self.assertTrue(any(not p.exact for p in self.m.pairs),
+                        "no pair is partial, so this gate compares three constants")
+
     def test_each_pair_sits_in_the_two_copies_of_its_repeat(self):
         """A copy that moved out of its repeat is the 90 kb mutation the reviewer made."""
         repeats = {label: next(r for r in self.m.regions
