@@ -1279,6 +1279,61 @@ class TheStrainInventoryIsParsedNotGuessed(unittest.TestCase):
         cls.inventory = list(csv.DictReader(
             (ROOT / "data" / "derived" / "strain_inventory.tsv").open(), delimiter="\t"))
 
+    def test_every_inventory_row_is_what_the_fasta_gives(self):
+        """Round 15: the inventory was gated at the function, not the artefact.
+
+        `strain_of` is run over the FASTA by the tests above, and the only artefact
+        assertions were the KOS group's size and its 987 bp spread. So setting
+        `MN136523.1` to 160,000 bp, strain `KOS`, GC 12.34 in `strain_inventory.tsv`
+        left all 307 tests green, and so did a two-line change to `strain_of` that
+        truncates a label at the first hyphen, rebuilt: distinct labels 180 to 91,
+        laboratory strains 177 to 85, and "strains whose records disagree on length" 2
+        to 8, inventing disputed strains called `HSV1`, `BP`, `INV` and `HSV`, against
+        the figure README leads with. The KOS assertions survived because KOS has no
+        hyphen (cause 58: a control that mutates towards one target).
+
+        Every row is now what the FASTA gives, measured the way the builder measures
+        it, and the two sets of accessions have to match.
+        """
+        measured = {}
+        for header, sequence in self.records:
+            upper = sequence.upper()
+            measured[header.split()[0]] = {
+                "strain": self.strain_of(header),
+                "strain_group": self.strain_group(self.strain_of(header)),
+                "length_bp": str(len(sequence)),
+                "ambiguous_bases": str(sum(1 for c in upper if c not in "ACGT")),
+                "gc_percent": f"{100 * sum(1 for c in upper if c in 'GC') / len(sequence):.2f}",
+                "description": header,
+            }
+        self.assertEqual(
+            sorted(r["accession"] for r in self.inventory), sorted(measured),
+            "the inventory and genomes.fasta do not hold the same accessions")
+        wrong = []
+        for row in self.inventory:
+            for column, value in measured[row["accession"]].items():
+                if row[column] != value:
+                    wrong.append((row["accession"], column, row[column], value))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} inventory cells are not what the deposited sequence gives "
+            f"(accession, column, stated, measured): {wrong[:6]}")
+
+    def test_the_disputed_strain_groups_are_the_ones_the_lengths_give(self):
+        """The whole set, not only KOS: a grouping change invented six of these."""
+        import collections as _collections
+        lengths = _collections.defaultdict(set)
+        for row in self.inventory:
+            if row["strain_group"] != "(UNLABELLED)":
+                lengths[row["strain_group"]].add(int(row["length_bp"]))
+        disputed = sorted(g for g, seen in lengths.items() if len(seen) > 1)
+        self.assertEqual(
+            disputed, ["KOS", "MACINTYRE"],
+            f"the strain groups whose records disagree on length are {disputed}, and "
+            f"KOS and MACINTYRE are recorded. A grouping rule that merges unrelated "
+            f"records invents these, which is what a hyphen-truncating `strain_of` "
+            f"did: it produced eight, including one called `HSV1` over 28 records.")
+
     def test_no_strain_label_is_a_description(self):
         bad = []
         for header, _ in self.records:

@@ -71,7 +71,19 @@ def parse_genbank(path: pathlib.Path) -> list[dict]:
         if q:
             key = q.group(1)
             val = q.group(2).strip().strip('"')
-            current[key] = val
+            if key in current:
+                # Round 15: a repeated qualifier overwrote the earlier value, so of
+                # the reference record's 57 `/rpt_type=` lines over 31
+                # `repeat_region` features, 26 features state it twice and `direct`
+                # was dropped every time. Both terminal copies of the 'a' sequence
+                # are declared `direct` AND `terminal`, and the table published only
+                # `terminal` while the middle copy published `inverted`, so the
+                # artefact could not be used to recover "two direct, one inverted",
+                # which is PITFALLS root cause 1's own correction. Repeated
+                # qualifiers are joined, in the order the record states them.
+                current[key] = f"{current[key]}; {val}"
+            else:
+                current[key] = val
         elif key is not None and line.startswith(" " * 21):
             # A wrapped continuation line. Locations wrap with no separator; qualifier
             # text wraps at a space, so the two are joined differently.

@@ -4,7 +4,7 @@ Produced by `src/extract_names.py` from the files in `data/raw`. Facts only: a n
 
 - Distinct gene names across all sources: **232**
 - Present in all 4 sources: **5**
-- Genes whose `product` text differs between sources: **92**
+- Genes whose `product` text differs between sources: **7**
 
 ## Names per source
 

@@ -206,10 +206,27 @@ class InvertedRepeatsPresent(unittest.TestCase):
                 self.assertEqual(got[name], expected)
 
     def test_the_reference_repeat_features_are_not_dropped(self):
-        """The reference record carries 31 repeat_region features; keep them all."""
-        n = sum(1 for r in rows()
-                if r["source"] == "NC_001806.2" and r["feature_class"] == "repeat_region")
-        self.assertGreaterEqual(n, 28, f"only {n} repeat features carried through")
+        """Every one of them, counted from the record rather than from a floor.
+
+        Round 15: this was `assertGreaterEqual(n, 28)` against a record that carries
+        31, a budget of three, and dropping three repeat rows while padding the total
+        to keep 1,779 passed (standing rule 47: a count is compared against the thing
+        it counts).
+        """
+        record = ROOT / "data" / "raw" / "ref_NC_001806.2.gb"
+        if not record.exists():
+            raise unittest.SkipTest("ref_NC_001806.2.gb is fetched, not committed")
+        sys.path.insert(0, str(ROOT / "src"))
+        from extract_names import parse_genbank
+        stated = sum(1 for f in parse_genbank(record)
+                     if f["_type"] == "repeat_region")
+        carried = sum(1 for r in rows()
+                      if r["source"] == "NC_001806.2"
+                      and r["feature_type"] == "repeat_region")
+        self.assertEqual(
+            carried, stated,
+            f"the record states {stated} repeat_region features and the table carries "
+            f"{carried}")
 
     def test_lat_is_not_claimed_to_be_wholly_inside_the_long_repeat(self):
         """Guards a factual claim that was wrong in the README until 13 Nov 2026.
@@ -265,6 +282,181 @@ class DocumentedDiscrepancy(unittest.TestCase):
         for required in ("77", "300", "transcript"):
             self.assertIn(required, section,
                           f"the changelog does not mention {required!r}")
+
+
+class TheSummaryIsTheTableCountedUp(unittest.TestCase):
+    """Round 15: `annotation_summary.md` was opened once, to check class names.
+
+    None of its roughly 80 counts was compared with the table it summarises, which is
+    root cause 62's "a summary is checked against what it summarises". Falsifying a
+    load-bearing figure in it, `named_gene` 74/6/77 to 7/6/777 and "53 polyadenylation
+    signals and 19 TATA boxes" to 9 and 63, left all 307 tests green.
+
+    Both of its tables are recomputed here from `annotation_v0.1.0.tsv`: the first
+    counts distinct names per (class, source), the second rows per (type, source).
+    """
+
+    CELL = re.compile(r"^\|\s*`([^`]+)`\s*\|([^|]*)\|([^|]*)\|([^|]*)\|")
+    SOURCES = ("NC_001806.2", "BK012101.1", "whisnant2020-gtf")
+
+    @classmethod
+    def setUpClass(cls):
+        summary = ROOT / "data" / "derived" / "annotation_summary.md"
+        if not summary.exists():
+            raise unittest.SkipTest("annotation_summary.md is built, not committed")
+        cls.text = summary.read_text()
+        cls.rows = rows()
+
+    def _section(self, heading: str) -> dict:
+        body = self.text.split(heading, 1)[1].split("\n## ", 1)[0]
+        out = {}
+        for line in body.splitlines():
+            found = self.CELL.match(line.strip())
+            if not found:
+                continue
+            counts = []
+            for cell in found.groups()[1:4]:
+                cell = cell.strip()
+                counts.append(int(cell) if cell.isdigit() else None)
+            if all(c is not None for c in counts):
+                out[found.group(1)] = counts
+        return out
+
+    def test_the_distinct_name_table_is_the_table_counted_up(self):
+        stated = self._section("## Distinct names by class")
+        self.assertTrue(stated, "no class rows were read out of the summary")
+        wrong = []
+        for label, counts in stated.items():
+            for source, number in zip(self.SOURCES, counts):
+                measured = len({r["name"] for r in self.rows
+                                if r["feature_class"] == label
+                                and r["source"] == source})
+                if measured != number:
+                    wrong.append((label, source, number, measured))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} cells of the summary's class table are not what the "
+            f"annotation table holds (class, source, stated, counted): {wrong[:6]}")
+
+    def test_the_feature_type_table_is_the_table_counted_up(self):
+        stated = self._section("## Rows by feature type")
+        self.assertTrue(stated, "no feature-type rows were read out of the summary")
+        wrong = []
+        for label, counts in stated.items():
+            for source, number in zip(self.SOURCES, counts):
+                measured = sum(1 for r in self.rows
+                               if r["feature_type"] == label
+                               and r["source"] == source)
+                if measured != number:
+                    wrong.append((label, source, number, measured))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} cells of the summary's feature-type table are not what the "
+            f"annotation table holds (type, source, stated, counted): {wrong[:6]}")
+
+    def test_the_regulatory_counts_in_the_prose_are_the_record_s(self):
+        """"53 polyadenylation signals and 19 TATA boxes" is stated twice, typed both
+        times: in `build_annotation.py`'s class description and in this summary.
+        """
+        counts = {}
+        for row in self.rows:
+            if row["source"] == "NC_001806.2" and row["feature_type"] == "regulatory":
+                counts[row["subtype"]] = counts.get(row["subtype"], 0) + 1
+        polya = counts.get("polyA_signal_sequence", 0)
+        tata = counts.get("TATA_box", 0)
+        self.assertIn(f"{polya} are polyadenylation signals and {tata} are TATA boxes",
+                      self.text,
+                      f"the summary's prose does not state the {polya} polyA signals "
+                      f"and {tata} TATA boxes the table holds")
+
+
+class EveryColumnIsTheSourceSOwnValue(unittest.TestCase):
+    """Round 15: four columns were checked by nothing, or by a typed floor.
+
+    Each of these left all 307 tests green, with the whole table rebuilt where the
+    mutation was in the builder:
+
+    - every one of the 31 reference repeat rows' `subtype` set to `inverted`, so the
+      24 tandem reiteration sets and the 2 terminal repeats claim to be inverted
+      repeats;
+    - the `subtype` column reversed over the 72 `regulatory` rows, which preserves the
+      53 polyA and 19 TATA counts exactly and mislabels 18 features, because the only
+      gate was two floors (`polyA > 40`, `TATA > 10`);
+    - all 599 non-empty `product` values set to `glycoprotein B`;
+    - all 693 `transcript_id` values set to one constant;
+    - all 72 reference `regulatory` rows reclassed `named_gene`, which is root cause
+      36 in the artefact: 53 polyadenylation signals published under a class whose own
+      description is "a classically named gene". Round 10 fixed that at `classify()`
+      and nothing held the TABLE to it (cause 32).
+
+    So the class is re-derived for every row by calling the classifier, and the three
+    value columns are compared with the qualifier the source states for that feature.
+    Measured when written: 1,779 of 1,779 rows agree, with no exemption.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        for name in ("ref_NC_001806.2.gb", "alt_BK012101.1.gb"):
+            if not (ROOT / "data" / "raw" / name).exists():
+                raise unittest.SkipTest(f"{name} is fetched, not committed")
+        sys.path.insert(0, str(ROOT / "src"))
+        from build_annotation import SOURCES, pre_2020_names
+        from extract_names import parse_genbank, parse_gtf
+        cls.known = pre_2020_names(SOURCES, ROOT / "data" / "raw")
+        cls.features: dict[tuple, list[dict]] = {}
+        for accession, filename, kind, _ in SOURCES:
+            path = ROOT / "data" / "raw" / filename
+            if not path.exists():
+                raise unittest.SkipTest(f"{filename} is fetched, not committed")
+            parsed = parse_genbank(path) if kind == "genbank" else parse_gtf(path)
+            for feature in parsed:
+                key = (accession, feature["_type"], feature["_location"])
+                cls.features.setdefault(key, []).append(feature)
+        cls.rows = rows()
+
+    def test_every_row_s_class_is_what_the_classifier_gives(self):
+        from build_annotation import UNNAMED_CLASSES, classify
+        wrong = []
+        for row in self.rows:
+            name, kind = row["name"], row["feature_type"]
+            if name.startswith(f"{kind}@"):
+                # The builder's placeholder for a feature the record leaves unnamed.
+                expected = UNNAMED_CLASSES.get(kind, ("", ""))[0]
+            else:
+                expected = classify(name, kind, self.known)
+            if expected != row["feature_class"]:
+                wrong.append((name, kind, row["feature_class"], expected))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} of {len(self.rows)} rows carry a class the classifier does "
+            f"not give for that name and type (name, type, stated, classifier): "
+            f"{wrong[:6]}")
+
+    def test_subtype_product_and_transcript_are_the_source_s_qualifiers(self):
+        from build_annotation import squeeze, subtype_of
+        wrong, checked = [], 0
+        for row in self.rows:
+            stated = self.features.get(
+                (row["source"], row["feature_type"], row["location"]))
+            if not stated:
+                wrong.append((row["name"], row["feature_type"], row["location"],
+                              "the source states no such feature"))
+                continue
+            checked += 1
+            for column, derive in (
+                    ("subtype", subtype_of),
+                    ("product", lambda f: squeeze(f.get("product") or "")),
+                    ("transcript_id", lambda f: squeeze(f.get("transcript") or ""))):
+                if not any(derive(f) == row[column] for f in stated):
+                    wrong.append((row["name"], column, row[column],
+                                  [derive(f) for f in stated][:2]))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} cells are not what the source states for that feature "
+            f"(name, column, stated, source): {wrong[:6]}")
+        self.assertEqual(
+            checked, len(self.rows),
+            f"{len(self.rows) - checked} rows were not compared with a source feature")
 
 
 class EveryGtfRowIsALineOfTheGtf(unittest.TestCase):
@@ -579,10 +771,28 @@ class StrandSurvivesEverySource(unittest.TestCase):
         """`regulatory_class` was dropped, so TATA_box and polyA_signal were gone."""
         subtypes = collections.Counter(
             r["subtype"] for r in rows() if r["feature_type"] == "regulatory")
-        self.assertGreater(subtypes["polyA_signal_sequence"], 40,
-                           f"polyadenylation signals are not identifiable: {subtypes}")
-        self.assertGreater(subtypes["TATA_box"], 10,
-                           f"TATA boxes are not identifiable: {subtypes}")
+        # Round 15: these were floors of 40 and 10 against 53 and 19, so reversing
+        # the subtype column over the 72 regulatory rows preserved both counts exactly
+        # and mislabelled 18 features. The counts come from the records now, and
+        # `EveryColumnIsTheSourceSOwnValue` holds each row's subtype to its own
+        # feature's qualifier, which is what catches a permutation.
+        sys.path.insert(0, str(ROOT / "src"))
+        from extract_names import parse_genbank
+        from build_annotation import subtype_of
+        stated = collections.Counter()
+        for name in ("ref_NC_001806.2.gb", "alt_BK012101.1.gb"):
+            path = ROOT / "data" / "raw" / name
+            if not path.exists():
+                raise unittest.SkipTest(f"{name} is fetched, not committed")
+            for f in parse_genbank(path):
+                if f["_type"] == "regulatory":
+                    stated[subtype_of(f)] += 1
+        for subtype in ("polyA_signal_sequence", "TATA_box"):
+            with self.subTest(subtype=subtype):
+                self.assertEqual(
+                    subtypes[subtype], stated[subtype],
+                    f"the records state {stated[subtype]} {subtype} features and the "
+                    f"table carries {subtypes[subtype]}")
 
     def test_the_gtf_comments_are_kept(self):
         """386 GTF lines carry the functional names and all 910 notes were empty."""

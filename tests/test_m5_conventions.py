@@ -1035,8 +1035,8 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     TESTS_PER_FILE = {
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
-        "test_m2_annotation": 31,
-        "test_m3_crosswalk": 48,
+        "test_m2_annotation": 36,
+        "test_m3_crosswalk": 51,
         "test_m4_repeat_map": 58,
         "test_m5_conventions": 106,
         "test_placeholder": 1,
@@ -1149,7 +1149,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     SKIP_SITES = {
         "test_docs_match_artefacts": 5, "test_m1_dictionary": 2,
-        "test_m2_annotation": 2, "test_m3_crosswalk": 6, "test_m4_repeat_map": 3,
+        "test_m2_annotation": 7, "test_m3_crosswalk": 6, "test_m4_repeat_map": 3,
         "test_m5_conventions": 9, "test_placeholder": 0, "test_readme_examples": 2,
     }
     r"""Every way each test file can decline to run something.
