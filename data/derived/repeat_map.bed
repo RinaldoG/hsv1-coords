@@ -1,0 +1,37 @@
+# hsv1-coords repeat map on NC_001806.2, rendered by src/build_gff3.py from data/derived/repeat_map.tsv.
+# BED6+2: 0-based half-open (chromStart = the map's 1-based start - 1, chromEnd = its end). Extra columns: kind, orientation.
+#chrom	chromStart	chromEnd	name	score	strand	kind	orientation
+NC_001806.2	0	399	'a' sequence	0	+	repeat_region	forward
+NC_001806.2	0	9213	TRL	0	.	repeat_region	single
+NC_001806.2	97	320	'a' sequence reiteration set	0	+	repeat_region	forward
+NC_001806.2	987	1040	RL reiteration set 6	0	+	repeat_region	forward
+NC_001806.2	2465	2624	RL reiteration set 5	0	+	repeat_region	forward
+NC_001806.2	5731	5878	RL reiteration set 4	0	+	repeat_region	forward
+NC_001806.2	8553	8585	RL reiteration set 3	0	+	repeat_region	forward
+NC_001806.2	8805	8826	RL reiteration set 2	0	+	repeat_region	forward
+NC_001806.2	9032	9213	RL reiteration set 1	0	+	repeat_region	forward
+NC_001806.2	62403	62547	oriL palindrome	0	.	stem_loop	single
+NC_001806.2	71603	71814	UL reiteration set 1	0	.	repeat_region	single
+NC_001806.2	117159	117341	RL reiteration set 1	0	.	repeat_region	unequal_length
+NC_001806.2	117160	126373	IRL	0	.	repeat_region	single
+NC_001806.2	117547	117568	RL reiteration set 2	0	-	repeat_region	reverse
+NC_001806.2	117788	117820	RL reiteration set 3	0	-	repeat_region	reverse
+NC_001806.2	120495	120642	RL reiteration set 4	0	-	repeat_region	reverse
+NC_001806.2	123749	123908	RL reiteration set 5	0	-	repeat_region	reverse
+NC_001806.2	125333	125386	RL reiteration set 6	0	-	repeat_region	reverse
+NC_001806.2	125974	126373	'a' sequence	0	-	repeat_region	reverse
+NC_001806.2	125974	132607	IRS	0	.	repeat_region	single
+NC_001806.2	126053	126276	'a' sequence reiteration set	0	-	repeat_region	reverse
+NC_001806.2	126572	126712	RS reiteration set 1	0	+	repeat_region	forward
+NC_001806.2	126812	127145	RS reiteration set 2	0	+	repeat_region	forward
+NC_001806.2	131979	132024	oriS palindrome	0	+	stem_loop	forward
+NC_001806.2	132390	132516	IRS reiteration set 3	0	.	repeat_region	single
+NC_001806.2	143715	143868	US reiteration set 1	0	.	repeat_region	single
+NC_001806.2	144786	145003	US reiteration set 2	0	.	repeat_region	single
+NC_001806.2	145589	152222	TRS	0	.	repeat_region	single
+NC_001806.2	145680	145806	RS reiteration set 3	0	.	repeat_region	single
+NC_001806.2	146172	146217	oriS palindrome	0	-	stem_loop	reverse
+NC_001806.2	151051	151384	RS reiteration set 2	0	-	repeat_region	reverse
+NC_001806.2	151485	151624	RS reiteration set 1	0	.	repeat_region	unequal_length
+NC_001806.2	151823	152222	'a' sequence	0	+	repeat_region	forward
+NC_001806.2	151920	152143	'a' sequence reiteration set	0	+	repeat_region	forward

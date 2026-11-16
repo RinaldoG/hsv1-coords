@@ -1,0 +1,35 @@
+# hsv1-coords diploid pairs on NC_001806.2, rendered by src/build_gff3.py from data/derived/diploid_pairs.tsv.
+# BEDPE: each copy 0-based half-open. strand1/strand2 are +/- where the two copies were measured as inverted (each the reverse complement of the other) and ./. otherwise. Extra columns: repeat_pair, feature_type, strand_relationship, offset_delta, copy_1_name, copy_2_name.
+#chrom1	start1	end1	chrom2	start2	end2	name	score	strand1	strand2	repeat_pair	feature_type	strand_relationship	offset_delta	copy_1_name	copy_2_name
+NC_001806.2	0	399	NC_001806.2	125974	126373	'a' sequence	0	+	-	TRL/IRL	repeat_region	inverted	0	'a' sequence	'a' sequence
+NC_001806.2	0	7569	NC_001806.2	118776	127151	LAT	0	.	.	TRL/IRL	gene	unmeasured: the copies are of different length	partial: lengths differ by 806 bp	LAT	LAT
+NC_001806.2	0	7569	NC_001806.2	118804	127151	LAT	0	.	.	TRL/IRL	ncRNA	unmeasured: the copies are of different length	partial: lengths differ by 778 bp	LAT	LAT
+NC_001806.2	97	320	NC_001806.2	126053	126276	'a' sequence reiteration set	0	+	-	TRL/IRL	repeat_region	inverted	0	'a' sequence reiteration set	'a' sequence reiteration set
+NC_001806.2	512	1259	NC_001806.2	125114	125861	RL1	0	+	-	TRL/IRL	CDS	inverted	0	RL1	RL1
+NC_001806.2	512	1540	NC_001806.2	124833	125861	RL1	0	+	-	TRL/IRL	gene	inverted	0	RL1	RL1
+NC_001806.2	987	1040	NC_001806.2	125333	125386	RL reiteration set 6	0	+	-	TRL/IRL	repeat_region	inverted	0	RL reiteration set 6	RL reiteration set 6
+NC_001806.2	1534	1540	NC_001806.2	124833	124839	RL1	0	.	.	TRL/IRL	regulatory	too short to measure: 6 bp	0	RL1	RL1
+NC_001806.2	2086	2092	NC_001806.2	124281	124287	RL2	0	.	.	TRL/IRL	regulatory	too short to measure: 6 bp	0	RL2	RL2
+NC_001806.2	2086	5699	NC_001806.2	120674	124287	RL2	0	+	-	TRL/IRL	gene	inverted	0	RL2	RL2
+NC_001806.2	2113	5699	NC_001806.2	120674	124287	RL2	0	.	.	TRL/IRL	mRNA	unmeasured: the copies are of different length	partial: lengths differ by 27 bp	RL2	RL2
+NC_001806.2	2261	5490	NC_001806.2	120883	124112	RL2	0	+	-	TRL/IRL	CDS	inverted	0	RL2	RL2
+NC_001806.2	2465	2624	NC_001806.2	123749	123908	RL reiteration set 5	0	+	-	TRL/IRL	repeat_region	inverted	0	RL reiteration set 5	RL reiteration set 5
+NC_001806.2	5676	5682	NC_001806.2	120691	120697	RL2	0	.	.	TRL/IRL	regulatory	too short to measure: 6 bp	0	RL2	RL2
+NC_001806.2	5731	5878	NC_001806.2	120495	120642	RL reiteration set 4	0	+	-	TRL/IRL	repeat_region	inverted	0	RL reiteration set 4	RL reiteration set 4
+NC_001806.2	7591	7597	NC_001806.2	118776	118782	TATA_box / LAT	0	.	.	TRL/IRL	regulatory	too short to measure: 6 bp	0	TATA_box	LAT
+NC_001806.2	8553	8585	NC_001806.2	117788	117820	RL reiteration set 3	0	+	-	TRL/IRL	repeat_region	inverted	0	RL reiteration set 3	RL reiteration set 3
+NC_001806.2	8805	8826	NC_001806.2	117547	117568	RL reiteration set 2	0	+	-	TRL/IRL	repeat_region	inverted	0	RL reiteration set 2	RL reiteration set 2
+NC_001806.2	9032	9213	NC_001806.2	117159	117341	RL reiteration set 1	0	+	-	TRL/IRL	repeat_region	inverted	partial: lengths differ by 1 bp	RL reiteration set 1	RL reiteration set 1
+NC_001806.2	125974	126373	NC_001806.2	151823	152222	'a' sequence	0	+	-	IRS/TRS	repeat_region	inverted	0	'a' sequence	'a' sequence
+NC_001806.2	126053	126276	NC_001806.2	151920	152143	'a' sequence reiteration set	0	+	-	IRS/TRS	repeat_region	inverted	0	'a' sequence reiteration set	'a' sequence reiteration set
+NC_001806.2	126572	126712	NC_001806.2	151485	151624	RS reiteration set 1	0	+	-	IRS/TRS	repeat_region	inverted	partial: lengths differ by 1 bp	RS reiteration set 1	RS reiteration set 1
+NC_001806.2	126812	127145	NC_001806.2	151051	151384	RS reiteration set 2	0	+	-	IRS/TRS	repeat_region	inverted	0	RS reiteration set 2	RS reiteration set 2
+NC_001806.2	127145	127151	NC_001806.2	151045	151051	LAT	0	.	.	IRS/TRS	regulatory	too short to measure: 6 bp	0	LAT	LAT
+NC_001806.2	127172	131431	NC_001806.2	146765	151023	RS1	0	.	.	IRS/TRS	mRNA	unmeasured: the copies are of different length	partial: lengths differ by 1 bp	RS1	RS1
+NC_001806.2	127172	131460	NC_001806.2	146736	151023	RS1	0	.	.	IRS/TRS	gene	unmeasured: the copies are of different length	partial: lengths differ by 1 bp	RS1	RS1
+NC_001806.2	127186	127192	NC_001806.2	151004	151010	RS1	0	.	.	IRS/TRS	regulatory	too short to measure: 6 bp	0	RS1	RS1
+NC_001806.2	127234	131131	NC_001806.2	147065	150962	RS1	0	+	-	IRS/TRS	CDS	inverted	0	RS1	RS1
+NC_001806.2	131454	131460	NC_001806.2	146736	146742	RS1	0	.	.	IRS/TRS	regulatory	too short to measure: 6 bp	0	RS1	RS1
+NC_001806.2	131979	132024	NC_001806.2	146172	146217	oriS palindrome	0	+	-	IRS/TRS	stem_loop	inverted	0	oriS palindrome	oriS palindrome
+NC_001806.2	132100	132106	NC_001806.2	146090	146096	US1 / US12	0	.	.	IRS/TRS	regulatory	too short to measure: 6 bp	0	US1	US12
+NC_001806.2	132390	132516	NC_001806.2	145680	145806	IRS reiteration set 3 / RS reiteration set 3	0	+	-	IRS/TRS	repeat_region	inverted	0	IRS reiteration set 3	RS reiteration set 3
