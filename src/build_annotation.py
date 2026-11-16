@@ -184,16 +184,22 @@ def pre_2020_names(sources, raw) -> frozenset[str]:
     return frozenset(names)
 
 
-def main() -> int:
-    DERIVED.mkdir(parents=True, exist_ok=True)
-    rows: list[dict[str, str]] = []
-    known = pre_2020_names(SOURCES, RAW)
+def annotation_rows(raw: pathlib.Path = RAW,
+                    verbose: bool = False) -> list[tuple[dict[str, str], dict]]:
+    """Every row of the table, each paired with the source feature it was made from.
+
+    Split out of `main` so that the GFF3 build (`build_gff3.py`) renders exactly the
+    rows this table holds, from the same code, and can still reach what the table does
+    not carry: `/codon_start`, `/protein_id`, the GTF's own phase column and its
+    `orf_id`. The rows are the ones `main` writes; nothing here changes them.
+    """
+    pairs: list[tuple[dict[str, str], dict]] = []
+    known = pre_2020_names(SOURCES, raw)
 
     for source, fname, kind, provenance in SOURCES:
-        path = RAW / fname
+        path = raw / fname
         if not path.exists():
-            print(f"missing input {path}, run `make inputs` first", file=sys.stderr)
-            return 1
+            raise FileNotFoundError(f"missing input {path}, run `make inputs` first")
         feats = parse_genbank(path) if kind == "genbank" else parse_gtf(path)
         for f in feats:
             name = (f.get("gene") or "").strip()
@@ -228,7 +234,7 @@ def main() -> int:
                 # Name it from its own note where it has one, so TRL and IRL are
                 # findable rather than appearing as identical "repeat_region" rows.
                 label = note.split(";")[0].strip() if note else ""
-                rows.append({
+                pairs.append(({
                     "name": label or f"{ftype}@{f['_location']}",
                     "feature_type": ftype,
                     "location": f["_location"],
@@ -239,9 +245,9 @@ def main() -> int:
                     "subtype": subtype_of(f),
                     "transcript_id": squeeze(f.get("transcript") or ""),
                     "notes": note,
-                })
+                }, f))
                 continue
-            rows.append({
+            pairs.append(({
                 "name": name,
                 "feature_type": f["_type"],
                 "location": f["_location"],
@@ -252,8 +258,20 @@ def main() -> int:
                 "subtype": subtype_of(f),
                 "transcript_id": squeeze(f.get("transcript") or ""),
                 "notes": squeeze(f.get("note") or ""),
-            })
-        print(f"  {source}: {sum(1 for r in rows if r['source'] == source)} named features")
+            }, f))
+        if verbose:
+            print(f"  {source}: "
+                  f"{sum(1 for r, _ in pairs if r['source'] == source)} named features")
+    return pairs
+
+
+def main() -> int:
+    DERIVED.mkdir(parents=True, exist_ok=True)
+    try:
+        rows = [row for row, _ in annotation_rows(verbose=True)]
+    except FileNotFoundError as missing:
+        print(missing, file=sys.stderr)
+        return 1
 
     out = DERIVED / f"annotation_v{VERSION}.tsv"
     cols = ["name", "feature_class", "feature_type", "location", "source", "product",

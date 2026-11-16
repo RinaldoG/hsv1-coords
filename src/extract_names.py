@@ -133,7 +133,16 @@ def parse_gtf(path: pathlib.Path) -> list[dict]:
                     # The functional annotation this file does carry, which was being
                     # discarded: `comment "(ICP4; IE175;)"`, `comment "(=pri-miRNA-H1)"`.
                     "note": attrs.get("comment", "").strip("()"),
-                    "transcript": attrs.get("transcript_id", "")})
+                    "transcript": attrs.get("transcript_id", ""),
+                    # Read for the GFF3 build, which needs the CDS phase as the file
+                    # states it, the sequence name, and the ORF identifier that groups
+                    # the lines of one spliced CDS. `orf_id` is written two ways in
+                    # this file, `orf_id "X"` on 47 lines and `orf_id="X"` on 262, and
+                    # the attribute pattern above reads neither.
+                    "_seqid": parts[0],
+                    "_phase": parts[7],
+                    "orf_id": (lambda m: m.group(1) if m else "")(
+                        re.search(r'\borf_id\s*=?\s*"([^"]*)"', parts[8]))})
     return out
 
 
