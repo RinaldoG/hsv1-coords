@@ -16,10 +16,12 @@ reader is in.
 """
 from __future__ import annotations
 
+import io
 import pathlib
 import re
 import subprocess
 import sys
+import tokenize
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -36,6 +38,35 @@ the file the blocker quoted.
 
 def python_blocks(body: str) -> list[str]:
     return re.findall(r"```python\n(.*?)```", body, re.S)
+
+
+def inline_comments(block: str) -> list[tuple[str, str, str, int]]:
+    """Every comment that follows code on its own line: (indent, code, comment, row).
+
+    Round 13: this was a regex requiring two or more spaces before the `#`, so
+    `resolve("alpha-TIF") # 'UL99'`, one keystroke off the committed line, left the
+    gate entirely and the suite stayed green on a false claim in the quickstart.
+    Loosening the regex to one space would have been the wrong repair twice over: zero
+    spaces is still legal Python, and a `#` inside a string literal would then be read
+    as the start of a comment.
+
+    So the comments come from `tokenize`, which is the thing that decides what a
+    comment is. A block that does not tokenize raises here rather than being skipped:
+    every block in `self.blocks` is executed by this suite, so it parses.
+    """
+    out: list[tuple[str, str, str, int]] = []
+    lines = block.splitlines()
+    for tok in tokenize.generate_tokens(io.StringIO(block).readline):
+        if tok.type != tokenize.COMMENT:
+            continue
+        row, col = tok.start
+        line = lines[row - 1]
+        code = line[:col].rstrip()
+        if not code:
+            continue        # a whole-line comment: prose, or quoted output
+        indent = line[:len(line) - len(line.lstrip())]
+        out.append((indent, code, tok.string.lstrip("#").strip(), row))
+    return out
 
 
 def output_groups(block: str) -> list[str]:
@@ -178,75 +209,68 @@ class TheReadmeExamplesRun(unittest.TestCase):
             f"whatever they claim in prose is unchecked: {unquoted}")
 
     def test_an_inline_expectation_comment_matches_the_value(self):
-        """`expr  # value` comments, such as `resolve("VP16")  # 'UL48'`."""
-        checked = 0
+        """`expr  # value` comments, such as `resolve("VP16")  # 'UL48'`.
+
+        Round 13 rewrote this. Three findings in one test:
+
+        - the pattern required two spaces before the `#`, so one keystroke
+          (`resolve("alpha-TIF") # 'UL99'`) took a false quickstart claim out of the
+          gate. The comments come from `tokenize` now, which is what decides what a
+          comment is, and no amount of spacing changes its answer.
+        - what a comment on a `print(` line or an indented line was allowed to say was
+          a blacklist: digits, `is`, `equals`, `returns`, `well defined`, `none`,
+          leading quote. `# forward` beside `Crosswalk.load("ON783216.1").orientation`,
+          which is `reverse_complemented`, is none of those and passed. That is the
+          third blacklist in this file to be walked past, so the rule is inverted: a
+          comment that this gate cannot evaluate has to say so with a marker, and a
+          marker is a visible line in a user-facing document.
+        - the floor was `checked > 2` against six expectations present, so three
+          quarters of them could leave the gate without failing it. The count is now
+          derived from the comments the documents actually hold: each one is evaluated
+          or marked, and the three numbers have to add up (standing rule 47).
+        """
+        found, checked, marked = [], [], []
         for i, block in enumerate(self.blocks):
-            for line in block.splitlines():
-                m = re.match(r"^(\s*)([A-Za-z_][^#]*?)\s{2,}#\s*(\S.*)$", line)
-                if not m:
+            where = self.source_of.get(block, "?")
+            for indent, code, comment, row in inline_comments(block):
+                found.append((where, row, comment[:40]))
+                if comment.startswith(("prose:", "label:")):
+                    marked.append((where, row, comment[:60]))
                     continue
-                indent = m.group(1)
-                m = re.match(r"^\s*([A-Za-z_][^#]*?)\s{2,}#\s*(\S.*)$", line)
-                if indent:
-                    # Round 12: the pattern was anchored at column 0, so any INDENTED
-                    # line's inline expectation was unchecked. Refactoring
-                    # `Dictionary.load().resolve("alpha-TIF")  # 'UL48'` into a two-line
-                    # for loop and changing the expectation to `# 'UL99'` left the suite
-                    # green on a false claim.
-                    #
-                    # An indented expression sits inside a loop or a block, so it cannot
-                    # be evaluated on its own and this gate cannot check what it gives.
-                    # It is therefore held to the same rule as a print line: the comment
-                    # may be a label, and must not read as a claim about a value.
-                    label = m.group(2).strip()
-                    with self.subTest(label=label[:50]):
-                        self.assertIsNone(
-                            re.search(r"\d|\bis\b|\bequals\b|\breturns\b|"
-                                      r"\bwell defined\b|\bnone\b|^'", label, re.I),
-                            f"an indented line's inline comment cannot be evaluated by "
-                            f"this gate, so it must not read as a statement about a "
-                            f"value: {label!r}. Move the example to the top level if "
-                            f"the value is the point.")
-                    continue
-                if m.group(1).strip().startswith("print("):
-                    # A trailing comment on a print line was read by nothing: the
-                    # inline check skipped it and `output_groups` only collects
-                    # whole-line comments. Round 10 turned "# the LAT TATA box" into a
-                    # false claim about the position with the suite green. Such a
-                    # comment is a label, so it must not look like an assertion about a
-                    # value: no digits, and no claim words.
-                    label = m.group(2).strip()
-                    bad = re.search(r"\d|\bis\b|\bequals\b|\breturns\b|"
-                                    r"\bwell defined\b|\bnone\b", label, re.I)
-                    with self.subTest(label=label[:50]):
-                        self.assertIsNone(
-                            bad,
-                            f"a trailing comment on a print line is a label, and "
-                            f"nothing checks it, so it must not read as a statement "
-                            f"about the output: {label!r}")
-                    continue
-                expr, expected = m.group(1).strip(), m.group(2).strip()
-                # Round 10: skipping any expectation starting "or " or "the " let a
-                # wrong value hide behind one word. `# 59722` was changed to `# the
-                # answer is 99999` and the suite stayed green. An expectation that is
-                # prose rather than a value has to say so with a marker, so that the
-                # skip is a decision somebody wrote down rather than a word they
-                # happened to start with.
-                if expr.endswith(("(", ",")):
-                    continue
-                if expected.startswith("prose:"):
-                    continue
-                header = "\n".join(l for l in block.splitlines()
-                                   if l.startswith(("from ", "import ")))
-                out = self._run(f"{header}\nprint(repr({expr}))")
-                with self.subTest(block=i, expression=expr):
+                expr = code.strip()
+                with self.subTest(source=where, line=row, expression=expr[:50]):
+                    self.assertFalse(
+                        indent,
+                        f"an indented line's inline comment cannot be evaluated on its "
+                        f"own: {comment!r}. Move the expression to the top level, or "
+                        f"mark the comment `# prose: ...` to say nothing checks it.")
+                    self.assertFalse(
+                        expr.startswith("print(") or expr.endswith(("(", ",")),
+                        f"this gate cannot evaluate {expr!r}, so its comment "
+                        f"{comment!r} is unchecked. A print line's output is gated by "
+                        f"the quoted-output comment below it; mark this one "
+                        f"`# prose: ...` if it is a label.")
+                    header = "\n".join(l for l in block.splitlines()
+                                       if l.startswith(("from ", "import ")))
+                    out = self._run(f"{header}\nprint(repr({expr}))")
                     self.assertEqual(
-                        out.strip(), expected,
-                        f"the README says `{expr}` gives {expected}, and it gives "
+                        out.strip(), comment,
+                        f"the README says `{expr}` gives {comment}, and it gives "
                         f"{out.strip()}")
-                checked += 1
-        self.assertGreater(checked, 2,
-                           f"only {checked} inline expectations were checked")
+                checked.append((where, row))
+        self.assertTrue(found, "the documents hold no inline expectation at all, so "
+                               "this gate ran on nothing")
+        self.assertEqual(
+            len(checked) + len(marked), len(found),
+            f"{len(found) - len(checked) - len(marked)} inline comments were neither "
+            f"evaluated nor marked as prose")
+        for where, row, comment in marked:
+            with self.subTest(source=where, line=row):
+                self.assertIsNone(
+                    re.search(r"\d|'|\"", comment),
+                    f"{where} line {row} marks an inline comment as prose and then "
+                    f"states a value in it: {comment!r}. The marker says nothing "
+                    f"checks this text, so it may not carry a number or a literal.")
 
     def test_the_readme_says_how_to_install_the_package(self):
         """Round 8's blocker: the examples import a package nothing installs."""
@@ -284,9 +308,13 @@ class EveryQuotedExampleIsExecutable(unittest.TestCase):
                 # ending "\n\n# 'UL99' -- and the LAT TATA box sits at 999,999" passed.
                 # A comment that is not part of a comment paragraph is a candidate quote
                 # whatever precedes it.
+                # Round 13: `and n` excluded line 0, so an import-less block whose
+                # first line was its quoted output was invisible to this gate and to
+                # the execution gate both. A block beginning "# 'UL99'" passed.
                 quotes = [n for n, line in enumerate(lines)
-                          if line.strip().startswith("#") and n
-                          and not lines[n - 1].strip().startswith("#")]
+                          if line.strip().startswith("#")
+                          and (n == 0
+                               or not lines[n - 1].strip().startswith("#"))]
                 if quotes:
                     offenders.append((name, i, lines[quotes[0]].strip()[:60]))
         self.assertEqual(

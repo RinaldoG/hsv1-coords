@@ -293,14 +293,12 @@ print(ConventionSet.load().report(118777, RepeatMap.load()))
 #   well defined in the reference: inside IRL, which is present in two
 #   copies. It could equally be 7597 (opposite strand, so complement the
 #   allele)
-#   provenance: for whisnant2020_masked, szpara2014_trimmed,
-#   morse2017_nr the intervals used here were not read from the source.
-#   Two of those sources print no coordinates at all, so the interval is
-#   the reference record's own annotation read with what the source says
-#   in words; for morse2017_nr the paper names a coordinate file that
-#   has not been retrieved, and the blocks are derived from its stated
-#   rule. The edges are exact to the base; which features they are is
-#   the inference. See the source column of data/conventions.tsv
+#   provenance: the intervals used here were not read from the source
+#   for whisnant2020_masked (The paper prints no coordinates);
+#   szpara2014_trimmed (The paper prints no coordinates for the trimmed
+#   genome); morse2017_nr (because the deposited package has not been
+#   retrieved). The edges are exact to the base; which features they are
+#   is the inference. See the source column of data/conventions.tsv
 ```
 
 **Five handlings, each read from its own source**, with the date it was read recorded:

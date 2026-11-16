@@ -5,6 +5,7 @@ import fnmatch
 import pathlib
 import re
 import sys
+import tempfile
 import unittest
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -202,7 +203,7 @@ class RefusesWhatItCannotVerify(unittest.TestCase):
             reference="NC_001806.2", verified=False,
             source="Synthetic row used only to test the refusal path; no source read",
             quote="NOT VERIFIED")
-        return ConventionSet(base.conventions + [fake])
+        return ConventionSet((*base.conventions, fake))
 
     def test_usable_refuses_an_unverified_convention(self):
         cs = self._with_synthetic_unverified()
@@ -852,7 +853,7 @@ class TheFixesAreReachable(unittest.TestCase):
             source="Synthetic row, used only to exercise version translation",
             quote="synthetic", reference_version="NC_001806.1",
             applicable=False, boundary_uncertainty_bp=3)
-        return ConventionSet(base.conventions + [row])
+        return ConventionSet((*base.conventions, row))
 
     def test_convert_actually_translates_between_versions(self):
         """Fails if `convert` stops calling the version crosswalk.
@@ -1036,7 +1037,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m2_annotation": 27,
         "test_m3_crosswalk": 45,
         "test_m4_repeat_map": 54,
-        "test_m5_conventions": 99,
+        "test_m5_conventions": 102,
         "test_placeholder": 1,
         "test_readme_examples": 6,
     }
@@ -1328,6 +1329,10 @@ class TheInputGateIsActuallyRun(unittest.TestCase):
         A measurement that cannot disagree with anything is the tautology this class
         exists for. Perturbing the expectation rather than the record keeps this cheap
         enough to run every time.
+
+        Round 13: this leg perturbs the expectation only, so it says nothing about the
+        measurement. `test_every_measurement_actually_reads_its_record` below is the
+        leg that does, and it is the one that catches a literal.
         """
         import check_inputs
         inert = []
@@ -1340,6 +1345,70 @@ class TheInputGateIsActuallyRun(unittest.TestCase):
             inert, [],
             f"{len(inert)} assumptions hold against a deliberately wrong expectation, "
             f"so they are not comparing the record to anything: {inert}")
+
+    def test_every_measurement_actually_reads_its_record(self):
+        """Round 13: round 12's four new tests all perturbed the expectation.
+
+        So the shape they were written to prevent came straight back in the other
+        table. Replacing a measurement with the literal it is compared against,
+        `"ref_cds": lambda: 77`, passed all 286 tests, and `make check` went on
+        printing "ok reference carries 77 CDS" over a reference that no longer carried
+        77: the sensitivity test perturbed `want`, and `got` was a constant.
+
+        A measurement is sensitive if its own input moves it. Both legs here point
+        `check_inputs.RAW` somewhere else, so neither needs a per-measurement mutation
+        table, which is the shape standing rule 13 warns about: with the records absent
+        the measurement must fail rather than answer, and with the records replaced by
+        stubs every measured value must move. A literal survives neither.
+        """
+        import check_inputs
+        committed = {k: m() for k, m in check_inputs.MEASUREMENTS.items()}
+        real = check_inputs.RAW
+
+        def measured_with(raw):
+            check_inputs.RAW = raw
+            out = {}
+            for key, measure in check_inputs.MEASUREMENTS.items():
+                try:
+                    out[key] = measure()
+                except Exception as exc:          # noqa: BLE001 - that is the signal
+                    out[key] = f"raised {type(exc).__name__}"
+            return out
+
+        try:
+            with tempfile.TemporaryDirectory() as tmp:
+                absent = measured_with(pathlib.Path(tmp))
+            answered = [(k, v) for k, v in absent.items()
+                        if not str(v).startswith("raised ")]
+            self.assertEqual(
+                answered, [],
+                f"{len(answered)} M0 measurements answered with their records absent, "
+                f"so they are not reading them: {answered}")
+
+            with tempfile.TemporaryDirectory() as tmp:
+                stubs = pathlib.Path(tmp)
+                # A distinct sequence per record, so the two measurements that compare
+                # records to each other move as well. No feature table at all.
+                for name, base in (("ref_NC_001806.2.gb", "acgt"),
+                                   ("alt_BK012101.1.gb", "ggca"),
+                                   ("base_JN555585.1.gb", "tttt")):
+                    (stubs / name).write_text(
+                        f"LOCUS       STUB   4 bp    DNA     linear   VRL\n"
+                        f"FEATURES             Location/Qualifiers\n"
+                        f"ORIGIN\n        1 {base}\n//\n")
+                stubbed = measured_with(stubs)
+            unmoved = [(k, committed[k]) for k in check_inputs.MEASUREMENTS
+                       if stubbed[k] == committed[k]]
+            self.assertEqual(
+                unmoved, [],
+                f"{len(unmoved)} M0 measurements returned the same value from a stub "
+                f"record carrying none of what they measure, so they are constants "
+                f"rather than measurements: {unmoved}")
+        finally:
+            check_inputs.RAW = real
+        # And the committed values are unchanged by the detour.
+        self.assertEqual({k: m() for k, m in check_inputs.MEASUREMENTS.items()},
+                         committed)
 
     def test_a_file_in_data_raw_that_nothing_pins_is_named(self):
         """Round 12: the manifest loop iterated the manifest's own rows.
@@ -1396,19 +1465,72 @@ class TheCachedLoadersCannotBeCorruptedByACaller(unittest.TestCase):
         """Round 12: the two siblings round 9's fix missed.
 
         `Convention` is `frozen=True`, which stops a field being reassigned and says
-        nothing about what a field points at. `intervals` was a list, and
-        `ConventionSet.load` is cached, so
+        nothing about what a field points at. `intervals` was a list, so
         `cs["szpara2014_trimmed"].intervals.append((50000, 70000))` changed that
-        convention's `to_convention(60000)` from 50787 to None for every later caller
-        in the process.
+        convention's `to_convention(60000)` from 50787 to None for every later holder
+        of that set.
+
+        Round 13: the second assertion used to re-load the set and compare, and
+        `ConventionSet.load` is not cached, unlike `Crosswalk`, `RepeatMap` and
+        `VersionCrosswalk`. So it passed because the file was read again and asserted
+        nothing about the object that was attacked. It asserts the same object now,
+        which is where the guarantee has to hold.
         """
         cs = ConventionSet.load()
         before = cs["szpara2014_trimmed"].to_convention(60000)
         self.assertIsNotNone(before)
         with self.assertRaises(AttributeError):
             cs["szpara2014_trimmed"].intervals.append((50000, 70000))
-        self.assertEqual(
-            ConventionSet.load()["szpara2014_trimmed"].to_convention(60000), before)
+        self.assertEqual(cs["szpara2014_trimmed"].to_convention(60000), before)
+
+    def test_a_convention_cannot_be_mutated_through_its_records(self):
+        """Round 13: the third mutable field in the dataclass round 12 hardened.
+
+        `records` carries Morse's four record extents, and `usable` reads them to
+        place a position in a named record, so `cs["morse2017_nr"].records.clear()`
+        turned `usable(140000, "morse2017_nr")` from "present as US:7,392" into
+        "inside a removed block, which is not in the NR-reference" for every later
+        holder of that set. Observed on HEAD before the fix.
+        """
+        cs = ConventionSet.load()
+        before = cs.usable(140000, "morse2017_nr")
+        self.assertTrue(before[0], f"the fixture position is unusable: {before}")
+        with self.assertRaises(AttributeError):
+            cs["morse2017_nr"].records.clear()
+        self.assertEqual(cs.usable(140000, "morse2017_nr"), before)
+
+    def test_a_set_cannot_be_mutated_through_its_list_of_conventions(self):
+        """Round 13: the fourth container holding the same data, and the widest.
+
+        `ConventionSet.conventions` was a plain list, and it is what `facts.py`,
+        `report` and every gate in this suite walk, so a caller sorting or clearing it
+        changed what the next caller saw. A caller constructing a set from a list still
+        works: the constructor copies it into a tuple, so a later change to that list
+        cannot reach the set either.
+        """
+        from hsv1coords.conventions import Convention
+        rows = list(ConventionSet.load().conventions)
+        cs = ConventionSet(rows)
+        before = len(cs.conventions)
+        with self.assertRaises(AttributeError):
+            cs.conventions.append(rows[0])
+        rows.clear()
+        self.assertEqual(len(cs.conventions), before,
+                         "the set followed the list it was constructed from")
+        self.assertIsInstance(cs.conventions, tuple)
+        # And a row constructed with lists, as the synthetic fixtures in this file do,
+        # is frozen just the same: round 13 found the guarantee belonged to the loader
+        # rather than to the type.
+        row = Convention(name="synthetic_lists", kind="exclude",
+                         intervals=[[1, 100]], reference="NC_001806.2", verified=True,
+                         source="Synthetic row, round 13, for the coercion only",
+                         quote="synthetic", records=[["RL", 1, 100]])
+        self.assertEqual(row.intervals, ((1, 100),))
+        self.assertEqual(row.records, (("RL", 1, 100),))
+        with self.assertRaises(AttributeError):
+            row.intervals.append((2, 3))
+        with self.assertRaises(AttributeError):
+            row.records.append(("US", 2, 3))
 
     def test_the_version_crosswalk_cannot_be_mutated_through_its_blocks(self):
         """`blocks.clear()` made `to_new` raise IndexError rather than answer None."""
@@ -1710,8 +1832,20 @@ class TheOutOfRangeGuardIsTested(unittest.TestCase):
 
 
 def _clauses(text: str) -> set[str]:
-    """The source's clauses, split at sentence and clause punctuation."""
-    return {part.strip() for part in re.split(r"[.;:,]", text) if part.strip()}
+    """The source's clauses, split at sentence and clause punctuation.
+
+    Round 13: the split was on any `[.;:,]`, and these source fields are full of
+    accession versions and thousands separators, so `NC_001806.1` and `9,338`
+    manufactured clause boundaries in the middle of a sentence. That let a 40 character
+    window, `2 coordinates under a declared NC_001806`, cut out of "the first stored
+    NC_001806.2 coordinates under a declared NC_001806.1 frame", satisfy every one of
+    the four filters: present in the source, long enough, mentions `coordinate`, and
+    "whole clauses". The fifth version of this check to be walked past.
+
+    Clause punctuation is followed by a space or the end of the text. The punctuation
+    inside `NC_001806.1`, `9,338` and `150,962` is not.
+    """
+    return {part.strip() for part in re.split(r"[.;:,](?=\s|$)", text) if part.strip()}
 
 
 def _is_whole_clauses(quote: str, source: str) -> bool:

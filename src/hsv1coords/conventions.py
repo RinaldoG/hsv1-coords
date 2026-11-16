@@ -52,6 +52,7 @@ import pathlib
 
 from ._paths import data_path, require
 from dataclasses import dataclass, field
+from typing import Sequence
 
 DATA = data_path("conventions.tsv")
 GENOME_BP = 152222
@@ -110,8 +111,15 @@ class Convention:
     `RepeatMap.pairs` against a caller mutating a shared object, and round 12 found the
     two siblings it missed: `Convention` is frozen and this field was a mutable list, so
     `cs["szpara2014_trimmed"].intervals.append((50000, 70000))` changed
-    `to_convention(60000)` from 50787 to None. `ConventionSet.load` is cached, so one
-    caller's append is every caller's answer.
+    `to_convention(60000)` from 50787 to None for every holder of that object.
+
+    Round 13: the round 12 docstring, its test and its commit message all said
+    `ConventionSet.load` is cached, and it is not, which made the test's second
+    assertion vacuous (it passed because the file was re-read) and overstated the
+    blast radius of the defect. One holder of a set is still enough: a set is passed
+    between callers, and `facts.py` and `report` both walk it. `__post_init__` coerces
+    this field whatever a constructing caller passed, so the guarantee belongs to the
+    type rather than to the loader.
     """
     reference: str
     verified: bool
@@ -119,8 +127,14 @@ class Convention:
     quote: str
     reference_version: str = "NC_001806.2"
     applicable: bool = True      # False when the definition is known but unusable here
-    records: list[tuple[str, int, int]] = field(default_factory=list)
+    records: tuple[tuple[str, int, int], ...] = ()
     """Named records, for a convention whose artefact is more than one sequence.
+
+    A tuple for the same reason `intervals` is one, and round 13's finding: this was
+    the third mutable field in the dataclass round 12 hardened, and it carries
+    Morse's four record extents, so `cs["morse2017_nr"].records.clear()` turned
+    `usable(140000, "morse2017_nr")` from "present as US:7,392" into "inside a removed
+    block, which is not in the NR-reference" for every later holder of that set.
 
     Morse's NR-reference is four FASTA records (RL, UL, RS, US), confirmed from the
     CHROM column of its own deposited VCFs, so a Morse coordinate is a pair like
@@ -168,6 +182,19 @@ class Convention:
 
     Last in the dataclass, as standing rule 22 requires.
     """
+
+    def __post_init__(self) -> None:
+        """Freeze the two sequence fields whoever constructed the row.
+
+        Round 13: `intervals` was typed as a tuple and the synthetic rows in the test
+        suite pass a list, which the dataclass stores as it is given. So the
+        immutability round 12 established held for rows built by `ConventionSet.load`
+        and for nobody else. Coercing here makes it a property of the type.
+        """
+        object.__setattr__(self, "intervals",
+                           tuple(tuple(i) for i in self.intervals))
+        object.__setattr__(self, "records",
+                           tuple(tuple(r) for r in self.records))
 
     @property
     def boundaries_are_inferred(self) -> bool:
@@ -306,8 +333,8 @@ class PositionReport:
     unusable_under: list[tuple[str, str]] = field(default_factory=list)
     refused: list[tuple[str, str]] = field(default_factory=list)
     caveats: list[str] = field(default_factory=list)
-    inferred_intervals: list[str] = field(default_factory=list)
-    """Conventions in this report whose intervals are not printed by their source.
+    interval_provenance: list[tuple[str, str]] = field(default_factory=list)
+    """Each convention here whose intervals its source does not print, and why.
 
     Round 9: `boundary_uncertainty_bp` was 0 on all five conventions, three of which take
     their intervals from the reference record's own annotation because the source prints
@@ -315,8 +342,23 @@ class PositionReport:
     position, because it is a fact about the convention and attaching it to every
     position buried the caveats that are about the position.
 
+    Round 13: this held the names only, and the sentence `__str__` printed beside them
+    was hand-written prose that counted the data: "Two of those sources print no
+    coordinates at all ... for morse2017_nr the paper names a coordinate file that has
+    not been retrieved". Both halves are statements about rows of
+    `data/conventions.tsv`, pinned in library code, so a fourth inferred row or a
+    retrieved file would have made the library say something false, and
+    `boundaries_evidence` sat in the dataclass read by nothing while the suite gated it
+    (root cause 34). Each row's own evidence travels with its name now and is what the
+    report prints.
+
     Last in the dataclass, as standing rule 22 requires.
     """
+
+    @property
+    def inferred_intervals(self) -> list[str]:
+        """The names only, for a caller that branches rather than prints."""
+        return [name for name, _ in self.interval_provenance]
 
     @property
     def comparable_everywhere(self) -> bool:
@@ -338,16 +380,13 @@ class PositionReport:
             lines.append(f"  cannot say for {name}: {why}")
         for c in self.caveats:
             lines.append(f"  caveat: {c}")
-        if self.inferred_intervals:
+        if self.interval_provenance:
+            each = "; ".join(f"{name} ({why})" for name, why in
+                             self.interval_provenance)
             lines.append(
-                f"  provenance: for {', '.join(self.inferred_intervals)} the intervals "
-                f"used here were not read from the source. Two of those sources print "
-                f"no coordinates at all, so the interval is the reference record's own "
-                f"annotation read with what the source says in words; for "
-                f"morse2017_nr the paper names a coordinate file that has not been "
-                f"retrieved, and the blocks are derived from its stated rule. The edges "
-                f"are exact to the base; which features they are is the inference. See "
-                f"the source column of data/conventions.tsv")
+                f"  provenance: the intervals used here were not read from the source "
+                f"for {each}. The edges are exact to the base; which features they are "
+                f"is the inference. See the source column of data/conventions.tsv")
         return "\n".join(lines)
 
 
@@ -373,9 +412,13 @@ def _parse_intervals(text: str) -> tuple[tuple[int, int], ...]:
 
 
 class ConventionSet:
-    def __init__(self, conventions: list[Convention]) -> None:
-        self.conventions = conventions
-        self._by_name = {c.name: c for c in conventions}
+    def __init__(self, conventions: "Sequence[Convention]") -> None:
+        # A tuple, round 13: this was the fourth mutable container holding the same
+        # data, and `conventions` is what `facts.py`, `report` and every gate in the
+        # suite walk, so one caller sorting or clearing it changes what the next one
+        # sees. Callers that add a row build a new set, which is what they already do.
+        self.conventions = tuple(conventions)
+        self._by_name = {c.name: c for c in self.conventions}
 
     @classmethod
     def load(cls, path: pathlib.Path | None = None) -> "ConventionSet":
@@ -643,7 +686,7 @@ class ConventionSet:
                 continue
             ok, why = self.usable_plain(position, c.name)
             if c.boundaries_are_inferred:
-                rep.inferred_intervals.append(c.name)
+                rep.interval_provenance.append((c.name, c.boundaries_evidence))
             warning = self._warning_for(position, c)
             if warning:
                 rep.caveats.append(warning)
