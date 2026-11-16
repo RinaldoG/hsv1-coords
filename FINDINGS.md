@@ -42,9 +42,13 @@ In `NC_001806.2`:
   feature is incomplete at that end. **Corrected 13 November 2026:** an earlier version of
   this file said the feature was clipped by "where the linear record happens to begin".
   That is the wrong reason. Position 1 is the L terminus, and the missing portion is
-  present in the same record inside `TRS` at the other end, because the genome is
-  circular. The truncation is a consequence of linearising a circle, not of an arbitrary
-  start point.
+  present in the same record inside `TRS` at the other end, because the deposited
+  record linearises a genome that circularises after entry into the host cell: virion
+  DNA is linear, and the two ends are contiguous in the circular and concatemeric
+  forms. The truncation is a consequence of that linearisation, not of an arbitrary
+  start point. (Round 17 added the condition; the sentence said "the genome is
+  circular" flatly, and this folder's rule is that a biological claim carries its
+  condition in the same sentence.)
 - Second copy: `gene 118777..127151`, 8,375 bp, with a TATA box at `118777..118782` and
   `ncRNA join(118805..119464,121421..127151)`.
 

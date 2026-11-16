@@ -88,7 +88,18 @@ Two things the inventory establishes, both of which the crosswalk has to handle:
   now fixed. Three of those genomes turned out to be deposited on the opposite strand
   with a rotated start, which the build now detects and reverse complements; the one
   genuine segmental isomer in the set is `ON783215.1`, with its long segment forward and
-  its short segment reversed. **Accepted limitation, stated plainly after round 9:** the
+  its short segment reversed.
+
+  **A premise worth stating, from round 17:** six of the 183 deposits carry NCBI's
+  `UNVERIFIED:` flag in their own deflines, and four of them are the `ON78321x` records
+  that carry this whole isomer and opposite-strand account: `ON783214.1`, `ON783215.1`,
+  `ON783216.1`, `ON783217.1`, plus `OQ724836.1` and `MN925871.1`. The flag means NCBI
+  has not validated the assembly, not that it is wrong, and nothing here depends on it
+  being right: the strand and isomer findings are measured from the sequences
+  themselves. But a reader comparing this account with the records should know which
+  four they are.
+
+  **Accepted limitation, stated plainly after round 9:** the
   build keeps only the forward alignments, so that genome's short segment has no
   reference coordinate at all. About 30 kb of it, essentially IRS, US and TRS, is
   unmapped, which is why it sits at 80.62 per cent mappable while the corpus median is
@@ -164,10 +175,21 @@ exists. A later review checked both and neither holds.
   annotation, so the original framing contradicted this repository on the same commit.
 
 **What does hold, and is the honest reason to ship this:** Dfam has no viral families,
-RepeatMasker finds only simple repeats here, no purpose-built repeat interval file exists,
-and **nobody publishes the counterpart arithmetic**. Knowing a region is repeated is
-available everywhere. Being told which other position a coordinate could equally be is
-not available anywhere.
+RepeatMasker finds only simple repeats here, no purpose-built repeat interval file
+exists, and position-level counterpart arithmetic with the strand relationship does not
+appear to be published.
+
+Round 17 corrected the absolute version of that sentence, which said "nobody
+publishes the counterpart arithmetic" and "being told which other position a coordinate
+could equally be is not available anywhere". Szpara et al. 2014's Materials and Methods
+does publish a paired per-copy coordinate list, for ten repeated elements including all
+three copies of the 'a' sequence, read on the PMC article page for PMC3911644 on 16
+November 2026; every interval in it matches a `repeat_region` of NC_001806.2 to the
+base. So for ten of this map's thirty-four regions, which other interval a position
+could be in is in print, in a paper this repository cites four times. The numbers
+themselves are not reproduced here: a reader should open that paper's Methods, and
+copying a source's figures into this document would put them inside the documentation
+gate as though this repository derived them.
 
 What it is: every annotated repeated region of the genome as data, with loci present in
 two copies paired to each other, and an interface answering **"is this position well
@@ -329,7 +351,7 @@ print(ConventionSet.load().report(118777, RepeatMap.load()))
 | `szpara2014_trimmed` | Keeps one copy of each inverted repeat, `IRL` and `IRS`, removing `TRL` and `TRS` | **shifted** |
 | `morse2017_nr` | Removes the `IRL` and `TRS` blocks, leaving four records (`RL`, `UL`, `RS`, `US`) | **a record and a position**, like `UL:50787`, and defined on `NC_001806.1`, so translated through the version crosswalk (M6) |
 
-**The worked example.** The LAT TATA box at reference 118,777 is printed as 109,564 in a Szpara-trimmed analysis, **excluded** by Lassalle, and **retained** by Whisnant.
+**The worked example.** The LAT TATA box at reference 118,777 becomes 109,564 under the Szpara trim, computed here from the rule that paper states rather than read from it, since it prints no coordinates for the trimmed genome (round 17: this line said "is printed as", which PITFALLS root cause 1 retracted and README.md already carries the correction for), **excluded** by Lassalle, and **retained** by Whisnant.
 Three published handlings, three different answers, for one position in the gene that
 dominates latent transcription.
 
@@ -480,8 +502,8 @@ each is only honest beside its definition:
 | Measurement | Rate | What it samples |
 |---|---|---|
 | The whole suite | **45 of 90** | A number anywhere in the four documents, changed one at a time, with the full suite re-run. Was 34 of 90 before round 7. |
-| This gate alone | **81 mutations caught** | Every standalone number in the six gated documents is changed one at a time and this is how many of those mutations the figure-to-artefact comparison catches. A COUNT, not a rate: round 14 put a floor on the rate over four documents and ten added citations failed the build; round 15 moved it to the sites that state a derived value, and three paragraphs of ordinary prose failed it too, because 21 of the gated figures are one- to three-digit numbers that occur in prose anyway. Three rates are printed for information, judged only by the figure-to-artefact comparison. Printed on every run as a count and a rate, with a floor on each, and this row is checked against the rate the run measures. Round 8 sampled 60 of these sites with a fixed seed and this row said 18 per cent, which was above the then-real figure of 15; the unchanged gate ranged from 8.3 to 23.3 per cent across other seeds, so the sample was narrower than its own spread and the row overstated it. The exact counts are printed by the run rather than written here, because they move whenever a document gains a number. |
-| `gate power` | **93 of 93** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
+| This gate alone | **82 mutations caught** | Every standalone number in the six gated documents is changed one at a time and this is how many of those mutations the figure-to-artefact comparison catches. A COUNT, not a rate: round 14 put a floor on the rate over four documents and ten added citations failed the build; round 15 moved it to the sites that state a derived value, and three paragraphs of ordinary prose failed it too, because 21 of the gated figures are one- to three-digit numbers that occur in prose anyway. Three rates are printed for information, judged only by the figure-to-artefact comparison. Printed on every run as a count and a rate, with a floor on each, and this row is checked against the rate the run measures. Round 8 sampled 60 of these sites with a fixed seed and this row said 18 per cent, which was above the then-real figure of 15; the unchanged gate ranged from 8.3 to 23.3 per cent across other seeds, so the sample was narrower than its own spread and the row overstated it. The exact counts are printed by the run rather than written here, because they move whenever a document gains a number. |
+| `gate power` | **94 of 94** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
 
 The gap between the first two is the rest of the suite: the per-occurrence reach check,
 the component-table count, the quoted-resolver output and the README example runner each

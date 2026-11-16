@@ -3,6 +3,36 @@
 Semantic versioning. The annotation is versioned because the thing being fixed is partly
 that the reference has no versioning discipline.
 
+## Unreleased - library behaviour changed in rounds 16 and 17
+
+Round 17: the library's own API changed in four ways across rounds 16 and 17 and none
+of them was recorded here, in a file whose second line claims semantic versioning. The
+package version stays `0.1.0` because nothing is released yet; these are the changes a
+caller would notice if it were.
+
+**Changed, and a caller may see different answers**
+
+- `Convention.from_record(record, offset)` returns a coordinate in NC_001806.2, this
+  library's base version, where it used to return the convention's own NC_001806.1
+  position under a docstring promising "back to the reference". `native=True` gives the
+  untranslated one. 109,639 positions disagreed with `ConventionSet.coordinate_in`
+  before this, out of 152,222 bp of sequence.
+- `Convention.locate`, `coordinate` and `from_record` refuse a base-version position on
+  a convention defined against another reference version, naming the `ConventionSet`
+  method that translates, unless passed `native=True`.
+- `Convention.to_reference` and `to_convention` return None for a position outside the
+  convention's own range, where they used to compute one from it.
+- `Crosswalk.unmapped_stretch` raises `ValueError` for a position outside the deposit,
+  where it returned None, which that method's docstring defines as "that position lifts
+  fine".
+- `ConventionSet.convert` checks both ends, so a position either convention drops has no
+  equivalent under the pair; previously only the target was checked and the two
+  directions disagreed.
+- `RepeatMap.load` refuses an empty or incomplete map with `RepeatMapIncomplete`, and
+  `data/derived/diploid_pairs.tsv` is required rather than optional.
+- Every coordinate-taking entry point accepts any integral type that is not a bool,
+  `numpy.int64` included, and refuses everything else with one message.
+
 ## v0.1.0 - 13 November 2026
 
 First annotation release. Not yet a GFF3: this is the classed and sourced feature table

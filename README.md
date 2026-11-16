@@ -158,8 +158,11 @@ This matters most exactly where it is least convenient. LAT, which dominates lat
 transcription, sits in the long inverted repeat and extends past it: the reference
 annotates one copy at `118777..127151`, which runs 778 bp beyond the end of `IRL`
 (`117161..126373`) into `IRS`, and the other at `complement(<1..7569)`, truncated because
-the genome is circular and the remainder lies in `TRS` at the other end of the linear
-record. So the gene that dominates latent transcription is duplicated, spans a segment
+the deposited record is a linearisation of a genome that circularises in the host cell,
+and the remainder lies in `TRS` at the other end of the linear record. (The condition
+matters: HSV-1 virion DNA is linear, and the two ends are contiguous in the circular and
+concatemeric forms the genome takes after entry, which is what makes the two halves of
+this gene one gene.) So the gene that dominates latent transcription is duplicated, spans a segment
 boundary, and is split across the two ends of the reference sequence.
 
 ## What this provides

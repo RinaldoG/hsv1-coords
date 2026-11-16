@@ -1039,8 +1039,8 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m1_dictionary": 48,
         "test_m2_annotation": 44,
         "test_m3_crosswalk": 53,
-        "test_m4_repeat_map": 58,
-        "test_m5_conventions": 121,
+        "test_m4_repeat_map": 59,
+        "test_m5_conventions": 122,
         "test_placeholder": 1,
         "test_readme_examples": 7,
     }
@@ -1238,6 +1238,50 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
             "not run, so each one's condition belongs in "
             "test_a_checkout_holds_every_artefact_the_gates_skip_without, which fails "
             "in a checkout rather than skipping. Update that gate, then this count.")
+
+    ASSERTION_FREE = ("test_readme_examples.py:test_every_python_block_executes",)
+    """Test methods that assert nothing directly, each with its reason.
+
+    The one entry runs every documented example as a subprocess, and `_run` fails the
+    test if the exit status is not zero, so the assertion is one frame down.
+    """
+
+    def test_every_test_method_asserts_something(self):
+        """Round 17: the third spelling of a skip, and nothing counted it.
+
+        Standing rule 71 says a test that does not assert is a skip whatever it is
+        called. Replacing the 25 `self.assert*` calls in `SequenceAgreement` with
+        `print` left 347 tests, removed the per-genome base-agreement failure on
+        corrupted block files, and moved no counter in this repository: not
+        `TESTS_PER_FILE`, not `SKIP_SITES`, not the expected-failure count. The class
+        went on printing "base agreement: 183 genomes ... pooled 98.57 per cent" over
+        the corruption, which is cause 28's lesson.
+        """
+        import ast
+        bare = []
+        for path in sorted((ROOT / "tests").glob("test_*.py")):
+            for node in ast.walk(ast.parse(path.read_text())):
+                if not (isinstance(node, ast.FunctionDef)
+                        and node.name.startswith("test_")):
+                    continue
+                found = 0
+                for inner in ast.walk(node):
+                    if isinstance(inner, ast.Assert):
+                        found += 1
+                    elif isinstance(inner, ast.Call):
+                        function = inner.func
+                        name = (function.attr if isinstance(function, ast.Attribute)
+                                else getattr(function, "id", ""))
+                        if name.startswith("assert") or name in ("fail", "skipTest"):
+                            found += 1
+                if not found:
+                    bare.append(f"{path.name}:{node.name}")
+        self.assertEqual(
+            sorted(bare), sorted(self.ASSERTION_FREE),
+            f"the set of test methods that assert nothing has changed: {sorted(bare)} "
+            f"against the recorded {sorted(self.ASSERTION_FREE)}. A test that asserts "
+            f"nothing passes over anything, so each one is listed with its reason or "
+            f"it is not a test.")
 
     def test_no_module_defines_the_same_test_class_twice(self):
         """Round 17: three classes were pasted twice into one file.

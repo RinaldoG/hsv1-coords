@@ -433,7 +433,8 @@ def derive(allow_partial: bool = False) -> list[Fact]:
         if lat is not None:
             facts.append(Fact("lat_in_szpara", lat,
                               ("in a Szpara-trimmed analysis",
-                               "is computed here from the rule")))
+                               "is computed here from the rule",
+                               "under the Szpara trim")))
         facts.append(Fact("conventions", len(cs.conventions),
                           ("handlings, all", "handlings, each", "handlings,")))
     except Exception:                                   # artefacts not built

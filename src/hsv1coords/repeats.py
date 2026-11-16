@@ -277,8 +277,7 @@ class RepeatMap:
                 f"{pp} is missing. It is built by the same command as the regions "
                 f"and carries every diploid locus, so without it `loci_at` answers "
                 f"an empty list for every position. Rebuild with `make repeatmap`.")
-        if True:
-            with pp.open() as fh:
+        with pp.open() as fh:
                 for r in csv.DictReader(fh, delimiter="\t"):
                     pairs.append(DiploidPair(
                         r["locus"], r["repeat_pair"], r["feature_type"],
@@ -291,6 +290,12 @@ class RepeatMap:
         # here, and rightly, since the artefact is the source of that geometry.
         named = {r.name for r in regions if r.kind == "repeat_region"}
         wanted = {label for p in pairs for label in p.repeat_pair.split("/")}
+        # Round 17 tried to widen this by requiring every pair's locus to be a
+        # region too, and that is false: a locus is a GENE (LAT, RL1, US1), not a
+        # repeat region, so the check refused the committed map. What the loader can
+        # see is the frame; the region COUNT against the annotation table's repeat
+        # features is a cross-artefact check and lives in
+        # tests/test_m4_repeat_map.py, where that table is in hand.
         missing = sorted(w for w in wanted if w and w not in named)
         if missing:
             raise RepeatMapIncomplete(

@@ -5,6 +5,7 @@ defects that review found in M3, rather than merely claiming to.
 """
 from __future__ import annotations
 
+import collections
 import csv
 import pathlib
 import re
@@ -561,6 +562,24 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
         if exempt:
             return any(p in stated for p in parts)
         return all(p in stated for p in parts)
+
+    def test_the_region_count_is_the_record_s_own_repeat_feature_count(self):
+        """Round 17: `RepeatMap.load`'s new check demanded 4 of 34 regions.
+
+        `wanted` is derived from `repeat_pair`, which only ever holds `TRL/IRL` or
+        `IRS/TRS`, so the other 15 named reiteration sets and all 3 stem-loops could
+        be deleted from the artefact with the map loading clean and `classify` and
+        `loci_at` quietly losing loci. The count belongs against the record, which
+        the loader cannot read and this file can.
+        """
+        kinds = collections.Counter(f["_type"] for f in self.features)
+        expected = sum(kinds[k] for k in ("repeat_region", "stem_loop", "rep_origin"))
+        got = sum(1 for r in self.m.regions
+                  if r.kind in ("repeat_region", "stem_loop", "rep_origin"))
+        self.assertEqual(
+            got, expected,
+            f"the record states {expected} repeat, stem-loop and origin features and "
+            f"repeat_map.tsv carries {got}")
 
     def test_every_region_interval_is_one_the_record_states(self):
         strays = [(r.name, r.start, r.end) for r in self.m.regions
