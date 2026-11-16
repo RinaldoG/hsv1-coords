@@ -114,6 +114,20 @@ class TheReadmeExamplesRun(unittest.TestCase):
                 cls.blocks.append(block)
                 cls.source_of[block] = name
         if not cls.blocks:
+            # Round 15: this skipped, and the condition is about the documents rather
+            # than about a missing artefact, so the checkout gate's own version of it
+            # (counting ```python fences) did not share it: converting the six
+            # examples to doctest style, `>>> ` prefixed, kept all six fences and
+            # removed every top-level import, and the whole file skipped with the
+            # suite green at `OK (skipped=1)`.
+            fenced = sum(len(python_blocks((ROOT / name).read_text()))
+                         for name in DOCUMENTS if (ROOT / name).exists())
+            if fenced:
+                raise AssertionError(
+                    f"the documents hold {fenced} ```python blocks and not one of "
+                    f"them is executable: every block's imports are missing or "
+                    f"indented, so this gate would run nothing. A block that cannot "
+                    f"be executed may not carry an example a reader will copy.")
             raise unittest.SkipTest("the documents state no Python examples")
         for need in ("data/derived/crosswalk", "data/derived/repeat_map.tsv"):
             if not (ROOT / need).exists():
@@ -297,6 +311,39 @@ class TheReadmeExamplesRun(unittest.TestCase):
                     f"{where} line {row} marks an inline comment as prose and then "
                     f"states a value in it: {comment!r}. The marker says nothing "
                     f"checks this text, so it may not carry a number or a literal.")
+
+    def test_no_whole_line_comment_states_a_value_the_gate_cannot_check(self):
+        """Round 15: the escape moved one line up.
+
+        `inline_comments` skips a comment with no code before it, and `output_groups`
+        reads a comment run only where the previous line starts with `print(`, so a
+        false claim written as a whole-line comment inside a Python block is read by
+        nothing. Inserting `# Dictionary.load().resolve("alpha-TIF") is 'UL99'` into
+        the quickstart produced no failure.
+
+        A comment that calls the library is an example, wherever it sits, so it is
+        either executable code or it says it is prose.
+        """
+        callable_comment = re.compile(
+            r"\b(Dictionary|ConventionSet|RepeatMap|Crosswalk|VersionCrosswalk)\b"
+            r"[^#]*\(|\b(lift|lift_detailed|resolve|classify|report|usable)\s*\(")
+        offenders = []
+        for block in self.blocks:
+            where = self.source_of.get(block, "?")
+            for number, line in enumerate(block.splitlines(), start=1):
+                stripped = line.strip()
+                if not stripped.startswith("#"):
+                    continue
+                body = stripped.lstrip("#").strip()
+                if body.startswith(("prose:", "label:")):
+                    continue
+                if callable_comment.search(body):
+                    offenders.append((where, number, body[:60]))
+        self.assertEqual(
+            offenders, [],
+            f"{len(offenders)} whole-line comments call the library without being "
+            f"executed, so whatever they claim is unchecked. Make them code, or mark "
+            f"them `# prose: ...`: {offenders}")
 
     def test_the_readme_says_how_to_install_the_package(self):
         """Round 8's blocker: the examples import a package nothing installs."""

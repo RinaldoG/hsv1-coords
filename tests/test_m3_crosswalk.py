@@ -409,7 +409,48 @@ class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
             # genome pairs returned no coordinate while calling it well defined.
             "the target leg declines":
                 lift_detailed(109473, "AB618031.1", "GU734771.1", CROSSWALK),
+            # Round 15: the case above has a reference position in no named locus and
+            # no inverted counterpart, so it could not tell whether `loci` and
+            # `inverted_alternatives` were being filled in on a declined lift. This
+            # one's reference position, 1,000, sits in LAT, RL1 and a reiteration set
+            # and has a counterpart at 125,374, so a result that describes the
+            # coordinate it did not produce has something to describe it with.
+            "the target leg declines, inside a repeat":
+                lift_detailed(1000, "BK012101.1", "AB618031.1", CROSSWALK),
         }
+
+    def test_a_result_with_no_coordinate_describes_no_coordinate(self):
+        """Round 15: the invariant pinned 5 of 11 fields.
+
+        `loci` and `inverted_alternatives` were unchecked on all three no-coordinate
+        paths, so a plausible "tell the caller which locus it was in" edit, carrying
+        `loci=status.loci` and `inverted_alternatives=(ref_pos,)` on the round 14
+        return, left 307 tests green with a result that names a gene and an inverted
+        counterpart for a coordinate that was never produced.
+
+        The fields are enumerated from the dataclass, so a field added later is
+        covered without anyone remembering this test.
+        """
+        import dataclasses
+        describes_the_answer = {
+            "well_defined": False, "in_range": False, "complemented": False,
+            "alternatives": [], "loci": [], "inverted_alternatives": (),
+        }
+        carried = {"position", "source", "target", "reference_position", "reason"}
+        from hsv1coords.liftover import LiftResult
+        fields = {f.name for f in dataclasses.fields(LiftResult)}
+        self.assertEqual(
+            fields - carried - set(describes_the_answer), set(),
+            "LiftResult has a field this invariant does not classify as describing "
+            "the answer or as carried with it; decide which it is")
+        for label, result in self._cases().items():
+            if result.position is not None:
+                continue
+            for name, empty in describes_the_answer.items():
+                with self.subTest(case=label, field=name):
+                    self.assertEqual(
+                        getattr(result, name), empty,
+                        f"{label}: there is no coordinate, and `{name}` describes one")
 
     def test_no_coordinate_is_never_reported_as_well_defined(self):
         for label, result in self._cases().items():
@@ -447,6 +488,8 @@ class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
         self.assertEqual(flags["dropped from the crosswalk, so declined"],
                          (False, False, False))
         self.assertEqual(flags["the target leg declines"], (False, False, False))
+        self.assertEqual(flags["the target leg declines, inside a repeat"],
+                         (False, False, False))
 
     def test_the_two_no_coordinate_answers_say_which_one_they_are(self):
         """They share their flags, so the reason is the only thing that separates them.
@@ -466,7 +509,7 @@ class ALiftResultsFlagsAgreeWithEachOther(unittest.TestCase):
                       "the reason for a declined target leg does not name the target, "
                       "so a reader cannot tell it from a source-side decline")
         self.assertEqual(
-            len({c.reason for c in cases.values() if c.position is None}), 3,
+            len({c.reason for c in cases.values() if c.position is None}), 4,
             "two of the three no-coordinate answers give the same reason, and the "
             "reason is all that separates them")
         self.assertTrue(declined.reason.strip(), "a declined lift states no reason")

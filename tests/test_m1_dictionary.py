@@ -474,7 +474,11 @@ def _says(name: str, text: str) -> bool:
     repeat = re.match(r"^R([LS])(\d+(?:\.\d+)?)$", name, re.I)
     if repeat:
         patterns.append(f"[ti]r{repeat.group(1).lower()}{re.escape(repeat.group(2))}")
-    return any(re.search(r"(?<![0-9a-z])" + p + r"(?![0-9a-z])", text)
+    # Round 15: the right boundary was `(?![0-9a-z])`, and `.` is neither, so
+    # `_says("UL26", "ul26.5 ; ...")` was true and UL26 could not be told from
+    # UL26.5 by this gate, which is the pair PITFALLS cause 56 is about. A decimal
+    # suffix makes a different gene name, so it is part of the word.
+    return any(re.search(r"(?<![0-9a-z.])" + p + r"(?!\.?[0-9a-z])", text)
                for p in patterns)
 
 
@@ -484,11 +488,21 @@ def _attested_on_a_feature(gene: str, alias: str, features: list[dict]) -> bool:
     Either way round: the gene is the feature's identity and the alias is written on
     it, or the alias is the identity and the gene is written on it. The second case is
     the 2020 re-annotation's, where `/product="UL49.5"` carries `/note="ul49a"`.
+
+    Round 15: identity beats mention. Only the gene side was tightened in round 14, so
+    the alias side was still "appears anywhere in the feature's text", `/note`
+    included, and a note naming a NEIGHBOUR satisfied the rule: `VP16` to `UL46` via
+    "modulates transactivating tegument protein vp16", `ICP22` to `UL3` via
+    "colocalizes with regulatory protein icp22". Where some feature in this record
+    claims the alias as its own identity, that feature's genes are the only mapping
+    the record attests, and a mention elsewhere is not evidence against it.
     """
+    claimants = [f for f in features if _is_the_feature(alias, f)]
+    if claimants:
+        return any(_says(gene, f["text"]) or _is_the_feature(gene, f)
+                   for f in claimants)
     for feature in features:
         if _is_the_feature(gene, feature) and _says(alias, feature["text"]):
-            return True
-        if _is_the_feature(alias, feature) and _says(gene, feature["text"]):
             return True
     return False
 
@@ -844,13 +858,25 @@ class EveryMappingIsAttestedAndTheUngatedOnesAreCounted(unittest.TestCase):
               f"{len(rows) - len(loose)} can be repointed at no other gene in the "
               f"table and {len(loose)} can; of the GTF-cited rows, all can be "
               f"repointed at none")
-        # Asserted: no row can be repointed at a gene the record does not write on
-        # that feature at all. The floor is the measurement itself, recorded on 16
-        # November 2026 as 39 of 202 loose, and it may fall but not rise.
+        # The measurement is the floor, and round 15 lowered it twice: from 113 of
+        # 202 (round 14's rule, before the sweep existed) to 39, and now to 23, by
+        # making identity beat mention and by excluding a decimal suffix from a word
+        # boundary. Round 15 also found the sentence that called the residue "all of
+        # them where the record itself cannot separate the two names" false: `US6/gD`,
+        # `UL48/VP16` and `UL26.5` were separable. What is left is 23 rows, and each
+        # is loose because a feature's own note names another gene beside the alias.
+        #
+        # `assertLessEqual` means a FALL is silent, which also happens when rows are
+        # deleted, so the row count is pinned beside it (cause 31: an unrelated edit
+        # must not move the metric).
+        self.assertEqual(len(rows), 202,
+                         f"{len(rows)} GenBank-cited rows claim the record prints "
+                         f"their alias, and 202 is recorded, so the denominator of "
+                         f"the figure below has moved")
         self.assertLessEqual(
-            len(loose), 39,
+            len(loose), 23,
             f"{len(loose)} rows can be repointed at another gene and the recorded "
-            f"figure is 39, so the gate has weakened: {loose[:6]}")
+            f"figure is 23, so the gate has weakened: {loose[:6]}")
         gtf_loose = []
         for kind, row in self._classes():
             if kind != "Zenodo GTF":

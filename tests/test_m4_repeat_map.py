@@ -689,6 +689,54 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
         self.assertTrue(any(not p.exact for p in self.m.pairs),
                         "no pair is partial, so this gate compares three constants")
 
+    def test_every_pair_carries_the_strand_relationship_the_artefact_states(self):
+        """Round 14: the loader dropped the column.
+
+        So a library user of `RepeatMap.pairs` could not see whether a pair's two
+        copies are inverted, which is the fact that decides whether an allele has to
+        be complemented to read it at the other copy, while the TSV and the .md both
+        state it.
+        """
+        import csv as _csv
+        with (DERIVED / "diploid_pairs.tsv").open() as fh:
+            stated = [r for r in _csv.DictReader(fh, delimiter="\t")]
+        self.assertEqual(len(stated), len(self.m.pairs))
+        for row, pair in zip(stated, self.m.pairs):
+            with self.subTest(locus=pair.locus):
+                self.assertEqual(pair.strand_relationship,
+                                 row["strand_relationship"])
+        kinds = {p.strand_relationship for p in self.m.pairs}
+        self.assertIn("inverted", kinds,
+                      "no pair is recorded as inverted, so the field carries nothing")
+        self.assertGreater(len(kinds), 1,
+                           f"the strand relationship is a constant, {kinds}, so it "
+                           f"distinguishes nothing")
+        # Round 15: the comparison above checks the loader against the cell it read,
+        # which is the artefact against itself. Setting ICP4's genuinely inverted CDS
+        # pair to "no match in either direction" satisfied every plausibility check in
+        # this file and left 307 tests green, in the field round 14 surfaced to library
+        # users precisely because it decides whether an allele must be complemented at
+        # the other copy. Each value is re-measured from the reference sequence now,
+        # the way the builder measures it (standing rule 32: gate the artefact, not
+        # only the builder).
+        #
+        # This test was also deleted by a slice rewrite of this file during round 15
+        # and its absence papered over by lowering TESTS_PER_FILE, which is root cause
+        # 40 and exactly what that table's docstring says not to do.
+        from build_repeat_map import strand_relationship
+        sequence = genbank_sequence(require_reference())
+        remeasured = []
+        for pair in self.m.pairs:
+            measured = strand_relationship(tuple(pair.copy_1), tuple(pair.copy_2),
+                                           sequence)
+            if measured != pair.strand_relationship:
+                remeasured.append((pair.locus, pair.strand_relationship, measured))
+        self.assertEqual(
+            remeasured, [],
+            f"{len(remeasured)} pairs state a strand relationship the sequence does "
+            f"not give (locus, stated, measured): {remeasured[:6]}")
+
+
     def test_each_pair_sits_in_the_two_copies_of_its_repeat(self):
         """A copy that moved out of its repeat is the 90 kb mutation the reviewer made."""
         repeats = {label: next(r for r in self.m.regions
@@ -905,7 +953,7 @@ class EveryQuotedIntervalIsOneTheRecordStates(unittest.TestCase):
 
     NUMBER = r"(?:\d{1,3}(?:,\d{3})+|\d+)"
     RANGE = re.compile(rf"({NUMBER})\s*\.\.\s*({NUMBER})")
-    """Any interval, not only four-digit ones.
+    r"""Any interval, not only four-digit ones.
 
     Round 10: requiring four or more digits on both sides left six quoted intervals
     unchecked, including `1..9213`, which is the TRL extent and the first interval the

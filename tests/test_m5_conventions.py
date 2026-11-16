@@ -1037,8 +1037,8 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m1_dictionary": 48,
         "test_m2_annotation": 31,
         "test_m3_crosswalk": 48,
-        "test_m4_repeat_map": 57,
-        "test_m5_conventions": 104,
+        "test_m4_repeat_map": 58,
+        "test_m5_conventions": 106,
         "test_placeholder": 1,
         "test_readme_examples": 6,
     }
@@ -1148,29 +1148,99 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
             f"reports. Run `make all`. Missing: {sorted(set(absent))}")
 
     SKIP_SITES = {
-        "test_docs_match_artefacts": 4, "test_m1_dictionary": 2,
-        "test_m2_annotation": 2, "test_m3_crosswalk": 4, "test_m4_repeat_map": 1,
-        "test_m5_conventions": 4, "test_placeholder": 0, "test_readme_examples": 2,
+        "test_docs_match_artefacts": 5, "test_m1_dictionary": 2,
+        "test_m2_annotation": 2, "test_m3_crosswalk": 6, "test_m4_repeat_map": 3,
+        "test_m5_conventions": 9, "test_placeholder": 0, "test_readme_examples": 2,
     }
-    """How many `SkipTest` sites each test file holds.
+    r"""Every way each test file can decline to run something.
 
-    Round 14: the gate above is a list of conditions, and a reviewer found four skips
-    whose condition was not on it. A new skip is a new way for the suite to report OK
-    over less than it says, so adding one fails here until its condition is added to
-    that gate as well. Removing one is ordinary and lowers the number.
+    Round 14: a new skip is a new way for the suite to report OK over less than it
+    says, so adding one fails here until its condition is added to the checkout gate
+    below. Round 15: the count was `re.findall(r"SkipTest\(")`, which sees one of the
+    three spellings. It missed all 11 `self.skipTest(...)` calls and every
+    `@unittest.skipUnless`/`skipIf` decorator, so putting `SequenceAgreement` behind
+    an environment variable left the suite green at `OK (skipped=10)`, and it counted
+    a `SkipTest` mentioned in a docstring, so a real skip could be added for free by
+    rewording that sentence. It is counted from the syntax tree now: 29 sites against
+    the 18 the regex saw.
     """
 
+    @staticmethod
+    def _skip_sites(path) -> int:
+        """Skips of every spelling: the call, the method and the decorators."""
+        import ast
+        sites = 0
+        for node in ast.walk(ast.parse(path.read_text())):
+            if isinstance(node, ast.Call):
+                function = node.func
+                name = (function.attr if isinstance(function, ast.Attribute)
+                        else getattr(function, "id", ""))
+                if name in ("SkipTest", "skipTest"):
+                    sites += 1
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                for decorator in node.decorator_list:
+                    target = (decorator.func if isinstance(decorator, ast.Call)
+                              else decorator)
+                    name = (target.attr if isinstance(target, ast.Attribute)
+                            else getattr(target, "id", ""))
+                    if name.startswith("skip"):
+                        sites += 1
+        return sites
+
     def test_no_test_file_gains_a_skip_the_checkout_gate_does_not_cover(self):
-        import re as _re
-        counted = {}
-        for path in sorted((ROOT / "tests").glob("test_*.py")):
-            counted[path.stem] = len(_re.findall(r"SkipTest\(", path.read_text()))
+        counted = {path.stem: self._skip_sites(path)
+                   for path in sorted((ROOT / "tests").glob("test_*.py"))}
         self.assertEqual(
             counted, self.SKIP_SITES,
-            "the number of SkipTest sites has changed. Every skip is a test that "
-            "does not run, so each one's condition belongs in "
+            "the number of skip sites has changed. Every skip is a test that does "
+            "not run, so each one's condition belongs in "
             "test_a_checkout_holds_every_artefact_the_gates_skip_without, which fails "
             "in a checkout rather than skipping. Update that gate, then this count.")
+
+    def test_no_test_class_defines_the_same_method_twice(self):
+        """Round 15, twice in one session, both times mine.
+
+        A slice rewrite of `tests/test_m4_repeat_map.py` deleted a whole test and I
+        hid it by lowering `TESTS_PER_FILE`, which that table's own docstring says not
+        to do; restoring it from git then duplicated a neighbouring test, and the
+        second definition shadowed the first silently, so the file reported 58 tests
+        while running 57 distinct ones. Python allows it, discovery counts one, and
+        the diff is the only place it shows: root cause 40's shape in a different
+        edit.
+        """
+        import ast
+        duplicates = []
+        for path in sorted((ROOT / "tests").glob("test_*.py")):
+            for node in ast.parse(path.read_text()).body:
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                names = [n.name for n in node.body
+                         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+                for name in sorted(set(names)):
+                    if names.count(name) > 1:
+                        duplicates.append(f"{path.name}:{node.name}.{name}")
+        self.assertEqual(
+            duplicates, [],
+            f"{len(duplicates)} methods are defined twice in one class, so the "
+            f"second shadows the first and only one of them runs: {duplicates}")
+
+    def test_every_test_file_parses_without_a_syntax_warning(self):
+        r"""Round 15: a docstring in test_m4_repeat_map.py held `[\d,]*` unescaped.
+
+        Python warns and will one day refuse. Found while counting skip sites with
+        `ast`, which is the sort of thing a regex over source text cannot see.
+        """
+        import ast
+        import warnings
+        offenders = []
+        for path in sorted((ROOT / "tests").glob("test_*.py")):
+            with warnings.catch_warnings(record=True) as caught:
+                warnings.simplefilter("always")
+                ast.parse(path.read_text())
+            for warning in caught:
+                offenders.append((path.name, str(warning.message)[:60]))
+        self.assertEqual(offenders, [], f"{len(offenders)} test files parse with a "
+                                        f"warning: {offenders}")
 
     def test_no_file_contributes_fewer_tests_than_it_did(self):
         import unittest as _unittest
