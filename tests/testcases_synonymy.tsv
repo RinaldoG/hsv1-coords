@@ -134,15 +134,15 @@ Test case 10	31443275	full text read		ICP27
 Test case 10	31443275	full text read		ICP47
 Test case 10	31443275	full text read		VP22
 Test case 10	31443275	full text read		gC
-Test case 11	6098466		RS1	Vmw175
-Test case 11	6098466		RS1	ICP 4
-Test case 11	6098466		RL2	Vmw110
-Test case 11	6098466		RL2	ICP 0
-Test case 11	6098466		RL2	IE gene 1
-Test case 11	6098466			IE RNA 1
-Test case 11	6098466			IE RNA 2
-Test case 11	6098466			IE RNA 3
-Test case 11	6098466			IE RNA 4
+Test case 11	6098466	abstract only	RS1	Vmw175
+Test case 11	6098466	abstract only	RS1	ICP 4
+Test case 11	6098466	abstract only	RL2	Vmw110
+Test case 11	6098466	abstract only	RL2	ICP 0
+Test case 11	6098466	abstract only	RL2	IE gene 1
+Test case 11	6098466	abstract only		IE RNA 1
+Test case 11	6098466	abstract only		IE RNA 2
+Test case 11	6098466	abstract only		IE RNA 3
+Test case 11	6098466	abstract only		IE RNA 4
 Test case 12	6317887	abstract only	UL26.5	infected cell polypeptides (ICP) 35
 Test case 12	6317887	abstract only	UL26.5	ICP35
 Test case 12	6317887	abstract only	UL26.5	ICP35a

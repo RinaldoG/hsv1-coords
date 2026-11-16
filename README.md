@@ -32,6 +32,41 @@ from hsv1coords.liftover import lift_detailed
 
 Dictionary.load().resolve("VP16")                        # 'UL48'
 Dictionary.load().resolve("alpha-TIF")                   # 'UL48'
+```
+
+The dictionary refuses as often as it answers, and an answer can carry a warning.
+
+```python
+from hsv1coords import Dictionary
+from hsv1coords.resolver import AmbiguousName, RepeatPairedName
+
+d = Dictionary.load()
+
+# A name used for two genes, and a name that is one gene in two repeat copies, are
+# refused rather than guessed. `why_declined` explains a third kind: a name the table
+# holds and will not hand out, such as the HSV-2 name ICP10.
+for name in ("IE63", "pri-miRNA-H1"):
+    try:
+        print(name, "->", d.resolve(name))
+    except (AmbiguousName, RepeatPairedName) as refusal:
+        print(f"{type(refusal).__name__}: {refusal}")
+# AmbiguousName: "'IE63' is used for ['UL54', 'US1'] in the literature"
+# RepeatPairedName: "'pri-miRNA-H1' is one locus in two inverted-repeat
+# copies: ['IRL2.5', 'TRL2.5']"
+
+# A name that resolves can still carry a warning: how many copies of the gene the
+# reference holds, how well attested the mapping is, and whether the string is one
+# letter from another gene's.
+print(d.resolve("ICP0"), d.copies_in_the_reference("ICP0"), d.confidences_of("ICP0"))
+# RL2 2 ('established', 'established')
+print(d.caution_for("capsid scaffold protein"))
+# RefSeq /product for UL26.5. One letter from UniProt's recommended name for
+# UL26, 'capsid scaffolding protein'. See alias_notes.md
+```
+
+```python
+from hsv1coords import ConventionSet, Dictionary, RepeatMap, lift
+from hsv1coords.liftover import lift_detailed
 
 # A position outside the repeats lifts to a number.
 lift(60000, "JQ673480.1", "JQ780693.1")                  # 59722

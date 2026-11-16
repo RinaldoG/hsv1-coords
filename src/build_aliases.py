@@ -44,9 +44,15 @@ CIT = {
         "BK012101.1",
     ),
     "GTF": (
-        "Whisnant AW, Juerges CS, Hennig T, Erhard F, Doelken L et al. (2020) "
-        "HSV1_Annotation.gtf, dataset accompanying Nat Commun 11:2038, Zenodo; "
-        "gene_id and transcript_id attributes, seqname JN555585",
+        # Round 13: the author list named creators 1, 2, 3, 23 and 24 and then said
+        # "et al.", and the year and title were the paper's rather than the record's.
+        # Read from the Zenodo record itself on 16 November 2026: title "Decoding
+        # herpes simplex virus 1 by integrative multi-omics", publication date
+        # 5 April 2019, creators beginning Whisnant, Juerges, Hennig, Wyler, Prusty.
+        "Whisnant AW, Juerges CS, Hennig T, Wyler E, Prusty B et al. (2019) Decoding "
+        "herpes simplex virus 1 by integrative multi-omics, Zenodo record 3724023, the "
+        "dataset accompanying Nat Commun 11:2038; HSV1_Annotation.gtf, its gene_id and "
+        "transcript_id attributes, seqname JN555585",
         "10.5281/zenodo.3724023",
     ),
     "W20": (
@@ -166,8 +172,18 @@ CIT = {
         "Stewart JP, Trimpert J, Waltzek TB, Davison AJ, ICTV Report Consortium. ICTV "
         "Report chapter: Orthoherpesviridae (posted August 2021, updated May 2023), "
         "Table 2, shared genes in members of the family Orthoherpesviridae. Summary "
-        "paper: ICTV Virus Taxonomy Profile: Herpesviridae 2021, J Gen Virol 102:001673",
-        "10.1099/jgv.0.001673",
+        "paper: ICTV Virus Taxonomy Profile: Herpesviridae 2021, J Gen Virol 102:001673, "
+        "doi 10.1099/jgv.0.001673",
+        # Round 13: the identifier was that DOI, and the DOI resolves to the summary
+        # paper, which holds one table, "Characteristics of members of the family
+        # Herpesviridae", with no gene names in it. The 44 rows here cite Table 2 of
+        # the ICTV Report CHAPTER, which is a different document, read 16 November
+        # 2026: its Table 2, "Shared genes in members of the family
+        # Orthoherpesviridae", lists the 43 conserved genes with their HSV-1 names and
+        # standardised protein names, and all 43 pairs match these rows. The chapter
+        # has no DOI of its own, so the identifier is its URL and the summary paper's
+        # DOI stays in the citation string, where it describes what it is.
+        "https://ictv.global/report/chapter/orthoherpesviridae/orthoherpesviridae",
     ),
     "DAVISON2010": (
         "Davison AJ (2010) Herpesvirus systematics. Vet Microbiol 143:52-69. The source "

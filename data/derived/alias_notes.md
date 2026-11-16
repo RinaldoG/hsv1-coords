@@ -14,7 +14,7 @@ citations. Zero rows without a citation.**
 | Canonical genes | 166 |
 | Distinct gene/alias pairs | 378 |
 | Distinct citations | 103 |
-| Citations that are papers | 66 |
+| Citations that are papers | 65 |
 | Rows with no citation | 0 |
 | Confidence: established | 597 |
 | Confidence: probable | 78 |
@@ -22,6 +22,12 @@ citations. Zero rows without a citation.**
 | Inventory: classical | 245 |
 | Inventory: whisnant2020 | 103 |
 | Inventory: both | 335 |
+
+A citation counts as a paper when its identifier is a PubMed identifier or a DOI, with
+the Zenodo dataset excluded because it is data rather than a paper, and the book chapter
+and the ICTV Report chapter excluded because neither has an identifier of that kind. Round 13: the figure was stated with no definition and
+nothing derived it, and the document itself was outside the figure gate. Both documents
+are inside it now, and `hsv1coords.facts` derives this count.
 
 By alias type: 316 systematic, 159 functional, 136 protein, 50 molecular weight, 22
 other.

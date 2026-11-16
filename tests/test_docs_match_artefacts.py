@@ -22,7 +22,14 @@ sys.path.insert(0, str(ROOT / "src"))
 
 from hsv1coords.facts import derive, missing_inputs  # noqa: E402
 
-DOCS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
+DOCS = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md",
+        "data/derived/alias_notes.md", "data/derived/alias_testcases.md")
+"""Round 13: the two alias documents were outside this gate and said so nowhere.
+
+They are the ones a reader of the dictionary actually opens, they carry their own
+table of counts, and `alias_notes.md` stated "Citations that are papers | 66" with no
+definition and nothing deriving it. Being hand-written is not a reason to be ungated;
+it is the reason to be gated."""
 
 # The number of derived figures that must stay gated. Raising it is a deliberate edit;
 # a change that silently ungates a figure fails instead of printing a smaller number.
@@ -636,6 +643,18 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
         cls._result = cls._sweep()
         return cls._result
 
+    NARRATIVE = ("README.md", "ROADMAP.md", "FINDINGS.md", "CHANGELOG.md")
+    """The documents the rate floor was calibrated on.
+
+    Round 13 brought `data/derived/alias_notes.md` and `alias_testcases.md` inside this
+    gate, and they are mostly citations: PMIDs, years, page numbers and volume numbers,
+    none of which this repository derives. The denominator went from 371 numbers to 985
+    and the printed rate from 16.4 to 7.9 per cent with the gate untouched, which is
+    exactly the hazard `FLOOR_CAUGHT` already records in the other direction. So the
+    rate floor is applied to the set it describes, the rate over everything is printed
+    beside it, and the count floor covers the lot.
+    """
+
     @classmethod
     def _sweep(cls) -> tuple[int, int]:
         """Mutate every number and count what the gate catches.
@@ -656,6 +675,7 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
                  for doc, body in cls.bodies.items()
                  for m in standalone.finditer(body)]
         caught = tried = 0
+        cls._narrative = [0, 0]
         for doc, pos, value in sites:
             digits = value.replace(",", "")
             try:
@@ -670,8 +690,11 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
             # identical either way.
             broken = {doc: body[:pos] + wrong + body[pos + len(value):]}
             tried += 1
-            if contradictions(cls.facts, broken):
-                caught += 1
+            hit = bool(contradictions(cls.facts, broken))
+            caught += hit
+            if doc in cls.NARRATIVE:
+                cls._narrative[1] += 1
+                cls._narrative[0] += hit
         return caught, tried
 
     def _require_every_artefact(self) -> None:
@@ -687,18 +710,23 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
                            f"only {tried} numbers found, so this is not a measurement "
                            f"of the documents as they stand")
         rate = 100 * caught / tried
+        narrative_caught, narrative_tried = self._narrative
+        narrative_rate = 100 * narrative_caught / narrative_tried
         print(f"\n    measured catch rate, this gate alone: {caught} of {tried} figure "
-              f"mutations, every number in the documents ({rate:.1f} per cent), floors "
-              f"{self.FLOOR_CAUGHT} caught and {self.FLOOR_RATE} per cent")
+              f"mutations, every number in the documents ({rate:.1f} per cent); over "
+              f"the four narrative documents {narrative_caught} of {narrative_tried} "
+              f"({narrative_rate:.1f} per cent), floors {self.FLOOR_CAUGHT} caught and "
+              f"{self.FLOOR_RATE} per cent of those four")
         self.assertGreaterEqual(
             caught, self.FLOOR_CAUGHT,
             f"the gate caught {caught} mutations, below the recorded floor of "
             f"{self.FLOOR_CAUGHT}. Unlike the rate, this count does not move when "
             f"ungated prose numbers are added or removed, so it has shrunk.")
         self.assertGreaterEqual(
-            rate, self.FLOOR_RATE,
-            f"the gate caught {caught} of {tried} ({rate:.1f} per cent), below the "
-            f"recorded floor of {self.FLOOR_RATE} per cent")
+            narrative_rate, self.FLOOR_RATE,
+            f"the gate caught {narrative_caught} of {narrative_tried} "
+            f"({narrative_rate:.1f} per cent) over the four narrative documents, below "
+            f"the recorded floor of {self.FLOOR_RATE} per cent")
 
     def test_the_roadmap_states_the_rate_this_run_measures(self):
         self._require_every_artefact()
@@ -710,7 +738,8 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
         overstated the number it was added to state honestly. The rate is not derivable
         from any artefact, so the only way to gate it is to measure it here and compare.
         """
-        caught, tried = self._measure()
+        self._measure()
+        caught, tried = self._narrative
         rate = 100 * caught / tried
         body = flat("ROADMAP.md")
         m = re.search(r"\|\s*This gate alone\s*\|\s*\*\*about ([\d.]+) per cent\*\*",

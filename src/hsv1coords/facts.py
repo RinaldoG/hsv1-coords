@@ -190,7 +190,22 @@ def derive(allow_partial: bool = False) -> list[Fact]:
         facts.append(Fact("alias_citations",
                           len({r["citation_identifier"] for r in rows
                                if r.get("citation_identifier")}),
-                          ("distinct citation identifiers",)))
+                          ("distinct citation identifiers", "distinct citations")))
+        # Round 13: `alias_notes.md` stated "Citations that are papers | 66" with no
+        # definition and nothing deriving it, and the document was outside the gate
+        # altogether. 66 is reachable only as the PubMed and DOI identifiers minus the
+        # Zenodo dataset, which leaves out the book chapter two rows cite. The
+        # definition is stated here and in the document: a paper is a citation with a
+        # PubMed identifier or a DOI, the Zenodo dataset excluded because it is data.
+        identifiers = {r["citation_identifier"] for r in rows
+                       if r.get("citation_identifier")}
+        facts.append(Fact(
+            "alias_paper_citations",
+            len({i for i in identifiers
+                 if (i.startswith("PMID:") or i.startswith("10."))
+                 and not i.startswith("10.5281/zenodo")}),
+            (),
+            prefixes=("Citations that are papers |",)))
 
     repeat_map = DERIVED / "repeat_map.tsv"
     pairs_file = DERIVED / "diploid_pairs.tsv"

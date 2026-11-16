@@ -842,6 +842,33 @@ class EveryMappingIsAttestedAndTheUngatedOnesAreCounted(unittest.TestCase):
 
 
 
+class EveryGeneratedTestCaseStatesHowTheSourceWasRead(unittest.TestCase):
+    """Round 13: `build_testcases.py` recognised two exact access strings.
+
+    "Access: full text read" and "Access: abstract only", and anything else fell
+    through to an empty string, so test case 11's "Access: abstract read in full; the
+    PMC body is a scanned PDF ..." produced 9 of 163 rows with no access level at all.
+    The same parser counts and reports the table rows it cannot read, which is how
+    nine name strings were once lost; this field failed silently beside it.
+
+    Whether a name string was read in a body or only in an abstract is the difference
+    between a verified pairing and a reported one, so a row without it says nothing
+    about how good it is.
+    """
+
+    def test_no_generated_row_is_missing_its_access_level(self):
+        rows = list(csv.DictReader(CASES.open(), delimiter="\t"))
+        self.assertTrue(rows, "the generated test cases are empty")
+        allowed = {"full text read", "abstract only"}
+        bad = sorted({(r["case"], r.get("access", "")) for r in rows
+                      if r.get("access", "") not in allowed})
+        self.assertEqual(
+            bad, [],
+            f"{len(bad)} generated rows carry no recognised access level, so nothing "
+            f"says whether the paper's body or only its abstract was read: {bad}")
+
+
+
 class TheDeclaredGapsAreRealGaps(unittest.TestCase):
     """A gap declared in `known_gaps.tsv` must still be a gap, or the file is stale.
 

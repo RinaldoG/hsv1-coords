@@ -46,16 +46,27 @@ def main() -> int:
     blocks = re.split(r"^## (Test case .*)$", SRC.read_text(), flags=re.M)
     rows: list[tuple[str, str, str, str, str]] = []
     unread: list[tuple[str, str]] = []
+    unreadable_access: list[str] = []
     for i in range(1, len(blocks), 2):
         case = blocks[i].split(":")[0].strip()
         body = blocks[i + 1]
         m = re.search(r"PMID (\d+)", body)
         pmid = m.group(1) if m else ""
+        # Round 13: this recognised two exact strings and fell through to "" for
+        # anything else, so test case 11's "Access: abstract read in full; the PMC
+        # body is a scanned PDF ..." produced an empty access level in 9 of the 163
+        # generated rows, silently. The same parser counts and reports the table rows
+        # it cannot read; this field did not. The declared level is now required.
         if "Access: full text read" in body:
             access = "full text read"
-        elif "Access: abstract only" in body:
+        elif "Access: abstract only" in body or "Access: abstract read" in body:
             access = "abstract only"
         else:
+            stated = re.search(r"\*\*Access: ([^*]+)\*\*", body)
+            print(f"  !! {case}: access level "
+                  f"{stated.group(1).strip() if stated else 'absent'!r} is not one "
+                  f"this parser recognises", file=sys.stderr)
+            unreadable_access.append(case)
             access = ""
         for line in body.splitlines():
             if not line.lstrip().startswith("|"):
@@ -108,6 +119,11 @@ def main() -> int:
             fh.write("\t".join(row) + "\n")
     papers = len({r[0] for r in rows})
     print(f"{len(rows)} assertions across {papers} papers -> {OUT}")
+    if unreadable_access:
+        print(f"\n{len(unreadable_access)} test cases state an access level this "
+              f"parser does not recognise, so their rows carry no access level: "
+              f"{unreadable_access}", file=sys.stderr)
+        return 1
     if unread:
         print(f"\n{len(unread)} table rows could not be read and are NOT in the test "
               f"cases:", file=sys.stderr)

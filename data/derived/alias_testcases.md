@@ -271,8 +271,8 @@ DOI 10.3390/v13091849.
 | UL1 | `gL`, `UL1` | "Glycoprotein gL, a 224aa glycoprotein encoded by the UL1 gene"; "UL1 (gL)" |
 | UL22 | `gH`, `UL22` | "UL22 (gH)"; "Glycoprotein H (gH)" |
 | UL53 | `gK`, `UL53` | "The UL20 and UL53 (gK) genes are among the most conserved"; "Glycoprotein K (gK)" |
-| UL27 | `gB` only | 97 occurrences of `gB`, and `UL27` never appears |
-| US6 | `gD` only | 51 occurrences of `gD`, and no `US` name appears anywhere in the paper |
+| UL27 | `gB` only | `gB` throughout, and `UL27` never appears |
+| US6 | `gD` only | `gD` throughout, and no `US` name appears anywhere in the paper |
 | UL44, US8, US7, UL10 | `gC`, `gE`, `gI`, `gM` | "including gE, gI, gM, gK, and the UL20 and UL45 proteins" |
 | UL20, UL45, UL11, UL16, UL21 | systematic only | "the tegument proteins UL11, UL16, and UL21 bind to the cytoplasmic tail of gE" |
 
@@ -339,6 +339,17 @@ PMID 6098466. PMCID PMC557829.
 **Access: abstract read in full; the PMC body is a scanned PDF and was searched only
 through the PMC article page, which exposes abstract and references.**
 
+Round 13 correction, 16 November 2026: the four `IE RNA` strings in the table below
+were attributed to this paper and are not in what was read. They are not in the
+abstract, and two routes to the body failed that day (Europe PMC `fullTextXML`
+returned HTTP 500; the PMC article page serves the body as page images). They are
+recorded in `tests/known_gaps.tsv` as `missing_content`, so nothing reaches a user
+from them, and they stay listed here with the attribution marked rather than quietly
+deleted. The two occurrence counts in test case 9, "97 occurrences of `gB`" and "51
+occurrences of `gD`", were removed in the same pass: a review count over the Europe
+PMC full text that day gave 98 and 51 whole-article and 81 and 40 body-only, so the
+figures depended on an unstated scope and nothing in the repository derived them.
+
 The abstract prints: **"the HSV-1 IE polypeptide Vmw175 (ICP 4) is essential"** and
 **"Vmw175 plus the product of IE gene 1, Vmw110 (ICP 0), is a much better activator"**
 
@@ -346,7 +357,7 @@ The abstract prints: **"the HSV-1 IE polypeptide Vmw175 (ICP 4) is essential"** 
 |---|---|
 | RS1 | `Vmw175`, `ICP 4` |
 | RL2 | `Vmw110`, `ICP 0`, `IE gene 1` |
-| IE transcripts | `IE RNA 1`, `IE RNA 2`, `IE RNA 3`, `IE RNA 4` |
+| IE transcripts | `IE RNA 1` to `IE RNA 4`, attribution not supported by what was read |
 
 **Pass condition:** the spaced forms `ICP 4` and `ICP 0` resolve as readily as `ICP4` and
 `ICP0`. Note the IE *gene* numbering (`IE gene 1` to `IE gene 5`) is a sixth numbering,
