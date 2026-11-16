@@ -69,6 +69,7 @@ jobs:
           make crosswalk
           make versions
           make repeatmap
+          make gff3
           make agreement
           make testcases
           # Round 12: `make package-data` ran nowhere in CI, and the staged tree is
@@ -89,6 +90,18 @@ jobs:
             git status --porcelain -- data/derived tests data/accessions.txt data/genomes.sha256
             exit 1
           fi
+
+      - name: Validate the GFF3 with independent parsers
+        # ROADMAP M2's last criterion: the annotation parses with two independent GFF3
+        # parsers and zero warnings. These are validation-only tools, installed here
+        # and never imported by the library: genometools from apt, and the `gff3` and
+        # `bcbio-gff` validators in a virtualenv that is gitignored.
+        run: |
+          sudo apt-get install -y genometools
+          gt --version
+          python3 -m venv .venv
+          .venv/bin/pip install gff3==1.0.1 bcbio-gff==0.7.1
+          make validate-gff3
 
       - name: Milestone gates
         run: make test
