@@ -1035,7 +1035,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     TESTS_PER_FILE = {
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
-        "test_m2_annotation": 27,
+        "test_m2_annotation": 31,
         "test_m3_crosswalk": 48,
         "test_m4_repeat_map": 57,
         "test_m5_conventions": 104,
@@ -1149,7 +1149,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     SKIP_SITES = {
         "test_docs_match_artefacts": 4, "test_m1_dictionary": 2,
-        "test_m2_annotation": 1, "test_m3_crosswalk": 4, "test_m4_repeat_map": 1,
+        "test_m2_annotation": 2, "test_m3_crosswalk": 4, "test_m4_repeat_map": 1,
         "test_m5_conventions": 4, "test_placeholder": 0, "test_readme_examples": 2,
     }
     """How many `SkipTest` sites each test file holds.

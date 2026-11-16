@@ -267,6 +267,120 @@ class DocumentedDiscrepancy(unittest.TestCase):
                           f"the changelog does not mention {required!r}")
 
 
+class EveryGtfRowIsALineOfTheGtf(unittest.TestCase):
+    """Round 15: the 910 GTF-sourced rows, 51 per cent of the table, were ungated.
+
+    The strand gate looked each row up by (name, type, bare location) and skipped any
+    row it could not find, so a wrong name or a moved location left the gate rather
+    than failing it. The cross-format check sees only the 50 rows whose triple also
+    appears in `BK012101.1`, and 431 rows are `exon` or `transcript`, which that
+    record never states, so they could never enter it. 848 rows spanning 2,005,286
+    bases, 277 of them CDS, rested on an eight-name hand list.
+
+    What that cost, each replayed with the whole suite and each green before this:
+    swapping the names `UL23` and `UL27` over 12 rows, which puts gB's name on 1,306
+    bp of thymidine kinase; moving four `UL23` CDS rows 5,000 bp; and two builder
+    mutations, one shifting every exon and transcript by 137 bp (431 rows) and one
+    taking each row's `gene_id` from the previous line (169 rows pointing at the
+    neighbouring gene). The builder cases are the serious ones: CI rebuilds the
+    artefact, so its rebuild-and-diff step reproduces the corrupted table and passes
+    too.
+
+    This reads the GTF's own columns rather than `extract_names.parse_gtf`, because a
+    gate written from the parser it checks shares the parser's defects (root cause
+    53). Measured when written: 910 lines, 910 rows, 0 mismatches, no exemption.
+    """
+
+    ATTRIBUTE = re.compile(r'(gene_id|transcript_id) "([^"]+)"')
+    SPAN = re.compile(r"^(\d+)\.\.(\d+)$")
+
+    @classmethod
+    def setUpClass(cls):
+        gtf = ROOT / "data" / "raw" / "HSV1_Annotation.gtf"
+        if not gtf.exists():
+            raise unittest.SkipTest("HSV1_Annotation.gtf is fetched, not committed")
+        cls.lines = 0
+        cls.names_at: dict[tuple, set[str]] = {}
+        cls.seqnames: set[str] = set()
+        for line in gtf.read_text().splitlines():
+            if not line.strip() or line.startswith("#"):
+                continue
+            fields = line.split("\t")
+            seqname, _, kind, start, end, _, strand = fields[:7]
+            attributes = fields[8] if len(fields) > 8 else ""
+            cls.lines += 1
+            cls.seqnames.add(seqname)
+            key = (kind, int(start), int(end), strand)
+            cls.names_at.setdefault(key, set()).update(
+                value for _, value in cls.ATTRIBUTE.findall(attributes))
+        cls.rows = [r for r in rows() if r["source"] == "whisnant2020-gtf"]
+
+    def _key(self, row) -> tuple | None:
+        bare = row["location"].replace("complement(", "").rstrip(")")
+        span = self.SPAN.match(bare)
+        if not span:
+            return None
+        strand = "-" if row["location"].startswith("complement(") else "+"
+        return (row["feature_type"], int(span.group(1)), int(span.group(2)), strand)
+
+    def test_every_row_s_name_type_span_and_strand_are_one_line_of_the_file(self):
+        wrong = []
+        for row in self.rows:
+            key = self._key(row)
+            if key is None:
+                wrong.append((row["name"], row["location"], "location unparsed"))
+                continue
+            stated = self.names_at.get(key)
+            if stated is None:
+                wrong.append((row["name"], row["feature_type"], row["location"],
+                              "the file states no line with that type, span and "
+                              "strand"))
+            elif row["name"] not in stated:
+                wrong.append((row["name"], row["feature_type"], row["location"],
+                              f"the file calls it {sorted(stated)}"))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} of {len(self.rows)} GTF-sourced rows are not a line of "
+            f"HSV1_Annotation.gtf: {wrong[:8]}")
+
+    def test_the_row_count_is_the_file_s_line_count(self):
+        """Derived from the file, not a typed floor (standing rule 47)."""
+        self.assertEqual(
+            len(self.rows), self.lines,
+            f"{len(self.rows)} rows carry source `whisnant2020-gtf` and the file has "
+            f"{self.lines} feature lines, so the table has gained or lost features")
+        self.assertGreater(self.lines, 0, "the GTF holds no feature lines")
+
+    def test_no_line_of_the_file_is_missing_from_the_table(self):
+        """The other direction: a dropped feature is as wrong as an invented one."""
+        present = set()
+        for row in self.rows:
+            key = self._key(row)
+            if key is not None:
+                present.add(key)
+        missing = sorted(set(self.names_at) - present)
+        self.assertEqual(
+            missing, [],
+            f"{len(missing)} features in HSV1_Annotation.gtf have no row in the "
+            f"table: {missing[:8]}")
+
+    def test_the_file_states_one_sequence_and_the_table_says_which(self):
+        """`parse_gtf` never reads column 1, so the frame is an unasserted default.
+
+        The GTF's coordinates are JN555585's, which is byte-identical to
+        NC_001806.2, and that identity is what makes these rows comparable with the
+        reference's. A second seqname would silently mix frames (root cause 6b), and
+        a parser that does not read the field cannot notice.
+        """
+        self.assertEqual(sorted(self.seqnames), ["JN555585"],
+                         f"the GTF states more than one sequence: {self.seqnames}")
+        provenance = {r["provenance"] for r in self.rows}
+        self.assertTrue(
+            all("JN555585" in p for p in provenance),
+            f"a GTF-sourced row does not name the sequence its coordinates are in: "
+            f"{sorted(provenance)[:2]}")
+
+
 class StrandSurvivesEverySource(unittest.TestCase):
     """Round 10's blocker: the GTF's strand column was never read.
 
@@ -304,6 +418,13 @@ class StrandSurvivesEverySource(unittest.TestCase):
             bare = r["location"].replace("complement(", "").rstrip(")")
             strand = expected.get((r["name"], r["feature_type"], bare))
             if strand is None:
+                # Round 15: this was `continue`, so a row whose name or location the
+                # GTF does not state left the gate instead of failing it, and 848 of
+                # the 910 GTF-sourced rows were tied to nothing.
+                # `EveryGtfRowIsALineOfTheGtf` below is the check that reads them all;
+                # this one keeps its own failure rather than passing them on.
+                wrong.append((r["name"], r["feature_type"], r["location"],
+                              "the GTF states no such feature under that name"))
                 continue
             complemented = r["location"].startswith("complement(")
             if (strand == "-") != complemented:

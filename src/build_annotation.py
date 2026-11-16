@@ -39,7 +39,13 @@ SOURCES = [
      "Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, "
      "Nat Commun 11:2038, PMID 32341360"),
     ("whisnant2020-gtf", "HSV1_Annotation.gtf", "gtf",
-     "Whisnant et al. 2020 annotation as distributed on Zenodo, 10.5281/zenodo.3724023"),
+     # Round 15: the frame was not on the row. Every coordinate in the GTF is a
+     # JN555585 coordinate, and that accession's sequence is byte-identical to
+     # NC_001806.2, which is the only reason these rows are comparable with the
+     # reference's. `parse_gtf` never reads the seqname column either, so nothing
+     # stated it anywhere (standing rule 19: the frame travels with the value).
+     "Whisnant et al. 2020 annotation as distributed on Zenodo, 10.5281/zenodo.3724023; "
+     "coordinates in JN555585, whose sequence is identical to NC_001806.2"),
 ]
 
 # How a feature's name and qualifiers decide what CLASS of thing it is. Order matters:

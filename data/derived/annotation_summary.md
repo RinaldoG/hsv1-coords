@@ -73,4 +73,4 @@ Stated so that nobody has to infer the mix from the counts above.
 
 - **`NC_001806.2`**: RefSeq reference annotation, provisional, last modified 13 August 2018
 - **`BK012101.1`**: Whisnant et al. 2020 re-annotation, third-party annotation on JN555585.1, Nat Commun 11:2038, PMID 32341360
-- **`whisnant2020-gtf`**: Whisnant et al. 2020 annotation as distributed on Zenodo, 10.5281/zenodo.3724023
+- **`whisnant2020-gtf`**: Whisnant et al. 2020 annotation as distributed on Zenodo, 10.5281/zenodo.3724023; coordinates in JN555585, whose sequence is identical to NC_001806.2

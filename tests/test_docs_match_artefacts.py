@@ -256,12 +256,12 @@ class EveryStatedFigureMatchesItsArtefact(unittest.TestCase):
             f"878 in README.md with the suite otherwise green. Restore the phrasing, or "
             f"lower the entry and say why in the commit message:\n  "
             + "\n  ".join(lost))
-        self.assertEqual(
-            gained, [],
-            f"{len(gained)} figures now reach MORE sentences than REACHED_SITES "
-            f"records, so the entry is behind the measurement and the gain could be "
-            f"lost again unnoticed. Raise each entry in the commit that earned it:\n  "
-            + "\n  ".join(gained))
+        # Round 14 made a rise a failure, so adding one correct sentence that states
+        # a gated figure failed the build until this table was edited in the same
+        # commit. Round 15: that is a false failure on an honest edit, and the thing
+        # worth catching is a FALL, which the assertion above does. A rise is printed,
+        # and the unpinned-fact check below is what closes the hole round 14 was
+        # actually aiming at.
         if gained:
             print(f"\n    REACHED_SITES is behind: {', '.join(gained)}. Raising an "
                   f"entry is ordinary; do it in the same commit as the new sentence.")
@@ -641,7 +641,7 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
     shrinks the gate shows up as a number rather than as silence.
     """
 
-    FLOOR_RATE = 18.0
+    FLOOR_RATE = 40.0
     """A floor on the figure-comparison gate ALONE, not on the suite.
 
     Round 8 measured this on a 60-site sample with a fixed seed and printed 15.0 per
@@ -717,6 +717,19 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
                  for m in standalone.finditer(body)]
         caught = tried = 0
         cls._narrative = [0, 0]
+        # Round 15: the rate's denominator is every number in the prose, so ten
+        # citations added to FINDINGS.md took the narrative rate from 20.3 to 18.0 per
+        # cent and failed the build, with a message blaming the gate: round 14 raised
+        # that floor to 18.0 and made an edit this project's own conventions ask for
+        # into a red suite. Deleting prose numbers would have "improved" it, which is
+        # the hazard FLOOR_CAUGHT's docstring already describes.
+        #
+        # The denominator that means something is the number of sites that state a
+        # value this repository DERIVES. A citation list does not move it; a derived
+        # figure stated in one more sentence does. That is what the floor is on now,
+        # and the two older rates are still printed.
+        derived_values = {form for fact in cls.facts for form in fact.forms}
+        cls._derived = [0, 0]
         for doc, pos, value in sites:
             digits = value.replace(",", "")
             try:
@@ -736,6 +749,9 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
             if doc in cls.NARRATIVE:
                 cls._narrative[1] += 1
                 cls._narrative[0] += hit
+            if value in derived_values:
+                cls._derived[1] += 1
+                cls._derived[0] += hit
         return caught, tried
 
     def _require_every_artefact(self) -> None:
@@ -757,21 +773,27 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
         rate = 100 * caught / tried
         narrative_caught, narrative_tried = self._narrative
         narrative_rate = 100 * narrative_caught / narrative_tried
+        derived_caught, derived_tried = self._derived
+        derived_rate = 100 * derived_caught / derived_tried
         print(f"\n    measured catch rate, this gate alone: {caught} of {tried} figure "
               f"mutations, every number in the documents ({rate:.1f} per cent); over "
               f"the four narrative documents {narrative_caught} of {narrative_tried} "
-              f"({narrative_rate:.1f} per cent), floors {self.FLOOR_CAUGHT} caught and "
-              f"{self.FLOOR_RATE} per cent of those four")
+              f"({narrative_rate:.1f} per cent); over the sites that state a DERIVED "
+              f"value {derived_caught} of {derived_tried} ({derived_rate:.1f} per "
+              f"cent), floors {self.FLOOR_CAUGHT} caught and {self.FLOOR_RATE} per "
+              f"cent of the derived sites")
         self.assertGreaterEqual(
             caught, self.FLOOR_CAUGHT,
             f"the gate caught {caught} mutations, below the recorded floor of "
             f"{self.FLOOR_CAUGHT}. Unlike the rate, this count does not move when "
             f"ungated prose numbers are added or removed, so it has shrunk.")
         self.assertGreaterEqual(
-            narrative_rate, self.FLOOR_RATE,
-            f"the gate caught {narrative_caught} of {narrative_tried} "
-            f"({narrative_rate:.1f} per cent) over the four narrative documents, below "
-            f"the recorded floor of {self.FLOOR_RATE} per cent")
+            derived_rate, self.FLOOR_RATE,
+            f"the gate caught {derived_caught} of {derived_tried} "
+            f"({derived_rate:.1f} per cent) of the sites that state a derived value, "
+            f"below the recorded floor of {self.FLOOR_RATE} per cent. Unlike the two "
+            f"rates printed beside it, this denominator does not move when prose "
+            f"numbers are added or removed.")
 
     def test_the_roadmap_states_the_rate_this_run_measures(self):
         self._require_every_artefact()
@@ -784,7 +806,11 @@ class TheCatchRateIsMeasuredNotClaimed(unittest.TestCase):
         from any artefact, so the only way to gate it is to measure it here and compare.
         """
         self._measure()
-        caught, tried = self._narrative
+        # Round 15: this compared the narrative rate, whose denominator is every
+        # number in four documents, so twenty added citations moved it past the ±1.0
+        # tolerance and failed the build. It states the derived-site rate now, the
+        # same one the floor is on.
+        caught, tried = self._derived
         rate = 100 * caught / tried
         body = flat("ROADMAP.md")
         m = re.search(r"\|\s*This gate alone\s*\|\s*\*\*about ([\d.]+) per cent\*\*",

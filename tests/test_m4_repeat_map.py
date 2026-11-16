@@ -492,32 +492,75 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
             cls.extents.add((min(s for s, _ in spans), max(e for _, e in spans)))
             for span in spans:
                 cls.extents.add(span)
-        # Round 14: every name the record states at each interval, so the NAME can be
-        # checked against the interval and not only the interval against the record.
+        # Every name the record states at each interval, so the NAME can be checked
+        # against the interval and not only the interval against the record.
+        #
+        # Round 15: this collected EVERY string qualifier, `/translation` and
+        # `/db_xref` included, and compared by substring, so `LAT` passed at ICP4's
+        # CDS pair because `LAT` is inside the `/product` string "transcriptional
+        # regulator ICP4". Relabelling that pair `LAT` put the latency transcript's
+        # name on 7,794 positions with all 307 tests green: the round 14 defect
+        # reproduced in the round 14 gate. A protein translation is sequence, not
+        # annotation (root cause 53), and a substring is not a name.
         cls.names_at = {}
         for f in cls.features:
             spans = spans_of(f.get("_location", ""))
             if not spans:
                 continue
-            stated = {str(v) for k, v in f.items()
-                      if not k.startswith("_") and isinstance(v, str)}
-            stated.add(f.get("_type", ""))
+            stated = set()
+            for qualifier in ("gene", "locus_tag", "product", "standard_name", "note",
+                              "rpt_type", "regulatory_class", "ncRNA_class"):
+                value = f.get(qualifier)
+                if not isinstance(value, str) or not value.strip():
+                    continue
+                stated.add(value.strip().lower())
+                # A note states several names in one string: "TRL; inverted repeat
+                # flanking UL" names TRL.
+                for clause in re.split(r"[;,]", value):
+                    if clause.strip():
+                        stated.add(clause.strip().lower())
             whole = (min(s for s, _ in spans), max(e for _, e in spans))
             for interval in [whole] + list(spans):
                 cls.names_at.setdefault(interval, set()).update(stated)
         cls.m = RepeatMap.load(DERIVED)
 
-    @classmethod
-    def _record_names_it(cls, name: str, interval) -> bool:
-        """Does the record state this name at this interval?
+    ONE_SIDED_COMPOSITES = {
+        ("US1 / US12", (132101, 132106)),
+        ("US1 / US12", (146091, 146096)),
+        ("IRS reiteration set 3 / RS reiteration set 3", (132391, 132516)),
+        ("IRS reiteration set 3 / RS reiteration set 3", (145681, 145806)),
+        ("TATA_box / LAT", (7592, 7597)),
+    }
+    """Pair copies whose composite name the record states only one half of.
 
-        A composite locus, `US1 / US12` or `TATA_box / LAT`, is the builder's way of
-        naming a pair whose two copies the record names differently, so one part is
-        enough; the point is that the name belongs to the interval at all.
+    A composite locus is the builder's way of naming a pair whose two copies the
+    record names differently, and at these five intervals only one half is stated:
+    the record names `US1` and not `US12` at the US1/US12 regulatory copies, `RS
+    reiteration set 3` and not its internal twin, and `LAT` and not `TATA_box` at
+    7,592..7,597. Round 15: accepting one half ANYWHERE was what let `TATA_box / LAT`
+    pass at four intervals it has nothing to do with, so the allowance is a list of
+    five, named and counted (standing rule 46), and every other name must be stated
+    in full.
+    """
+
+    @classmethod
+    def _parts(cls, name: str) -> list[str]:
+        return [p.strip().lower() for p in name.split("/") if p.strip()]
+
+    @classmethod
+    def _record_names_it(cls, name: str, interval, exempt: bool = False) -> bool:
+        """Does the record state this name, whole, at this interval?
+
+        Whole names, case-folded, never substrings. Every part of a composite has to
+        be stated, unless this copy is one of the five in `ONE_SIDED_COMPOSITES`.
         """
-        stated = cls.names_at.get(tuple(interval), ())
-        return any(any(part.strip().lower() in value.lower() for value in stated)
-                   for part in name.split("/"))
+        stated = cls.names_at.get(tuple(interval), set())
+        parts = cls._parts(name)
+        if not parts:
+            return False
+        if exempt:
+            return any(p in stated for p in parts)
+        return all(p in stated for p in parts)
 
     def test_every_region_interval_is_one_the_record_states(self):
         strays = [(r.name, r.start, r.end) for r in self.m.regions
@@ -546,19 +589,16 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
                                 "almost nothing")
 
     def test_every_name_in_both_artefacts_is_the_record_s_name_for_that_interval(self):
-        """Round 14: the two tests above check the interval and not the name.
+        """Round 14: the interval tests above check the interval and not the name.
 
-        That is the easy half of the tuple, which is root cause 46, and M2 had the
-        same defect fixed in round 12 (`test_every_genbank_location_matches_the_record
-        _it_came_from`, "it checked the location and not the name") while these two
-        sibling artefacts never received it. Relabelling the RS1 CDS pair in
-        `diploid_pairs.tsv` as `US1`, in both intervals, left all 301 tests green and
-        put ICP22's name on 7,794 reference positions where ICP4 belongs, printed by
-        `LiftResult.__str__` as "NOT well defined (RS1, US1)". Round 12 fixed the same
-        defect in the same file at 700 positions.
+        That is the easy half of the tuple, root cause 46, and M2 had the same defect
+        fixed in round 12 while these two sibling artefacts never received it.
+        Relabelling the RS1 CDS pair in `diploid_pairs.tsv` as `US1` left all 301
+        tests green and put ICP22's name on 7,794 reference positions where ICP4
+        belongs, printed by `LiftResult.__str__` as "NOT well defined (RS1, US1)".
 
-        Measured when written: 34 of 34 regions and 64 of 64 diploid copies pass, with
-        no exemption.
+        Round 15 rewrote the predicate: see `names_at` for what the first version
+        accepted, and the sweep below for the control it did not have.
         """
         wrong = [(r.name, r.kind, r.start, r.end) for r in self.m.regions
                  if not self._record_names_it(r.name, (r.start, r.end))]
@@ -566,41 +606,57 @@ class EveryIntervalComesFromTheRecord(unittest.TestCase):
             wrong, [],
             f"{len(wrong)} regions in repeat_map.tsv carry a name the record does not "
             f"state at that interval: {wrong[:6]}")
-        strays = []
+        strays, exemptions = [], set()
         for pair in self.m.pairs:
             for label, copy in (("copy_1", pair.copy_1), ("copy_2", pair.copy_2)):
-                if not self._record_names_it(pair.locus, copy):
+                exempt = (pair.locus, tuple(copy)) in self.ONE_SIDED_COMPOSITES
+                if not self._record_names_it(pair.locus, copy, exempt):
                     strays.append((pair.locus, label, tuple(copy)))
+                elif exempt:
+                    exemptions.add((pair.locus, tuple(copy)))
         self.assertEqual(
             strays, [],
             f"{len(strays)} diploid-pair copies carry a locus name the record does not "
             f"state at that interval, so a position would be reported under the wrong "
             f"gene: {strays[:6]}")
-        self.assertGreaterEqual(len(self.m.regions) + 2 * len(self.m.pairs), 90,
-                                "the artefacts collapsed, so this gate checked little")
+        # An exemption that no longer applies is deleted, not carried (rule 46).
+        self.assertEqual(
+            sorted(self.ONE_SIDED_COMPOSITES - exemptions), [],
+            "an entry in ONE_SIDED_COMPOSITES is not needed any more; delete it")
 
-    def test_every_pair_carries_the_strand_relationship_the_artefact_states(self):
-        """Round 14: the loader dropped the column.
+    def test_a_name_from_the_other_end_of_the_artefacts_mostly_fails(self):
+        """The control the round 14 version did not have, measured and pinned.
 
-        So a library user of `RepeatMap.pairs` could not see whether a pair's two
-        copies are inverted, which is the fact that decides whether an allele has to
-        be complemented to read it at the other copy, while the TSV and the .md both
-        state it.
+        Round 15: with the first predicate, 7 of 34 regions and 17 of 32 pairs could
+        be relabelled with another name already in the two artefacts and pass, among
+        them ICP4's CDS pair as `LAT`. The residue is 9 of 98 name slots now, and
+        every one of them is a name the record genuinely does state at that interval:
+        a reiteration set nested inside `RL1` or `RL2`, or one of the five one-sided
+        composites. It may fall and may not rise.
         """
-        import csv as _csv
-        with (DERIVED / "diploid_pairs.tsv").open() as fh:
-            stated = [r for r in _csv.DictReader(fh, delimiter="\t")]
-        self.assertEqual(len(stated), len(self.m.pairs))
-        for row, pair in zip(stated, self.m.pairs):
-            with self.subTest(locus=pair.locus):
-                self.assertEqual(pair.strand_relationship,
-                                 row["strand_relationship"])
-        kinds = {p.strand_relationship for p in self.m.pairs}
-        self.assertIn("inverted", kinds,
-                      "no pair is recorded as inverted, so the field carries nothing")
-        self.assertGreater(len(kinds), 1,
-                           f"the strand relationship is a constant, {kinds}, so it "
-                           f"distinguishes nothing")
+        names = sorted({r.name for r in self.m.regions}
+                       | {p.locus for p in self.m.pairs})
+        slots, loose = 0, []
+        for region in self.m.regions:
+            slots += 1
+            others = [n for n in names if n != region.name
+                      and self._record_names_it(n, (region.start, region.end))]
+            if others:
+                loose.append((region.name, others[:3]))
+        for pair in self.m.pairs:
+            for label, copy in (("copy_1", pair.copy_1), ("copy_2", pair.copy_2)):
+                slots += 1
+                exempt = (pair.locus, tuple(copy)) in self.ONE_SIDED_COMPOSITES
+                others = [n for n in names if n != pair.locus
+                          and self._record_names_it(n, copy, exempt)]
+                if others:
+                    loose.append((f"{pair.locus} {label}", others[:3]))
+        print(f"\n    repeat-map name gate: {slots - len(loose)} of {slots} name "
+              f"slots accept no other name in the artefacts, {len(loose)} do")
+        self.assertLessEqual(
+            len(loose), 9,
+            f"{len(loose)} of {slots} name slots accept another artefact name and the "
+            f"recorded figure is 9, so the gate has weakened: {loose[:6]}")
 
     def test_the_three_rules_for_whether_a_pair_is_exact_agree(self):
         """Round 14: three places answered it and none of them asked the others.
