@@ -84,6 +84,15 @@ def parse_genbank(path: pathlib.Path) -> list[dict]:
                 current[key] = f"{current[key]}; {val}"
             else:
                 current[key] = val
+        elif re.match(r"^ {21}/[A-Za-z_]+\s*$", line):
+            # A qualifier with no value, such as `/pseudo` or `/ribosomal_slippage`.
+            # Round 15, latent: `QUALIFIER` requires `=`, so this fell through to the
+            # continuation branch below and was appended to the PREVIOUS qualifier's
+            # text, which would have made `/gene="UL1"` followed by `/pseudo` parse as
+            # the gene name "UL1 /pseudo". None of the four committed records carries
+            # such a line, so nothing reached it; the next record added would.
+            key = line.strip().lstrip("/")
+            current[key] = ""
         elif key is not None and line.startswith(" " * 21):
             # A wrapped continuation line. Locations wrap with no separator; qualifier
             # text wraps at a space, so the two are joined differently.

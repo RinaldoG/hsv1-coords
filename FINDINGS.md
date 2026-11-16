@@ -170,7 +170,7 @@ and all recorded here rather than quietly corrected.
 
 | What was wrong | What is true |
 |---|---|
-| The annotation dropped every feature without a `/gene` qualifier, omitting all four inverted repeats, both `'a'` sequences and the `oriL` palindrome, while the changelog said nothing was dropped | They are carried, with their own feature classes. 1,779 rows, up from 1,723 |
+| The annotation dropped every feature without a `/gene` qualifier, omitting all four inverted repeats, all three copies of the `'a'` sequence and the `oriL` palindrome, while the changelog said nothing was dropped | They are carried, with their own feature classes. 1,779 rows, up from 1,723, which is the 56 features without a `/gene` qualifier |
 | The GenBank parser dropped wrapped location lines, shipping 8 truncated coordinates including `RL2` (ICP0) | Fixed, and the gate now checks brackets balance and coordinates parse |
 | "LAT lies wholly inside the inverted repeats" | It extends 778 bp past `IRL` into `IRS`, which is why the other copy is truncated |
 | The truncated copy is clipped "by where the linear record happens to begin" | It is clipped by linearising a circular genome; the remainder is in `TRS` at the other end |

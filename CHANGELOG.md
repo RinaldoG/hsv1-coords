@@ -20,9 +20,15 @@ that a GFF3 will be generated from.
   Merging requires the coordinate crosswalk (M3), which does not exist yet. A merged
   annotation released before the crosswalk would be asserting equivalences it cannot check.
 - **Features without a gene name are kept, from v0.1.0 as corrected.** The first build of
-  this release kept only features carrying a `/gene` qualifier, which silently dropped all
-  four inverted repeats (`TRL`, `IRL`, `IRS`, `TRS`), both `'a'` sequences, the `oriL`
-  palindrome and 50 other features, while this changelog claimed nothing was dropped. That
+  this release kept only features carrying a `/gene` qualifier, which silently dropped
+  56 features without a `/gene` qualifier: 28 repeat regions, among them all four
+  inverted repeats (`TRL`, `IRL`, `IRS`, `TRS`) and all three copies of the `'a'`
+  sequence, 23 regulatory elements, 3 stem-loops, among them the `oriL` palindrome, and
+  2 untyped features, while this changelog claimed nothing was dropped. (Round 15: the
+  enumeration here read "both `'a'` sequences ... and 50 other features", which adds to
+  57, against "52 other unnamed features" eleven lines below and a true 56; and "both"
+  was the two-copy framing PITFALLS root cause 1 retracted. The 56 is derived from the
+  record now.) That
   was the worst defect in the release: the inverted repeats are the reason the coordinate
   problem exists. Repeats, stem-loops, origins, regulatory elements and untyped features
   are now carried with their own classes, named from their notes where they have one.
@@ -52,7 +58,8 @@ class, which is what the class column exists to enforce. See `FINDINGS.md`.
   coordinates, including `RL2` (ICP0) and the `IRL2-IRL1` span. Fixed, and the M2 gate now
   checks that every location has balanced brackets and parses to coordinates inside the
   genome, which checking only for non-empty did not.
-- The inverted repeats and 52 other unnamed features were missing entirely. Fixed above.
+- The 56 features without a `/gene` qualifier, the inverted repeats among them, were
+  missing entirely. Fixed above.
 
 ## Unreleased - 13 November 2026
 

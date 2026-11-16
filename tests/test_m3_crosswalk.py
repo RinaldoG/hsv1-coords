@@ -1156,8 +1156,52 @@ class TheCoverageTableIsDerivedFromTheBlocks(unittest.TestCase):
             f"{len(wrong)} coverage cells disagree with the block file they describe, "
             f"so the summary and the artefact it summarises are different claims: "
             f"{wrong[:6]}")
-        self.assertGreater(len(self.rows), 150,
-                           f"only {len(self.rows)} coverage rows were checked")
+        # Round 15: this was `len(self.rows) > 150` against a corpus of 183, which is
+        # the typed-number shape round 12 removed from `verify_crosswalk.py` (standing
+        # rule 47). The two sets of accessions have to match instead.
+        self.assertEqual(
+            sorted(r["accession"] for r in self.rows),
+            sorted(Crosswalk.available(CROSSWALK)),
+            "the coverage table and the committed block files describe different "
+            "sets of genomes")
+
+    def test_the_report_s_two_aggregates_are_the_table_s_own_columns(self):
+        """Round 15: the print said three columns "are read by nothing".
+
+        `crosswalk_report.md` states two aggregates from exactly those columns, so the
+        sentence was noise and the aggregates were ungated (cause 62: a summary is
+        checked against what it summarises). A permutation of the columns between
+        genomes still preserves these, which the print now says instead.
+        """
+        report = ROOT / "data" / "derived" / "crosswalk_report.md"
+        if not report.exists():
+            raise unittest.SkipTest("crosswalk_report.md is built, not committed")
+        body = report.read_text()
+        import statistics
+        ambiguous = [int(r["ambiguous_bp_dropped"]) for r in self.rows
+                     if int(r["ambiguous_bp_dropped"])]
+        chained = [int(r["non_monotonic_bp_dropped"]) for r in self.rows
+                   if int(r["non_monotonic_bp_dropped"])]
+        self.assertIn(
+            f"placed in more than one way: **{len(ambiguous)}**, median "
+            f"{int(statistics.median(ambiguous)):,} bp", body,
+            f"the report's ambiguous-region sentence is not what the coverage table "
+            f"gives: {len(ambiguous)} genomes, median "
+            f"{int(statistics.median(ambiguous)):,} bp")
+        self.assertIn(
+            f"dropped by chaining: **{len(chained)}**, {sum(chained):,} bp", body,
+            f"the report's chaining sentence is not what the coverage table gives: "
+            f"{len(chained)} genomes, {sum(chained):,} bp")
+
+    def test_no_row_drops_more_than_the_genome_holds(self):
+        """The one per-row constraint the three run columns do satisfy."""
+        impossible = [r["accession"] for r in self.rows
+                      if int(r["mapped_bp"]) + int(r["ambiguous_bp_dropped"])
+                      + int(r["non_monotonic_bp_dropped"]) > int(r["length_bp"])]
+        self.assertEqual(
+            impossible, [],
+            f"{len(impossible)} rows account for more bases than the deposit holds: "
+            f"{impossible[:5]}")
 
     def test_the_columns_no_block_file_can_confirm_are_named(self):
         """So the share of the table this gate reads is stated, not assumed."""
@@ -1168,7 +1212,9 @@ class TheCoverageTableIsDerivedFromTheBlocks(unittest.TestCase):
                          "this list is stale")
         print(f"\n    coverage table: {len(columns) - len(underivable)} of "
               f"{len(columns)} columns recomputed from the committed blocks; "
-              f"{underivable} describe the alignment run and are read by nothing")
+              f"{underivable} describe the alignment run, and are held only to "
+              f"crosswalk_report.md's two aggregates and to the per-row bound, so a "
+              f"permutation of them between genomes would pass")
 
 
 class GenomeToGenome(unittest.TestCase):

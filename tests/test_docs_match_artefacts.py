@@ -115,7 +115,7 @@ def phrasings(fact) -> list[tuple[str, str]]:
 REACHED_SITES = {
     "alias_citations": 2, "alias_genes": 2, "alias_paper_citations": 1,
     "alias_rows": 1, "alt_cds": 3,
-    "alt_genes": 3, "annotation_rows": 5, "conventions": 4, "diploid_pairs": 2,
+    "alt_genes": 3, "annotation_rows": 5, "conventions": 4, "diploid_pairs": 2, "features_without_a_gene_name": 3,
     "genome_bp": 11, "genome_v1_bp": 7, "genomes": 7, "inputs": 1,
     "lat_in_szpara": 3, "lat_overhang_bp": 7, "long_repeat_bp": 1,
     "median_mappable": 4, "nested_orfs": 2, "partial_pairs": 1,

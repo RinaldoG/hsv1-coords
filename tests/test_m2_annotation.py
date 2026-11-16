@@ -235,24 +235,41 @@ class InvertedRepeatsPresent(unittest.TestCase):
         IRS. Any document in this repository asserting otherwise is wrong.
         """
         claims = ("wholly inside the inverted repeats", "wholly inside the long repeat")
-        offenders = []
+        # Round 15: the exemption was any line containing the bare phrase "does not",
+        # or starting with `|`, so "Because LAT sits wholly inside the inverted
+        # repeats, the mask does not need IRS" was exempt, and both lines in the live
+        # documents were exempt, which left the gate evaluating nothing (cause 60: an
+        # exemption with no bound). The retraction markers are now phrases that can
+        # only belong to a retraction, and the two lines that carry the old claim are
+        # listed and counted, so a third one fails until somebody looks at it.
+        markers = ("was wrong", "corrected", "earlier version", "no longer",
+                   "retract", "does not lie", "not wholly")
+        # Measured 16 November 2026: one line, the retraction table's own row.
+        expected_quotations = {("FINDINGS.md", "table row")}
+        offenders, quotations = [], set()
         for doc in ("README.md", "FINDINGS.md", "ROADMAP.md"):
             for n, line in enumerate((ROOT / doc).read_text().splitlines(), 1):
                 low = line.lower()
                 if not any(c in low for c in claims):
                     continue
-                # A table row or a line that marks itself as a correction is quoting the
-                # old claim, which is how a retraction is supposed to read. Only an
-                # unmarked assertion is a failure.
-                quoted = line.lstrip().startswith("|") or any(
-                    w in low for w in ("was wrong", "corrected", "earlier version",
-                                       "no longer", "retract", "does not lie",
-                                       "does not", "not wholly"))
-                if not quoted:
+                marker = next((w for w in markers if w in low), None)
+                if marker:
+                    quotations.add((doc, marker))
+                elif line.lstrip().startswith("|"):
+                    # A table row in the retraction table quotes the old claim, which
+                    # is how a retraction reads.
+                    quotations.add((doc, "table row"))
+                else:
                     offenders.append(f"{doc}:{n}: {line.strip()[:80]}")
         self.assertEqual(offenders, [],
                          "LAT extends 778 bp past IRL into IRS; these lines assert "
                          f"otherwise: {offenders}")
+        self.assertEqual(
+            quotations, expected_quotations,
+            f"the lines quoting the old LAT claim have changed: {sorted(quotations)} "
+            f"against the recorded {sorted(expected_quotations)}. Each one is a place "
+            f"a reader meets the retracted claim, so the list is kept short and "
+            f"explicit rather than left to a phrase match.")
 
 
 class DocumentedDiscrepancy(unittest.TestCase):
@@ -368,6 +385,51 @@ class TheSummaryIsTheTableCountedUp(unittest.TestCase):
                       self.text,
                       f"the summary's prose does not state the {polya} polyA signals "
                       f"and {tata} TATA boxes the table holds")
+
+
+class TheGenbankParserHandlesTheFormatSOddities(unittest.TestCase):
+    """Round 15: two parser cases nothing exercised, both found by reading.
+
+    A record none of the four committed ones resembles reaches them immediately, and
+    the project's rule is that a branch nothing exercises is where the next defect
+    lives. These are checked against synthetic records written here, which is the only
+    way to reach a case the real inputs do not contain.
+    """
+
+    @staticmethod
+    def _parse(text: str):
+        import tempfile
+        sys.path.insert(0, str(ROOT / "src"))
+        from extract_names import parse_genbank
+        path = pathlib.Path(tempfile.mkdtemp()) / "synthetic.gb"
+        path.write_text(text)
+        return parse_genbank(path)
+
+    def test_a_qualifier_with_no_value_does_not_join_the_previous_one(self):
+        features = self._parse(
+            "LOCUS       SYNTHETIC   10 bp\n"
+            "FEATURES             Location/Qualifiers\n"
+            "     gene            1..10\n"
+            '                     /gene="UL1"\n'
+            "                     /pseudo\n"
+            '                     /note="after a value-less qualifier"\n'
+            "ORIGIN\n        1 acgtacgtac\n//\n")
+        self.assertEqual(len(features), 1)
+        self.assertEqual(features[0]["gene"], "UL1",
+                         "a value-less qualifier was appended to the gene name")
+        self.assertEqual(features[0].get("pseudo"), "")
+        self.assertEqual(features[0]["note"], "after a value-less qualifier")
+
+    def test_a_repeated_qualifier_keeps_both_values(self):
+        """Round 15: the second `/rpt_type` overwrote the first on 26 real features."""
+        features = self._parse(
+            "LOCUS       SYNTHETIC   10 bp\n"
+            "FEATURES             Location/Qualifiers\n"
+            "     repeat_region   1..10\n"
+            '                     /rpt_type=direct\n'
+            '                     /rpt_type=terminal\n'
+            "ORIGIN\n        1 acgtacgtac\n//\n")
+        self.assertEqual(features[0]["rpt_type"], "direct; terminal")
 
 
 class EveryColumnIsTheSourceSOwnValue(unittest.TestCase):

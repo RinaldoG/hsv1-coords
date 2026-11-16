@@ -110,6 +110,10 @@ print(ConventionSet.load().report(118777, RepeatMap.load()))
 #   genome); morse2017_nr (because the deposited package has not been
 #   retrieved). The edges are exact to the base; which features they are
 #   is the inference. See the source column of data/conventions.tsv
+#   transcription: the intervals used here are the source's own numbers,
+#   typed in by hand, for lassalle2020_excluded (transcribed by hand
+#   from a paper this repository does not hold, so the quotation in
+#   data/conventions.tsv is the evidence)
 ```
 
 So one position in the gene that dominates latent transcription becomes 109,564 in a

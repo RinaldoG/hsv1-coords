@@ -170,6 +170,15 @@ class Convention:
     Last in the dataclass, as standing rule 22 requires.
     """
 
+    interval_basis: str = "deposited_record"
+    """Where this convention's intervals came from, as a controlled value.
+
+    See `INTERVAL_BASES`. `boundaries` stays in the artefact as the two-valued
+    summary, and the suite requires the two to agree, so neither can be edited alone.
+
+    Last in the dataclass, as standing rule 22 requires.
+    """
+
     boundaries_evidence: str = ""
     """The words in this row's own source that justify the `boundaries` flag.
 
@@ -196,9 +205,46 @@ class Convention:
         object.__setattr__(self, "records",
                            tuple(tuple(r) for r in self.records))
 
+    INTERVAL_BASES = {
+        # basis -> (whether the intervals were read, what a reader is owed)
+        "deposited_record": (True, "the convention is the deposited record itself"),
+        "paper_transcribed": (
+            True, "transcribed by hand from a paper this repository does not hold, "
+                  "so the quotation in data/conventions.tsv is the evidence"),
+        "inferred_from_record": (
+            False, "the source prints no coordinates, so the interval is the "
+                   "reference record's own annotation read with what the source says "
+                   "in words"),
+        "derived_from_stated_rule": (
+            False, "derived from the source's stated rule, because the coordinate "
+                   "file it names has not been retrieved"),
+    }
+    """What each `interval_basis` value means, and whether it counts as read.
+
+    Round 15: `boundaries` was a two-valued flag whose `read` half rested on two
+    columns this repository writes, `quote` and `source`. A reviewer rewrote one
+    clause of `source` to dodge the contradiction check, appended one fabricated
+    sentence to `quote`, flipped the flag and dropped the inference caveat out of
+    `usable()` with the suite green but for two README quotations, which the same
+    reviewer then updated as any developer would. Cause 49's own lesson says a burden
+    checked against our own prose is not checked.
+
+    A free-text flag cannot carry that burden, so the basis is a controlled value, the
+    flag is derived from it, and what a reader is owed is stated per basis and
+    printed. `paper_transcribed` is the honest name for the one row whose numbers we
+    typed from a paper we do not hold, and it says so in the answer.
+    """
+
+    def __post_init_basis__(self) -> None:          # documentation only
+        """`__post_init__` does the work; this name is here to be searched for."""
+
     @property
     def boundaries_are_inferred(self) -> bool:
-        return self.boundaries == "inferred"
+        return not self.INTERVAL_BASES[self.interval_basis][0]
+
+    @property
+    def basis_caveat(self) -> str:
+        return self.INTERVAL_BASES[self.interval_basis][1]
 
     def near_a_boundary(self, position: int) -> bool:
         if not self.boundary_uncertainty_bp:
@@ -333,6 +379,14 @@ class PositionReport:
     unusable_under: list[tuple[str, str]] = field(default_factory=list)
     refused: list[tuple[str, str]] = field(default_factory=list)
     caveats: list[str] = field(default_factory=list)
+    transcribed_intervals: list[tuple[str, str]] = field(default_factory=list)
+    """Conventions here whose intervals ARE the source's, typed in from a paper.
+
+    Round 15: `read` was taken to need no disclosure, and its evidence was a quotation
+    in a column this repository writes. One row is in that position,
+    `lassalle2020_excluded`, and the answer says so now.
+    """
+
     interval_provenance: list[tuple[str, str]] = field(default_factory=list)
     """Each convention here whose intervals its source does not print, and why.
 
@@ -387,6 +441,12 @@ class PositionReport:
                 f"  provenance: the intervals used here were not read from the source "
                 f"for {each}. The edges are exact to the base; which features they are "
                 f"is the inference. See the source column of data/conventions.tsv")
+        if self.transcribed_intervals:
+            each = "; ".join(f"{name} ({why})" for name, why in
+                             self.transcribed_intervals)
+            lines.append(
+                f"  transcription: the intervals used here are the source's own "
+                f"numbers, typed in by hand, for {each}")
         return "\n".join(lines)
 
 
@@ -443,6 +503,8 @@ class ConventionSet:
                 applicable=flag == "yes",
                 boundary_uncertainty_bp=int(r.get("boundary_uncertainty_bp") or 0),
                 boundaries=(r.get("boundaries") or "read").strip(),
+                interval_basis=(r.get("interval_basis")
+                                or "deposited_record").strip(),
                 boundaries_evidence=(r.get("boundaries_evidence") or "").strip(),
                 records=_parse_records(r.get("records", "")),
             ))
@@ -687,6 +749,8 @@ class ConventionSet:
             ok, why = self.usable_plain(position, c.name)
             if c.boundaries_are_inferred:
                 rep.interval_provenance.append((c.name, c.boundaries_evidence))
+            elif c.interval_basis == "paper_transcribed":
+                rep.transcribed_intervals.append((c.name, c.basis_caveat))
             warning = self._warning_for(position, c)
             if warning:
                 rep.caveats.append(warning)

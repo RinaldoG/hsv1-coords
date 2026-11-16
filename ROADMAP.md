@@ -277,6 +277,19 @@ means different things in different papers, and nothing reconciles them. This ho
 handling as data, with its definition quoted from its own paper, and answers whether a
 position is present and what its equivalent coordinate is.
 
+**The limit of the evidence here, stated plainly.** Where a convention's intervals are
+the source's own printed numbers, this repository holds the quotation and not the paper,
+so the numbers were typed in by hand and the quotation is a column we write. Round 15
+showed what that costs: a reviewer rewrote the prose, appended a fabricated sentence to
+the quotation and flipped the flag, and only two quoted README outputs noticed. The
+basis of each interval is a controlled value now (`interval_basis` in
+`data/conventions.tsv`), the two-valued flag is derived from it, the suite fails if
+either is edited alone, and `report` states what a reader is owed for a transcription as
+well as for an inference. A single editor changing both consistently still gets through,
+and the only real closure is holding the cited text itself, which would mean committing
+paper excerpts that are not ours to redistribute. Until then the answer says "typed in
+by hand" rather than implying the paper was re-read.
+
 ```python
 from hsv1coords import ConventionSet, RepeatMap
 
@@ -299,6 +312,10 @@ print(ConventionSet.load().report(118777, RepeatMap.load()))
 #   genome); morse2017_nr (because the deposited package has not been
 #   retrieved). The edges are exact to the base; which features they are
 #   is the inference. See the source column of data/conventions.tsv
+#   transcription: the intervals used here are the source's own numbers,
+#   typed in by hand, for lassalle2020_excluded (transcribed by hand
+#   from a paper this repository does not hold, so the quotation in
+#   data/conventions.tsv is the evidence)
 ```
 
 **Five handlings, each read from its own source**, with the date it was read recorded:
@@ -463,7 +480,7 @@ each is only honest beside its definition:
 |---|---|---|
 | The whole suite | **45 of 90** | A number anywhere in the four documents, changed one at a time, with the full suite re-run. Was 34 of 90 before round 7. |
 | This gate alone | **about 45 per cent** | Every standalone number that states a value this repository derives, changed one at a time. Round 15 moved the rate and its floor onto that denominator: measuring against every number in the prose instead meant that ten citations added to FINDINGS.md failed the build and that deleting prose numbers improved the figure. The rates over the four narrative documents and over all six are printed beside it, judged only by the figure-to-artefact comparison. Printed on every run as a count and a rate, with a floor on each, and this row is checked against the rate the run measures. Round 8 sampled 60 of these sites with a fixed seed and this row said 18 per cent, which was above the then-real figure of 15; the unchanged gate ranged from 8.3 to 23.3 per cent across other seeds, so the sample was narrower than its own spread and the row overstated it. The exact counts are printed by the run rather than written here, because they move whenever a document gains a number. |
-| `gate power` | **91 of 91** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
+| `gate power` | **93 of 93** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
 
 The gap between the first two is the rest of the suite: the per-occurrence reach check,
 the component-table count, the quoted-resolver output and the README example runner each

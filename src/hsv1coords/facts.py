@@ -27,6 +27,7 @@ from __future__ import annotations
 import collections
 import csv
 import pathlib
+import re
 import statistics
 from dataclasses import dataclass, field
 
@@ -156,6 +157,32 @@ def derive(allow_partial: bool = False) -> list[Fact]:
     ann = DERIVED / "annotation_v0.1.0.tsv"
     if ann.exists():
         rows = _rows(ann)
+        # Round 15: `CHANGELOG.md` enumerated the features the first build dropped as
+        # "all four inverted repeats, both `'a'` sequences, the `oriL` palindrome and
+        # 50 other features", which adds to 57, against "52 other unnamed features"
+        # eleven lines below and a true 56 (1,779 - 1,723). The record carries THREE
+        # `'a' sequence` features and three stem-loops, and "both" is the two-copy
+        # framing root cause 1 retracted. Nothing derived the number, so this does:
+        # the reference rows whose name is the builder's placeholder for a feature
+        # the record leaves unnamed.
+        reference = RAW / "ref_NC_001806.2.gb"
+        if reference.exists():
+            blocks, current = [], None
+            for line in reference.read_text().split("\nORIGIN")[0].splitlines():
+                if re.match(r"^ {5}\S", line):
+                    if current is not None:
+                        blocks.append(current)
+                    current = [line]
+                elif current is not None and line.startswith(" " * 21):
+                    current.append(line)
+            if current is not None:
+                blocks.append(current)
+            unnamed = sum(
+                1 for b in blocks
+                if not b[0].strip().startswith("source")
+                and not any(l.strip().startswith('/gene=') for l in b))
+            facts.append(Fact("features_without_a_gene_name", unnamed,
+                              ("features without a `/gene` qualifier",)))
         facts.append(Fact("annotation_rows", len(rows),
                           ("feature rows", "rows across three sources",
                            "rows, up from")))

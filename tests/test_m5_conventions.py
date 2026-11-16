@@ -1,6 +1,7 @@
 """The M5 gate, written before the code, per ROADMAP.md."""
 from __future__ import annotations
 
+import csv
 import fnmatch
 import pathlib
 import re
@@ -1035,12 +1036,12 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     TESTS_PER_FILE = {
         "test_docs_match_artefacts": 16,
         "test_m1_dictionary": 48,
-        "test_m2_annotation": 36,
-        "test_m3_crosswalk": 51,
+        "test_m2_annotation": 38,
+        "test_m3_crosswalk": 53,
         "test_m4_repeat_map": 58,
         "test_m5_conventions": 106,
         "test_placeholder": 1,
-        "test_readme_examples": 6,
+        "test_readme_examples": 7,
     }
     """How many tests each file contributes to discovery.
 
@@ -1149,7 +1150,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     SKIP_SITES = {
         "test_docs_match_artefacts": 5, "test_m1_dictionary": 2,
-        "test_m2_annotation": 7, "test_m3_crosswalk": 6, "test_m4_repeat_map": 3,
+        "test_m2_annotation": 7, "test_m3_crosswalk": 7, "test_m4_repeat_map": 3,
         "test_m5_conventions": 9, "test_placeholder": 0, "test_readme_examples": 2,
     }
     r"""Every way each test file can decline to run something.
@@ -1580,29 +1581,44 @@ class TheInputGateIsActuallyRun(unittest.TestCase):
             # Each record is stubbed on its own now, and `check_inputs.READS`, which
             # declares what each measurement reads, is checked against what moves
             # rather than trusted.
-            records = sorted({name for names in check_inputs.READS.values()
-                              for name in names})
-            self.assertTrue(records, "no measurement declares a record")
+            # Round 15: the loop was driven by `READS.values()`, so only the three
+            # declared files were ever stubbed and a dependency on a FOURTH input was
+            # invisible. A defensive one passed: `"ref_cds": lambda: count_feature(
+            # _ref(), "CDS") if not (RAW / "HSV1_Annotation.gtf").exists() or "UL19"
+            # in (RAW / "HSV1_Annotation.gtf").read_text() else 0` left 307 tests
+            # green with `make check` printing "ok the reference carries 77 CDS",
+            # and an upstream change to the GTF deciding a reference assumption. The
+            # loop is driven by what `data/raw` HOLDS now, so a measurement that
+            # reads anything it does not declare is caught whatever it reads.
+            present = sorted(path.name for path in real.iterdir()
+                             if path.is_file() and path.name not in (".gitkeep",))
+            declared = sorted({name for names in check_inputs.READS.values()
+                               for name in names})
+            self.assertTrue(declared, "no measurement declares a record")
+            for name in declared:
+                self.assertIn(name, present,
+                              f"{name} is declared and is not in data/raw")
             stubs_for = {"ref_NC_001806.2.gb": "acgt",
                          "alt_BK012101.1.gb": "ggca",
                          "base_JN555585.1.gb": "tttt"}
-            self.assertEqual(sorted(stubs_for), records,
-                             "a declared record has no stub here, so stubbing it "
-                             "would delete it rather than replace it")
+            records = present
             wrong = []
             for target in records:
                 with tempfile.TemporaryDirectory() as tmp:
                     stubs = pathlib.Path(tmp)
                     for name in records:
-                        body = (stubs_for[name] if name == target
-                                else (real / name).read_text())
-                        if name == target:
+                        if name != target:
+                            (stubs / name).write_bytes((real / name).read_bytes())
+                        elif name in stubs_for:
                             (stubs / name).write_text(
                                 f"LOCUS       STUB   4 bp    DNA     linear   VRL\n"
                                 f"FEATURES             Location/Qualifiers\n"
-                                f"ORIGIN\n        1 {body}\n//\n")
+                                f"ORIGIN\n        1 {stubs_for[name]}\n//\n")
                         else:
-                            (stubs / name).write_text(body)
+                            # An input no measurement claims to read: replaced with a
+                            # file that is not what it was, so a measurement that
+                            # reads it undeclared moves and is named below.
+                            (stubs / name).write_text("stub\n")
                     stubbed = measured_with(stubs)
                 for key, declared in check_inputs.READS.items():
                     moved = stubbed[key] != committed[key]
@@ -1873,6 +1889,58 @@ class EveryInferredBoundarySaysSo(unittest.TestCase):
         self.assertEqual(wrong, [], f"{len(wrong)} conventions disagree with their own "
                                     f"source about where their intervals came from: "
                                     f"{wrong}")
+
+    def test_the_flag_and_the_basis_cannot_be_edited_apart(self):
+        """Round 15: the `read` flag rested on columns this repository writes.
+
+        A reviewer rewrote one clause of `source` to dodge round 14's contradiction
+        check, appended a fabricated sentence to `quote`, flipped `boundaries` to
+        `read` and cleared the evidence: `usable(118777, 'whisnant2020_masked')`
+        stopped reporting the inference, and the only failures were two README
+        quotations, which the reviewer then updated as a developer would. Cause 49's
+        own lesson is that a burden checked against our own prose is not checked.
+
+        So the basis is a controlled value, the flag is derived from it, and both are
+        in the artefact: editing either alone fails here, and what a reader is owed is
+        stated per basis and printed by `report`, for a transcription as well as for
+        an inference.
+        """
+        from hsv1coords.conventions import Convention
+        rows = list(csv.DictReader(
+            (ROOT / "data" / "conventions.tsv").open(), delimiter="\t"))
+        self.assertTrue(rows)
+        wrong = []
+        for row in rows:
+            basis = (row.get("interval_basis") or "").strip()
+            if basis not in Convention.INTERVAL_BASES:
+                wrong.append((row["convention"], f"basis {basis!r} is not one of "
+                                                 f"{sorted(Convention.INTERVAL_BASES)}"))
+                continue
+            reads, caveat = Convention.INTERVAL_BASES[basis]
+            stated = (row.get("boundaries") or "").strip()
+            if stated != ("read" if reads else "inferred"):
+                wrong.append((row["convention"],
+                              f"basis {basis!r} means {'read' if reads else 'inferred'} "
+                              f"and the boundaries column says {stated!r}"))
+            if not caveat.strip():
+                wrong.append((row["convention"], f"basis {basis!r} owes a reader "
+                                                 f"nothing, so it says nothing"))
+        self.assertEqual(
+            wrong, [],
+            f"{len(wrong)} rows disagree with their own interval basis: {wrong}")
+        # Both halves present, so neither column is a constant.
+        bases = {(r.get("interval_basis") or "").strip() for r in rows}
+        self.assertGreater(len(bases), 2,
+                           f"the basis column holds only {bases}, so it carries "
+                           f"little more than the flag it replaced")
+        # And every basis that reads as transcription or inference reaches `report`.
+        report = str(self.cs.report(118777, RepeatMap.load()))
+        for row in rows:
+            basis = row["interval_basis"].strip()
+            if basis == "paper_transcribed":
+                with self.subTest(convention=row["convention"]):
+                    self.assertIn("transcription:", report)
+                    self.assertIn(row["convention"], report)
 
     def test_every_read_row_shows_its_source_printing_the_coordinates(self):
         """Round 13: the gate above guards only the `inferred` branch.
