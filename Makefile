@@ -1,4 +1,4 @@
-.PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap gff3 agreement verify-crosswalk package-data testcases check test validate-gff3 clean
+.PHONY: all inputs genomes names aliases annotation crosswalk versions repeatmap gff3 agreement verify-crosswalk published-coordinates package-data testcases check test validate-gff3 clean
 
 # Order matters twice over. `check` validates the inputs, so it runs before anything is
 # built from them. `verify-crosswalk` checks the COMMITTED block files against a fresh
@@ -6,7 +6,7 @@
 # block failing the verifier standalone and passing `make all`, because the rebuild
 # silently restored the file first. CI has always had this order; this target did not.
 all: inputs genomes check verify-crosswalk names aliases annotation crosswalk versions \
-     repeatmap gff3 agreement package-data testcases test
+     repeatmap gff3 agreement published-coordinates package-data testcases test
 
 inputs:        ## fetch and checksum every input into data/raw
 	python3 -I src/fetch_inputs.py
@@ -40,6 +40,9 @@ agreement:     ## pin every genome's measured base agreement with the reference
 
 verify-crosswalk:  ## check every COMMITTED block file against a fresh alignment
 	python3 -I src/verify_crosswalk.py
+
+published-coordinates:  ## re-run the M3 by-hand checks and render their record
+	python3 -I src/build_published_coordinates.py
 
 package-data:  ## stage the built artefacts inside the package, for a wheel
 	python3 -I src/stage_package_data.py

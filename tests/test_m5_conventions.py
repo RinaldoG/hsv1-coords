@@ -1040,6 +1040,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m2_annotation": 49,
         "test_m2_gff3": 17,
         "test_m3_crosswalk": 54,
+        "test_m3_published_coordinates": 18,
         "test_m4_repeat_map": 61,
         "test_m5_conventions": 125,
         "test_placeholder": 1,
@@ -1161,6 +1162,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     SKIP_SITES = {
         "test_docs_match_artefacts": 5, "test_m1_dictionary": 2,
         "test_m2_annotation": 9, "test_m2_gff3": 1, "test_m3_crosswalk": 7,
+        "test_m3_published_coordinates": 1,
         "test_m4_repeat_map": 3,
         "test_m5_conventions": 9, "test_placeholder": 0, "test_readme_examples": 2,
     }
@@ -1259,6 +1261,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
     ASSERTIONS_PER_FILE = {
         "test_docs_match_artefacts": 28, "test_m1_dictionary": 101,
         "test_m2_annotation": 90, "test_m2_gff3": 52, "test_m3_crosswalk": 135,
+        "test_m3_published_coordinates": 25,
         "test_m4_repeat_map": 137, "test_m5_conventions": 273,
         "test_placeholder": 1, "test_readme_examples": 19,
     }

@@ -425,6 +425,27 @@ def derive(allow_partial: bool = False) -> list[Fact]:
                            "bp, which is `.1`"),
                           prefixes=("`NC_001806.1` is",)))
 
+    published = data_path("published_coordinates.tsv")
+    if published.exists():
+        # The M3 by-hand criterion's two counts, derived from the table that records
+        # it rather than typed into the documents beside the criterion's thresholds.
+        # The thresholds themselves (five papers, three strains) are the criterion's
+        # own words and are not facts: they do not move when the work does.
+        rows = _rows(published)
+        kept = [r for r in rows if (r.get("status") or "").strip() == "counted"]
+        facts.append(Fact("published_papers", len(kept),
+                          ("published coordinates resolved by hand",)))
+        facts.append(Fact(
+            "published_strains",
+            len({(r.get("strain") or "").strip() for r in kept}),
+            ("strains, which clears",)))
+        # One phrasing each, deliberately. Round 7's root cause 18 is that a noun
+        # carrying a generic unit pins nothing: "across" as a prefix for the strain
+        # count flagged ten unrelated figures in five documents as contradictions,
+        # because "across 183", "across 446" and "across 22" are all ordinary
+        # English in these files. A phrasing has to be distinctive enough that only
+        # the sentence it was written for can match it.
+
     try:
         from .conventions import ConventionSet
         cs = ConventionSet.load()

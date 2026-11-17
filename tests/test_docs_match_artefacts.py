@@ -33,7 +33,7 @@ it is the reason to be gated."""
 
 # The number of derived figures that must stay gated. Raising it is a deliberate edit;
 # a change that silently ungates a figure fails instead of printing a smaller number.
-COVERAGE_FLOOR = 35
+COVERAGE_FLOOR = 37
 
 REQUIRED_FACTS = frozenset({
     # The figures a reader acts on. Named, not counted: round 10 deleted the five facts
@@ -49,6 +49,11 @@ REQUIRED_FACTS = frozenset({
     "transcript_spans", "transcript_span_rows", "nested_orfs",
     "long_repeat_bp", "short_repeat_bp", "median_mappable",
     "reverse_complemented", "lat_in_szpara",
+    # M3's by-hand criterion. Both are derived from
+    # `data/published_coordinates.tsv`; the criterion's own thresholds, five papers
+    # and three strains, are not facts, because they are the words the criterion was
+    # written in and they do not move when the work does.
+    "published_papers", "published_strains",
 })
 # `\d(?:[\d,]*\d)?` rather than `\d[\d,]*`: the looser form captured a trailing
 # comma, so "runs to 152,222," compared "152,222," against "152,222" and reported
@@ -133,7 +138,8 @@ REACHED_SITES = {
     "genome_bp": 11, "genome_v1_bp": 7, "genomes": 7, "inputs": 1,
     "lat_in_szpara": 3, "lat_overhang_bp": 7, "long_repeat_bp": 1,
     "median_mappable": 4, "nested_orfs": 2, "partial_pairs": 1,
-    "pooled_agreement": 2, "ref_cds": 3, "ref_genes": 1, "regions": 2,
+    "pooled_agreement": 2, "published_papers": 2, "published_strains": 2,
+    "ref_cds": 3, "ref_genes": 1, "regions": 2,
     "repeat_covered_bp": 1, "repeat_covered_percent": 2,
     "revcomp_ON783216.1": 2, "revcomp_ON783217.1": 2, "revcomp_PQ569920.1": 2,
     "reverse_complemented": 1, "scored_positions": 1, "short_repeat_bp": 1,

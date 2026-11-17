@@ -1,0 +1,132 @@
+case	check	kind	record	position	target	expect	motif	note
+amelio2006_ctrl2	convert1	version_convert	NC_001806.1	120503	NC_001806.2	120505		transcribed position, independently derived expectation
+amelio2006_ctrl2	convert2	version_convert	NC_001806.1	120635	NC_001806.2	120637		transcribed position, independently derived expectation
+amelio2006_ctrl2	convert3	version_convert	NC_001806.1	120461	NC_001806.2	120463		transcribed position, independently derived expectation
+amelio2006_ctrl2	convert4	version_convert	NC_001806.1	120665	NC_001806.2	120667		transcribed position, independently derived expectation
+amelio2006_ctrl2	convert5	version_convert	NC_001806.1	117067	NC_001806.2	117068		transcribed position, independently derived expectation
+amelio2006_ctrl2	convert6	version_convert	NC_001806.1	96331	NC_001806.2	96332		transcribed position, independently derived expectation
+amelio2006_ctrl2	primer_ctrl2_f_old	sequence_unique_at	X14112.1	120461			CTCTGTGGTTAACACCAGAG	a primer the paper prints, at the paper's own coordinate
+amelio2006_ctrl2	primer_ctrl2_f_new	sequence_unique_at	NC_001806.2	120463			CTCTGTGGTTAACACCAGAG	the same primer in the current reference
+amelio2006_ctrl2	primer_ctrl2_r_old	sequence_unique_at	X14112.1	120646			GCGATACATCCAACACAGAC	a primer the paper prints, at the paper's own coordinate
+amelio2006_ctrl2	primer_ctrl2_r_new	sequence_unique_at	NC_001806.2	120648			GCGATACATCCAACACAGAC	the same primer in the current reference
+amelio2006_ctrl2	primer_lat_f_old	sequence_unique_at	X14112.1	117067			GCATGCGTCGCCCAAC	a primer the paper prints, at the paper's own coordinate
+amelio2006_ctrl2	primer_lat_f_new	sequence_unique_at	NC_001806.2	117068			GCATGCGTCGCCCAAC	the same primer in the current reference
+amelio2006_ctrl2	primer_lat_r_old	sequence_unique_at	X14112.1	117137			GATCACATGCAATCTAACTG	a primer the paper prints, at the paper's own coordinate
+amelio2006_ctrl2	primer_lat_r_new	sequence_unique_at	NC_001806.2	117138			GATCACATGCAATCTAACTG	the same primer in the current reference
+amelio2006_ctrl2	primer_gc_f_old	sequence_unique_at	X14112.1	96331			CCTTGCCGTGGTCCTGTGGA	a primer the paper prints, at the paper's own coordinate
+amelio2006_ctrl2	primer_gc_f_new	sequence_unique_at	NC_001806.2	96332			CCTTGCCGTGGTCCTGTGGA	the same primer in the current reference
+amelio2006_ctrl2	primer_gc_r_old	sequence_unique_at	X14112.1	96498			CATCGACCCCAAACCCCAAC	a primer the paper prints, at the paper's own coordinate
+amelio2006_ctrl2	primer_gc_r_new	sequence_unique_at	NC_001806.2	96499			CATCGACCCCAAACCCCAAC	the same primer in the current reference
+amelio2006_ctrl2	amplicon_counterpart_start	counterpart_pair	NC_001806.2	120463		5911		the amplicon start and its TRL counterpart
+amelio2006_ctrl2	amplicon_counterpart_end	counterpart_pair	NC_001806.2	120667		5707		the amplicon end and its TRL counterpart
+amelio2006_ctrl2	declines	lift_declines	X14112.1	120461	NC_001806.2	120463|5911		
+amelio2006_ctrl2	reiteration_set_4	feature_location	ref_NC_001806.2.gb		repeat_region/note=RL reiteration set 4	5732..5878|120496..120642		the reference annotates the tandem repeat itself, in both copies
+amelio2006_ctrl2	lat_gene	feature_location	ref_NC_001806.2.gb		gene/gene=LAT	complement(<1..7569)|118777..127151		
+amelio2006_ctrl2	lat_ncrna	feature_location	ref_NC_001806.2.gb		ncRNA/gene=LAT	complement(join(<1..4953,6910..7569))|join(118805..119464,121421..127151)		120,505 is in the LAT gene and in neither ncRNA exon, so it is in the intron
+creech2010_lat5exon	convert1	version_convert	NC_001806.1	119326	NC_001806.2	119327		
+creech2010_lat5exon	convert2	version_convert	NC_001806.1	119397	NC_001806.2	119398		
+creech2010_lat5exon	convert3	version_convert	NC_001806.1	120797	NC_001806.2	120799		
+creech2010_lat5exon	primer_old	sequence_unique_at	X14112.1	120797			GACACGGATTGGCTGGTGTAGTGGG	the LAT I-1 primer the paper prints
+creech2010_lat5exon	primer_new	sequence_unique_at	NC_001806.2	120799			GACACGGATTGGCTGGTGTAGTGGG	
+creech2010_lat5exon	counterpart	counterpart_pair	NC_001806.2	120799		5575		
+creech2010_lat5exon	declines	lift_declines	X14112.1	120797	NC_001806.2	120799|5575		
+creech2010_lat5exon	rl2_mrna	feature_location	ref_NC_001806.2.gb		mRNA/gene=RL2	join(2114..2318,3084..3750,3887..5699)|complement(join(120675..122487,122624..123290,124056..124287))		the resolved primer position is inside an ICP0 mRNA, which is what a strand-specific ICP0 primer needs
+creech2010_lat5exon	no_lat_in_old_record	feature_absent	ref_NC_001806.1.gb		ncRNA	0		the old record has no ncRNA feature at all, so an X14112-framed LAT coordinate cannot be checked against its own record
+pinnoji2007_nrse	convert1	version_convert	NC_001806.1	132082	NC_001806.2	132085		
+pinnoji2007_nrse	convert2	version_convert	NC_001806.1	132103	NC_001806.2	132106		
+pinnoji2007_nrse	element_old	sequence_unique_at	X14112.1	132082			GGGTCTCTCCGGCGCACATAAA	the published interval, read out of the record
+pinnoji2007_nrse	element_new	sequence_unique_at	NC_001806.2	132085			GGGTCTCTCCGGCGCACATAAA	
+pinnoji2007_nrse	element_counterpart_copy	sequence_unique_at	NC_001806.2	146091			TTTATGTGCGCCGGAGAGACCC	the TRS copy, reverse complemented
+pinnoji2007_nrse	counterpart	counterpart_pair	NC_001806.2	132085		146112		
+pinnoji2007_nrse	tata_old	feature_location	ref_NC_001806.1.gb		regulatory/gene=US1	132098..132103|133941..133946		the ICP22 TATA box is the last six bases of the published interval in the old frame
+pinnoji2007_nrse	tata_new	feature_location	ref_NC_001806.2.gb		regulatory/gene=US1	132101..132106|133944..133949		and the same six bases sit three higher in the current reference, which is the offset the version crosswalk applies
+pinnoji2007_nrse	tata_other_copy	feature_location	ref_NC_001806.2.gb		regulatory/gene=US12	complement(146091..146096)		the identical motif is the ICP22 TATA box in one repeat copy and the ICP47 TATA box in the other
+singh2024_kos_arms	lift1	lift	JQ673480.1	55985	NC_001806.2	56044		expectation derived by locating the surrounding sequence in the reference, not by calling lift
+singh2024_kos_arms	lift2	lift	JQ673480.1	56282	NC_001806.2	56341		expectation derived by locating the surrounding sequence in the reference, not by calling lift
+singh2024_kos_arms	lift3	lift	JQ673480.1	11610	NC_001806.2	11662		expectation derived by locating the surrounding sequence in the reference, not by calling lift
+singh2024_kos_arms	lift4	lift	JQ673480.1	11611	NC_001806.2	11663		expectation derived by locating the surrounding sequence in the reference, not by calling lift
+singh2024_kos_arms	lift5	lift	JQ673480.1	53024	NC_001806.2	53083		expectation derived by locating the surrounding sequence in the reference, not by calling lift
+singh2024_kos_arms	lift6	lift	JQ673480.1	53025	NC_001806.2	53084		expectation derived by locating the surrounding sequence in the reference, not by calling lift
+singh2024_kos_arms	lift7	lift	JQ673480.1	116144	NC_001806.2	116224		expectation derived by locating the surrounding sequence in the reference, not by calling lift
+singh2024_kos_arms	lift8	lift	JQ673480.1	116145	NC_001806.2	116225		expectation derived by locating the surrounding sequence in the reference, not by calling lift
+singh2024_kos_arms	spacer_ul26_27_kos	sequence_unique_at	JQ673480.1	52856			TTTGTCACGGGAAAGGAAAG	a guide-RNA protospacer the paper prints, located in the deposit it names
+singh2024_kos_arms	spacer_ul26_27_ref	sequence_unique_at	NC_001806.2	52919			TTTGTCACGGGAAAGGAAAG	the same protospacer in the reference
+singh2024_kos_arms	spacer_ul26_27_lift	lift	JQ673480.1	52856	NC_001806.2	52919		the library lifts the deposit occurrence onto the reference occurrence
+singh2024_kos_arms	spacer_ul27_kos	sequence_unique_at	JQ673480.1	53022			TCACAGGTCGTCCTCGTCGGC	a guide-RNA protospacer the paper prints, located in the deposit it names
+singh2024_kos_arms	spacer_ul27_ref	sequence_unique_at	NC_001806.2	53081			TCACAGGTCGTCCTCGTCGGC	the same protospacer in the reference
+singh2024_kos_arms	spacer_ul27_lift	lift	JQ673480.1	53022	NC_001806.2	53081		the library lifts the deposit occurrence onto the reference occurrence
+singh2024_kos_arms	spacer_ul55_56_kos	sequence_unique_at	JQ673480.1	116044			CCAGGCGTGGTGTGAGTTTG	a guide-RNA protospacer the paper prints, located in the deposit it names
+singh2024_kos_arms	spacer_ul55_56_ref	sequence_unique_at	NC_001806.2	116124			CCAGGCGTGGTGTGAGTTTG	the same protospacer in the reference
+singh2024_kos_arms	spacer_ul55_56_lift	lift	JQ673480.1	116044	NC_001806.2	116124		the library lifts the deposit occurrence onto the reference occurrence
+singh2024_kos_arms	spacer_ul56_kos	sequence_unique_at	JQ673480.1	116132			ACAGGGGCGCTTACCGCCAC	a guide-RNA protospacer the paper prints, located in the deposit it names
+singh2024_kos_arms	spacer_ul56_ref	sequence_unique_at	NC_001806.2	116212			ACAGGGGCGCTTACCGCCAC	the same protospacer in the reference
+singh2024_kos_arms	spacer_ul56_lift	lift	JQ673480.1	116132	NC_001806.2	116212		the library lifts the deposit occurrence onto the reference occurrence
+singh2024_kos_arms	cds_ul3	feature_location	ref_NC_001806.2.gb		CDS/gene=UL3	10991..11665		each resolved arm boundary falls between this gene's last sense codon and its stop codon
+singh2024_kos_arms	cds_ul27	feature_location	ref_NC_001806.2.gb		CDS/gene=UL27	complement(53081..55795)		each resolved arm boundary falls between this gene's last sense codon and its stop codon
+singh2024_kos_arms	cds_ul56	feature_location	ref_NC_001806.2.gb		CDS/gene=UL56	complement(116222..116926)		each resolved arm boundary falls between this gene's last sense codon and its stop codon
+singh2024_kos_arms	stop_ul3	sequence_at	NC_001806.2	11663			TAA	UL3's stop codon, on the plus strand
+singh2024_kos_arms	stop_ul27	sequence_at	NC_001806.2	53081			TCA	UL27's stop codon reads TGA on the minus strand, so TCA on the plus strand
+singh2024_kos_arms	stop_ul56	sequence_at	NC_001806.2	116222			TTA	UL56's stop codon reads TAA on the minus strand, so TTA on the plus strand
+tongmuang2024_ul56	lift1	lift	MN159383.1	115941	NC_001806.2	116222		expectation derived by anchoring the surrounding sequence in the reference
+tongmuang2024_ul56	lift2	lift	MN159383.1	116645	NC_001806.2	116926		expectation derived by anchoring the surrounding sequence in the reference
+tongmuang2024_ul56	lift3	lift	MN159383.1	114423	NC_001806.2	114704		expectation derived by anchoring the surrounding sequence in the reference
+tongmuang2024_ul56	arm_outer_declines	lift_declines	MN159383.1	118177	NC_001806.2	118446|7928		the arm's outer end is inside the long inverted repeat
+tongmuang2024_ul56	cds_ul56	feature_location	ref_NC_001806.2.gb		CDS/gene=UL56	complement(116222..116926)		the resolved range is the reference's own UL56 CDS, to the base at both ends
+tongmuang2024_ul56	orf_translates	orf_on_minus_strand	MN159383.1	115941	116645	234		the paper's own range in its own record translates on the minus strand to a 234-residue ORF starting at Met and ending at a stop
+tongmuang2024_ul56	orf_matches_reference	orf_matches_translation	MN159383.1	115941	116645	231/234	UL56	and it matches the reference pUL56 /translation at 231 of its 234 residues
+lassalle2020_excluded	cds_ul1	feature_location	ref_NC_001806.2.gb		CDS/gene=UL1	9338..10012		one of the paper's five boundaries is an edge of this feature; none is an edge of an annotated repeat
+lassalle2020_excluded	cds_ul56	feature_location	ref_NC_001806.2.gb		CDS/gene=UL56	complement(116222..116926)		one of the paper's five boundaries is an edge of this feature; none is an edge of an annotated repeat
+lassalle2020_excluded	cds_us1	feature_location	ref_NC_001806.2.gb		CDS/gene=US1	132647..133909		one of the paper's five boundaries is an edge of this feature; none is an edge of an annotated repeat
+lassalle2020_excluded	cds_us12	feature_location	ref_NC_001806.2.gb		CDS/gene=US12	complement(145316..145582)		one of the paper's five boundaries is an edge of this feature; none is an edge of an annotated repeat
+lassalle2020_excluded	cds_rs1	feature_location	ref_NC_001806.2.gb		CDS/gene=RS1	complement(127235..131131)|147066..150962		one of the paper's five boundaries is an edge of this feature; none is an edge of an annotated repeat
+lassalle2020_excluded	boundaries_are_cds_edges	positions_are_feature_edges	ref_NC_001806.2.gb	9338,116926,132647,145582,150962	CDS	5		all five, counted against the record rather than asserted
+lassalle2020_excluded	boundaries_are_not_repeat_edges	positions_are_feature_edges	ref_NC_001806.2.gb	9338,116926,132647,145582,150962	repeat_region	0		and none of them, which is what makes the paper's own caption wording wrong
+lassalle2020_excluded	trs_counterpart	counterpart_pair	NC_001806.2	150962		127235		
+lassalle2020_excluded	irs_window	window_revcomp_equals	NC_001806.2:127235		NC_001806.2:150962	20		the two copies of the ICP4 CDS terminus are each other's counterparts: reading forward from the IRS copy matches reading back from the TRS copy
+jiao2019_ul53	lift_identity	lift	MN136524.1	112361	NC_001806.2	112361		expectation derived by a mismatch-tolerant scan of the whole reference, which places the McKrae window uniquely here
+jiao2019_ul53	lift_identity_back	lift	NC_001806.2	112361	MN136524.1	112361		
+jiao2019_ul53	cds_ul53_ref	feature_location	ref_NC_001806.2.gb		CDS/gene=UL53	112180..113196		so codon 61 is 112,180 + 3 x 60 = 112,360 to 112,362
+jiao2019_ul53	cds_ul53_jn	feature_location	base_JN555585.1.gb		CDS/gene=UL53	112180..113196		the other candidate frame carries the identical CDS, which is why the two readings agree here
+jiao2019_ul53	codon_ref	sequence_at	NC_001806.2	112360			CTA	Leu in the reference
+jiao2019_ul53	codon_mckrae	sequence_at	MN136524.1	112360			CCA	Pro in McKrae, so the paper's L61P
+jiao2019_ul53	old_frame_base	sequence_at	X14112.1	112361			A	read as an old-frame number the position would be the third base of the codon, where a T to C change is impossible, which is what rules out that reading
+jiao2019_ul53	codon_api	codon_positions		61	UL53	112360,112361,112362		the library's own codon() answer, against the arithmetic above
+lee2018_dctrl2	declines_start	lift_declines	KT899744.1	120136	NC_001806.2	120302|6072		
+lee2018_dctrl2	declines_end	lift_declines	KT899744.1	120508	NC_001806.2	120672|5702		
+lee2018_dctrl2	copies_identical_start	window_revcomp_equals	NC_001806.2:120302		NC_001806.2:6072	60		the IRL window and the reverse complement of the TRL window are identical, so nothing in the sequence can tell the two apart
+lee2018_dctrl2	copies_identical_end	window_revcomp_equals	NC_001806.2:120672		NC_001806.2:5702	60		
+lee2018_dctrl2	published_start_in_the_named_deposit	sequence_unique_at	KT899744.1	120136			GTTAACCCCCCCCCCGCCCTTTGTGGCGGCCAGAGGCCAG	the paper's own start coordinate, in the deposit the paper names, which is what ties its number to that record
+lee2018_dctrl2	counterpart_start	counterpart_pair	NC_001806.2	120302		6072		
+lee2018_dctrl2	counterpart_end	counterpart_pair	NC_001806.2	120672		5702		
+singh2022_dctrl2	frames_read_alike	window_equals	X14112.1:120503		NC_001806.2:120505	133		the element is nine copies of a 16 bp unit, so a two-base shift lands on the same bases and the sequence cannot recover the frame
+singh2022_dctrl2	convert_if_old	version_convert	NC_001806.1	120500	NC_001806.2	120502		one of the two candidate answers; which applies is what the paper does not say
+singh2022_dctrl2	stated_length_is_wrong	interval_length		120500	120635	136		inclusive, against the 135 bp both papers state
+chau2023_segment	version_matters_here	version_convert	NC_001806.1	126983	NC_001806.2	126986		the offset at this position is 3, so the two readings of the paper's bare NC_001806 differ and nothing in the paper decides which
+chau2023_segment	start_names_two_places	counterpart_pair	NC_001806.2	126983		151214		read as a reference position the start is inside the short inverted repeat, so it names two places
+chau2023_segment	end_names_two_places	counterpart_pair	NC_001806.2	132514		145683		
+chau2023_segment	stated_length_disagrees	interval_length		126983	132514	5532		inclusive, against the 8,511 bp the same sentence states
+colgrove2016_oris	start_names_two_places	counterpart_pair	NC_001806.2	131870		146327		read as a reference position both endpoints are inside the short inverted repeat, which is right for OriS: it is genuinely present in two copies, so a single number is incomplete even with the frame known
+colgrove2016_oris	end_names_two_places	counterpart_pair	NC_001806.2	132250		145947		
+kitabatake2026_ul50	lift1	lift	GU734771.1	106888	NC_001806.2	106992		expectation derived by anchoring 101 bp of the deposit in the reference at zero mismatches, not by calling lift
+kitabatake2026_ul50	lift2	lift	GU734771.1	106918	NC_001806.2	107022		expectation derived by anchoring 101 bp of the deposit in the reference at zero mismatches, not by calling lift
+kitabatake2026_ul50	lift3	lift	GU734771.1	106947	NC_001806.2	107051		expectation derived by anchoring 101 bp of the deposit in the reference at zero mismatches, not by calling lift
+kitabatake2026_ul50	lift4	lift	GU734771.1	106908	NC_001806.2	107012		expectation derived by anchoring 101 bp of the deposit in the reference at zero mismatches, not by calling lift
+kitabatake2026_ul50	lift5	lift	GU734771.1	106967	NC_001806.2	107071		expectation derived by anchoring 101 bp of the deposit in the reference at zero mismatches, not by calling lift
+kitabatake2026_ul50	revertant_primer_in_the_deposit	sequence_unique_at	GU734771.1	106888			CATCGTCCCTAACAGGAAGATGAGTCAGTGGGGATCCGGGGCGATCCTTGTCCAGCCGGA	the paper's printed revertant primer, which restores the wild-type base, reproduces all 60 bases of the record at the paper's own start coordinate
+kitabatake2026_ul50	revertant_primer_in_the_reference	sequence_unique_at	NC_001806.2	106992			CATCGTCCCTAACAGGAAGATGAGTCAGTGGGGATCCGGGGCGATCCTTGTCCAGCCGGA	and the same 60 bases sit at the resolved coordinate in the reference, which closes the triangle
+kitabatake2026_ul50	second_window_in_the_deposit	sequence_unique_at	GU734771.1	106908			TGAGTCAGTGGGGATCCGGGGCGATCCTTGTCCAGCCGGACAGCTTGGGTCGGGGGTACG	the second primer window the paper states
+kitabatake2026_ul50	second_window_in_the_reference	sequence_unique_at	NC_001806.2	107012			TGAGTCAGTGGGGATCCGGGGCGATCCTTGTCCAGCCGGACAGCTTGGGTCGGGGGTACG	
+kitabatake2026_ul50	cds_ul50	feature_location	ref_NC_001806.2.gb		CDS/gene=UL50	107011..108126		so codon 4 is 107,011 + 9 = 107,020 to 107,022, and the paper's substitution resolves to its third base
+kitabatake2026_ul50	codon4_reference	sequence_at	NC_001806.2	107020			TGG	tryptophan, which a G to A at the third base turns into TGA, a stop: the W4Ter the paper reports
+kitabatake2026_ul50	codon4_deposit	sequence_at	GU734771.1	106916			TGG	the same codon in the strain the paper worked on
+kitabatake2026_ul50	codon4_api	codon_positions		4	UL50	107020,107021,107022		the library's own codon() answer against the arithmetic above
+kitabatake2026_ul50	window_is_60_bases	interval_length		106888	106947	60		inclusive, matching the 60 uppercase bases the paper prints
+dremel2025_circlat	declines_start	lift_declines	KT899744.1	6137	NC_001806.2	6151|120223		
+dremel2025_circlat	declines_end	lift_declines	KT899744.1	6814	NC_001806.2	6827|119547		
+dremel2025_circlat	copies_identical	window_revcomp_equals	NC_001806.2:6151		NC_001806.2:120223	60		the TRL window and the reverse complement of the IRL window are identical, so a single answer would have been a guess
+dremel2025_circlat	counterpart_start	counterpart_pair	NC_001806.2	6151		120223		
+dremel2025_circlat	counterpart_end	counterpart_pair	NC_001806.2	6827		119547		
+dremel2025_circlat	length_in_the_deposit	interval_length		6137	6814	678		against 677 between the two correctly lifted endpoints: subtracting lifted endpoints to get an interval length is wrong here, and nothing in the library says so
+lee2023_us4_contig	cds_us4	feature_location	ref_NC_001806.2.gb		CDS/gene=US4	136747..137463		the published contig lies wholly inside this CDS, which is what the paper says it covers
+lee2023_us4_contig	us4_starts_with_met	sequence_at	NC_001806.2	136747			ATG	
+lee2023_us4_contig	contig_is_193_bases	interval_length		136823	137015	193		inclusive, matching the paper's own stated length, which is the one arithmetic check this case allows

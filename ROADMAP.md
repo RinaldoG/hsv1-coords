@@ -84,7 +84,7 @@ annotations are not compared as though they measured the same thing.
   the annotation, and a reviewer in round 18 had to write a parser before they could
   check a codon.
 
-## M3: strain coordinate crosswalk and lift-over - built, criteria met except the hand-checked published coordinates
+## M3: strain coordinate crosswalk and lift-over - built, all four criteria met
 
 Pairwise alignments across the complete genomes, chain files, and a lift-over tool, so that
 a coordinate cited against one strain resolves against another.
@@ -146,8 +146,67 @@ through the reference. Median mappable fraction 98.84 per cent, after review fou
   inaccurate: the test asserts on a rate and prints the first ten failures.
 - **Met:** returns no confident coordinate where it has none. Positions before the first
   block, past the last, and inside insertions relative to the reference all return nothing.
-- **Outstanding:** resolving a published coordinate from at least five papers across at
-  least three strains, each checked by hand. This needs the papers read, not the code run.
+- **Met on 17 November 2026:** the criterion is "Correctly resolves a published
+  coordinate from at least five papers across at least three strains to the canonical
+  reference, checked by hand against each paper." Six published coordinates resolved by hand,
+  across four strains, which clears both thresholds. The record is
+  `data/published_coordinates.tsv` (one row per paper opened) and
+  `data/published_coordinate_checks.tsv` (one row per mechanical check), rendered as
+  `data/derived/published_coordinates.md` by `make published-coordinates` and gated by
+  `tests/test_m3_published_coordinates.py`.
+
+  **What is transcription and what is checked**, because the difference decides what
+  this criterion is worth. The published coordinate, the quoted sentence and the fetch
+  route in each row are hand transcription from a paper's full text, flagged in the
+  `transcribed` column exactly as `data/conventions.tsv` flags its `paper_transcribed`
+  rows. Continuous integration has no network and a paper is not an artefact, so
+  nothing in the suite asserts that a paper says what a row claims; asserting it would
+  be a gate that cannot fail wearing the clothes of provenance. Everything downstream
+  of the transcription is checked, against the deposited records, the genome FASTA and
+  the built artefacts, and no expected value in the checks table was produced by
+  calling the function it checks.
+
+  **The triangle each counted case rests on.** A sequence the paper prints sits at the
+  paper's own coordinate in the record the paper names; the same sequence sits at the
+  resolved coordinate in the reference; and the library maps the first position to the
+  second. Any one alone proves nothing, and the three cannot hold together unless the
+  resolution is right. The gate asserts the triangle closes for every motif placed in
+  two records, and names the one counted case that closes none, with the feature-table
+  route that closes it instead.
+
+  **Where the margin is, stated rather than buried.** Twenty-four papers were opened to
+  get six that count. Five further cases are recorded as supporting and deliberately
+  not counted: three resolve by the identity, so the crosswalk does no work in them,
+  and two are correct declines, which the criterion above requires but which are not
+  resolutions. The rest could not be counted at all, and each says why in its own row.
+
+  Of the six that count, five state the accession their numbers are against, three of
+  those with its version suffix. One does not state its reference version: Amelio et
+  al. 2006 writes a bare `NC_001806`, and which version that is was settled from six
+  primer sequences the paper itself prints, each landing on its printed coordinate in
+  the older reference record at three loci with two different offsets. That is evidence
+  internal to the paper and stronger than a bare statement would be, which is why it
+  counts, but it is an inference. `determined_from_paper_claim` is the basis value that
+  marks it, and it carries the heaviest burden of the three bases the gate accepts.
+
+  **The criterion no longer depends on that inference, and a test says so.** For most
+  of the day it did: five papers across three strains, with the fifth resting on the
+  inferred frame, so excluding it left four and the criterion unmet. That was recorded
+  as the margin rather than smoothed over, and then the margin was removed instead of
+  explained: a further search found Kitabatake et al. 2026, which numbers against
+  `GU734771.1` with its version suffix, states it twice, adds a fourth strain, and
+  prints sixty bases that reproduce that record exactly at the paper's own coordinate
+  plus one base that deliberately does not.
+  `test_the_criterion_survives_dropping_every_inferred_frame` drops every inferred-frame
+  case and requires the criterion still to hold, so the dependence cannot come back
+  quietly. If that test is what fails after some later edit, the repair is another
+  paper, not a relaxed test.
+
+  Strain labels are normalised in the `strain` column, because three of the counted
+  papers write 17, 17syn+ and 17Syn+ for one strain and counting those as three would
+  clear the strain threshold on spelling. Each paper's own words stay in
+  `strain_as_stated`, and a test requires the two columns to differ, so the gate cannot
+  be satisfied by making them the same thing.
 
 **Two things the build established, both recorded in `data/derived/crosswalk_report.md`:**
 
@@ -523,7 +582,7 @@ each is only honest beside its definition:
 |---|---|---|
 | The whole suite | **45 of 90** | A number anywhere in the four documents, changed one at a time, with the full suite re-run. Was 34 of 90 before round 7. |
 | This gate alone | **83 mutations caught** | Every standalone number in the six gated documents is changed one at a time and this is how many of those mutations the figure-to-artefact comparison catches. A COUNT, not a rate: round 14 put a floor on the rate over four documents and ten added citations failed the build; round 15 moved it to the sites that state a derived value, and three paragraphs of ordinary prose failed it too, because 21 of the gated figures are one- to three-digit numbers that occur in prose anyway. Three rates are printed for information, judged only by the figure-to-artefact comparison. Printed on every run as a count and three rates, with a floor on the count alone, and this row states the count and is checked against it for equality. Round 8 sampled 60 of these sites with a fixed seed and this row said 18 per cent, which was above the then-real figure of 15; the unchanged gate ranged from 8.3 to 23.3 per cent across other seeds, so the sample was narrower than its own spread and the row overstated it. Round 16 and 17: the rates move whenever a document gains a number, which is why none of them carries a floor any more and why this row states the count, which moves only when the gate's reach changes. |
-| `gate power` | **95 of 95** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
+| `gate power` | **99 of 99** | Mutations of figures the gate already reaches. A regression check, not a coverage measurement: it is 100 per cent by construction, and the count is asserted so it cannot quietly shrink. |
 
 The gap between the first two is the rest of the suite: the per-occurrence reach check,
 the component-table count, the quoted-resolver output and the README example runner each

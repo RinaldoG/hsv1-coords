@@ -12,8 +12,14 @@ to trust a coordinate from here, read that section.
 **Status: early, and usable in part.** Seven components are built and gated: the gene
 dictionary, the annotation, the strain crosswalk, the repeat map, the convention
 resolver, the version crosswalk and the documentation gate that keeps the figures in
-this file true. One acceptance criterion is outstanding: no published coordinate has
-yet been resolved from the literature by hand across several papers and strains. See
+this file true. Every acceptance criterion written before the build is now met. The last
+of them to close was the one a test run cannot settle by itself: six published coordinates resolved by hand,
+across four strains, which clears both thresholds the criterion set.
+Twenty-four papers were opened to get six that qualify, and the ones that did not are
+recorded beside them with the reason, in `data/derived/published_coordinates.md`. One of
+the six has a coordinate frame this repository inferred from sequence the paper prints
+rather than read from the paper's words; the criterion holds without it, and a test
+requires that it keeps holding without it. See
 `ROADMAP.md` for the criteria
 each component must clear, and `FINDINGS.md` for what building it established, including
 corrections to this repository's own earlier claims.
