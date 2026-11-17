@@ -416,8 +416,8 @@ print(ConventionSet.load().report(118777, RepeatMap.load()))
 #   data/conventions.tsv
 #   transcription: the intervals used here are the source's own numbers,
 #   typed in by hand, for lassalle2020_excluded (transcribed by hand
-#   from a paper this repository does not hold, so the quotation in
-#   data/conventions.tsv is the evidence)
+#   from the paper's own text, so the quotation and the source in
+#   data/conventions.tsv are the evidence)
 ```
 
 **Five handlings, each read from its own source**, with the date it was read recorded:
@@ -602,6 +602,98 @@ has not seen the project can reproduce a release.
 
 **Criteria:** every figure, table and number in the repository regenerates from one command,
 tested by someone who has not seen it before.
+
+## What the by-hand work asked for, and what was built
+
+Three reviewers resolved published coordinates through this library on 17 November 2026,
+independently, from different papers. Between them they reported about a dozen things
+the library does badly for a reader who arrives holding a number out of a paper. That
+list is more useful than the criterion it came out of, because it is the only time this
+repository has been used the way it is meant to be used by someone who did not build it.
+
+**Built the same day, with tests that fail when the behaviour is removed:**
+
+- **`features_at`, `introns_at` and `describe`: what is at a reference position.** All
+  three reviewers put this first. Every hand check needed it and none could ask it: the
+  annotation existed as a TSV and as GFF3, and reaching it meant grepping the table and
+  writing the minus-strand arithmetic by hand. `codon()` was the half that existed and
+  it goes the other way. An intron is answered separately from an exon, because a
+  position between a feature's exons is not transcribed as part of it and one merged
+  list would make the two indistinguishable; `describe` leads with the repeat ambiguity
+  when the position names two places, because a confident list of features for one copy
+  is the most confident wrong answer this library could give.
+- **`lift_range`: an interval lifted as an interval.** Two reviewers reported the same
+  trap independently, on different papers: lifting both endpoints and subtracting them
+  gives the wrong length when an indel lies between them, and nothing said so. Lee et
+  al.'s CTRL2 deletion is 373 bp in `KT899744.1` and 371 bp between its lifted
+  reference endpoints; Dremel et al.'s circular LAT junction is 678 nt and 677. Both
+  endpoints were right in both cases. `length_change` is now a field and it is in the
+  printed form whenever it is not zero.
+- **The `paper_transcribed` caveat no longer contradicts its own row.** It said the
+  numbers were "transcribed by hand from a paper this repository does not hold", while
+  the one row carrying that basis records "full text read 13 November 2026" in its
+  source column. Two facts had been conflated and only one is what the basis records.
+
+**Reported and deliberately not built. Each is a real finding, named so it is not
+rediscovered:**
+
+- **`lift()` returns a bare `None` where `lift_detailed` carries the explanation.**
+  Reported by all three. The bare call is the one people reach for first and the case
+  where it refuses is the case where a reader most needs to be told why. Not changed
+  because changing what `lift` returns is an API break and adding a third spelling of
+  the same question is how the surface grows without getting clearer. The honest fix is
+  a deprecation, which belongs in a release and not in a patch.
+- **Nothing connects `X14112` to `NC_001806.1`, although they are the same sequence
+  base for base.** One reviewer called this the single most practical gap: three of
+  their five papers cite `X14112`, which is how strain 17 is cited in the pre-RefSeq
+  literature and in much of the Bloom and Hsia lab output since. `lift(p, "X14112.1",
+  ...)` works because `X14112.1` is one of the 183 corpus genomes, while
+  `lift(p, "NC_001806.1", ...)` refuses and routes the caller to `VersionCrosswalk`.
+  Both give the same answer, and the library never says they are the same sequence.
+- **No way to say "the frame is undetermined, here are both answers".** The common case
+  in this literature is a post-2015 paper citing the bare accession with no internal
+  evidence of version, which is three of the twenty-four papers opened for the M3
+  record. `VersionCrosswalk.convert` requires the caller to have already decided, and
+  the refusal tells them to go and read the paper. When the paper does not say, the
+  useful output is both candidates and the distance between them.
+- **`lift_detailed` says the alternatives "could equally be", and one reviewer argues
+  they cannot:** the primary answer is the copy the source coordinate was positionally
+  in, so the library has already made a faithful choice and then describes it as
+  arbitrary. This is not reworded, because the message would then assert that the
+  alignment always preserves the repeat copy, and that generalisation has been checked
+  on three positions and gated nowhere. A wording change resting on an unverified
+  general claim would be worse than the current wording, which at least overstates the
+  uncertainty rather than understating it. The gate comes first.
+- **"KOS" is ambiguous across four deposits and no call says so.** Two of the counted
+  and supporting cases are both strain KOS, from different deposits, and the library
+  lifts between them without warning that the label is not an identifier.
+  `strain_inventory.tsv` has a `strain_group` column that already carries this and
+  nothing surfaces it.
+- **`LiftResult`'s structured fields are undocumented.** `position`, `alternatives`,
+  `well_defined`, `loci`, `complemented`, `in_range` and `inverted_alternatives` appear
+  nowhere in `README.md`, which shows only the printed form, so a reader wanting the
+  number plus its alternatives programmatically would reasonably conclude they have to
+  parse English.
+- **The two reference versions differ in annotation, not only in coordinates, and
+  nothing says so.** `NC_001806.1` carries no LAT feature at all, where `NC_001806.2`
+  annotates LAT as two ncRNA features; and `NC_001806.1` annotates its IRS copy of the
+  oriS palindrome starting around position 132,077, which is not a palindrome and sits
+  about 100 bp from where its own TRS copy implies, which `.2` corrects. (The interval
+  is not quoted here in full because the gate over quoted intervals checks them against
+  `NC_001806.2`, and this one exists only in `.1`.) Both verified against the
+  records. So a reader who correctly translates an old coordinate and then looks it up
+  in the old record can still be told the wrong thing about what is there.
+- **Nothing can express "this number may be in a near-identical relative of a corpus
+  record".** Kitabatake et al. 2026 worked on a BAC clone of strain F whose own deposit
+  is not in the corpus, and its coordinates were established as F's only because the
+  primers it prints match `GU734771.1` exactly.
+- **`data/conventions.tsv`'s Lassalle row can be tightened.** Its note gives the
+  gene-boundary example for the first and third intervals and not the middle one, which
+  also disagrees with the reference's annotated extents, by 235 bp at the start and
+  40 bp at the end. All five boundaries are now known to be the UL1, UL56, US1, US12
+  and RS1 gene or CDS edges, checked against the record's own feature table.
+- **Cosmetic:** `lift_detailed` names the gene in its repeat warning for some positions
+  and not for others a few hundred bases away in the same repeat.
 
 ## Under consideration, not committed
 

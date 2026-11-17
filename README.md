@@ -70,7 +70,8 @@ print(d.caution_for("capsid scaffold protein"))
 ```
 
 ```python
-from hsv1coords import ConventionSet, Dictionary, RepeatMap, lift
+from hsv1coords import ConventionSet, Dictionary, RepeatMap, lift, lift_range
+from hsv1coords import describe, features_at, introns_at
 from hsv1coords.liftover import lift_detailed
 
 # A position outside the repeats lifts to a number.
@@ -92,6 +93,31 @@ print(lift_detailed(50000, "ON783216.1", "NC_001806.2"))
 print(RepeatMap.load().classify(118777))
 # 118777: not well defined (inside IRL, which is present in two copies);
 # could equally be 7597 (opposite strand, so complement the allele)
+
+# An interval is lifted as an interval, because most published coordinates are one
+# and because lifting two endpoints and subtracting them is the trap: both endpoints
+# can be right while their difference is not the length the paper measured.
+
+print(lift_range(33000, 33400, "AB618031.1", "NC_001806.2"))
+# AB618031.1:33,000-33,400 (401 bp) -> NC_001806.2:34,491-34,895 (405 bp). NOTE:
+# the lifted interval is 405 bp, 4 bp longer than the 401 bp asked about, so an
+# insertion or deletion lies inside it and subtracting the lifted endpoints does
+# NOT give the length you started with
+
+# And "what is at this position", which is the question a resolved coordinate is
+# resolved in order to ask. An intron is reported separately from an exon, because
+# a position between a feature's exons is not transcribed as part of it.
+
+print(describe(112361))
+# NC_001806.2:112,361
+#   covered by:
+#     misc_feature UL at 9214..117160 [NC_001806.2]
+#     gene UL52 at 109049..113449 [NC_001806.2]
+#     CDS UL53, envelope glycoprotein K at 112180..113196 [NC_001806.2]
+#     gene UL53 at 112180..113449 [NC_001806.2]
+
+[f.name for f in features_at(120505) if f.feature_type == "gene"]   # ['LAT']
+[f.name for f in introns_at(120505)]                                # ['LAT']
 
 # Pass the repeat map and the report says the position is ambiguous as well as
 # where it survives. Round 9 found this example calling `report` without it, so the
@@ -118,8 +144,8 @@ print(ConventionSet.load().report(118777, RepeatMap.load()))
 #   data/conventions.tsv
 #   transcription: the intervals used here are the source's own numbers,
 #   typed in by hand, for lassalle2020_excluded (transcribed by hand
-#   from a paper this repository does not hold, so the quotation in
-#   data/conventions.tsv is the evidence)
+#   from the paper's own text, so the quotation and the source in
+#   data/conventions.tsv are the evidence)
 ```
 
 So one position in the gene that dominates latent transcription becomes 109,564 in a

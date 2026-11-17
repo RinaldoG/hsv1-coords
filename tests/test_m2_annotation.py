@@ -1262,5 +1262,123 @@ class ACodonNumberReachesACoordinate(unittest.TestCase):
             f"a caller slicing the reference about.")
 
 
+class WhatIsAtAPosition(unittest.TestCase):
+    """`features_at`, `introns_at` and `describe`.
+
+    Three reviewers resolving published coordinates on 17 November 2026 each put the
+    absence of this first: every hand check needed it, and reaching the annotation
+    meant grepping the TSV and writing minus-strand arithmetic by hand.
+    """
+
+    def test_a_coding_position_names_its_cds(self):
+        """Jiao et al. 2019's UL53 variant, a counted case in the M3 record."""
+        from hsv1coords import features_at
+        names = {f.name for f in features_at(112361) if f.feature_type == "CDS"}
+        self.assertEqual(names, {"UL53"})
+
+    def test_an_intron_position_is_not_reported_as_covered(self):
+        """Amelio et al. 2006's CTRL2 cluster sits in the LAT intron.
+
+        This is the distinction the call exists for. A single merged list would make
+        an intron position indistinguishable from an exon position, and a caller told
+        only "LAT" would reasonably conclude the position is transcribed.
+        """
+        from hsv1coords import features_at, introns_at
+        covered = [f for f in features_at(120505) if f.feature_type == "ncRNA"]
+        self.assertEqual(covered, [], "120,505 is in the LAT intron, not an exon")
+        between = [f for f in introns_at(120505) if f.feature_type == "ncRNA"]
+        self.assertEqual([f.name for f in between], ["LAT"])
+        # And the gene, which is unspliced, does cover it.
+        self.assertIn("LAT", {f.name for f in features_at(120505)
+                              if f.feature_type == "gene"})
+
+    def test_an_exon_position_of_the_same_feature_IS_reported_as_covered(self):
+        """The counter-case, so the rule is not "always exclude the ncRNA".
+
+        Creech and Neumann 2010's LAT 5' exon amplicon resolves to 119,327, which is
+        inside the first exon. Without this, excluding spliced features entirely
+        would pass the test above.
+        """
+        from hsv1coords import features_at, introns_at
+        self.assertIn("LAT", {f.name for f in features_at(119327)
+                              if f.feature_type == "ncRNA"})
+        self.assertEqual([f for f in introns_at(119327)
+                          if f.feature_type == "ncRNA"], [])
+
+    def test_describe_leads_with_the_repeat_ambiguity(self):
+        """A position naming two places has no single answer to this question either."""
+        from hsv1coords import describe
+        text = describe(120505)
+        self.assertIn("NOT well defined", text)
+        self.assertIn("for this copy only", text)
+        self.assertIn("LAT", text)
+        # A well-defined position must NOT carry the caveat, or it is boilerplate.
+        clean = describe(112361)
+        self.assertNotIn("NOT well defined", clean)
+        self.assertIn("UL53", clean)
+
+    def test_a_position_outside_the_reference_is_refused_with_the_call_to_make(self):
+        """The input boundary, which is where an outsider's error lives.
+
+        152,261 is the length of NC_001806.1, so a reader holding an old-frame
+        coordinate near the end of the genome arrives here, and a bare IndexError or
+        an empty list would both read as "nothing is annotated there".
+        """
+        from hsv1coords import features_at
+        from hsv1coords.annotation import NotAReferencePosition
+        for bad in (0, -1, 152223, 152261):
+            with self.subTest(position=bad), \
+                    self.assertRaises(NotAReferencePosition) as caught:
+                features_at(bad)
+            message = str(caught.exception)
+            self.assertIn("VersionCrosswalk", message)
+            self.assertIn("lift", message)
+
+    def test_a_non_integer_position_is_refused(self):
+        from hsv1coords import features_at
+        for bad in ("112361", 112361.0, None, True):
+            with self.subTest(value=bad), self.assertRaises(TypeError):
+                features_at(bad)
+
+    def test_the_strand_is_read_from_every_location_that_states_one(self):
+        """Round 10 shipped 423 minus-strand features as plain ascending ranges.
+
+        Counted against the table rather than against a typed number, in both
+        directions, so a parser that stopped reading `complement(` fails here and a
+        parser that invented one does too.
+        """
+        import csv as _csv
+        from hsv1coords.annotation import _rows
+        rows = _rows()
+        with (ROOT / "data" / "derived" / "annotation_v0.1.0.tsv").open() as fh:
+            in_table = sum(1 for r in _csv.DictReader(fh, delimiter="\t")
+                           if "complement(" in r["location"])
+        parsed = sum(1 for f in rows if f.strand == "complement")
+        self.assertEqual(parsed, in_table,
+                         f"{parsed} features parsed as complement against "
+                         f"{in_table} locations in the table that say so")
+        self.assertGreater(in_table, 0, "no location in the table states a strand, so "
+                                        "this comparison is vacuous")
+        self.assertLess(parsed, len(rows), "every feature came out on the complement, "
+                                           "which cannot be right")
+
+    def test_the_sources_are_the_ones_the_table_states(self):
+        import csv as _csv
+        from hsv1coords.annotation import sources
+        with (ROOT / "data" / "derived" / "annotation_v0.1.0.tsv").open() as fh:
+            stated = sorted({r["source"]
+                             for r in _csv.DictReader(fh, delimiter="\t")})
+        self.assertEqual(list(sources()), stated)
+
+    def test_asking_every_annotation_answers_more_than_asking_one(self):
+        """The 2020 re-annotation names things the 2018 record does not."""
+        from hsv1coords import features_at
+        one = features_at(120505)
+        every = features_at(120505, source=None)
+        self.assertGreater(len(every), len(one))
+        self.assertEqual({f.source for f in one}, {"NC_001806.2"})
+        self.assertGreater(len({f.source for f in every}), 1)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

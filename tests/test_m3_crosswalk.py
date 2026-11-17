@@ -1467,5 +1467,110 @@ class TheStrainInventoryIsParsedNotGuessed(unittest.TestCase):
             "genomes.fasta does not match its committed checksum")
 
 
+class LiftingAnInterval(unittest.TestCase):
+    """`lift_range`, added after three reviewers all published-coordinate work hit it.
+
+    Most published HSV-1 coordinates are intervals, and the trap two of those three
+    reviewers reported independently is that lifting both endpoints and subtracting
+    gives the wrong length when an indel lies between them. Both of their cases had
+    both endpoints right. The subtraction was wrong.
+    """
+
+    def test_an_interval_that_lifts_cleanly_keeps_its_length(self):
+        from hsv1coords import lift_range
+        # Singh et al. 2024's gB promoter, which the M3 by-hand record counts.
+        r = lift_range(55985, 56282, "JQ673480.1", REFERENCE)
+        self.assertTrue(r, f"expected both endpoints to lift: {r}")
+        self.assertEqual((r.lifted_start, r.lifted_end), (56044, 56341))
+        self.assertEqual(r.source_length, 298)
+        self.assertEqual(r.target_length, 298)
+        self.assertEqual(r.length_change, 0)
+        self.assertEqual(r.declined, ())
+
+    def test_an_interval_inside_a_repeat_declines_at_both_ends_and_says_which(self):
+        from hsv1coords import lift_range
+        # Lee et al. 2018's CTRL2 deletion, recorded as a supporting case in
+        # data/published_coordinates.tsv precisely because it declines.
+        r = lift_range(120136, 120508, "KT899744.1", REFERENCE)
+        self.assertFalse(bool(r))
+        self.assertEqual(r.declined, ("start", "end"))
+        self.assertIsNone(r.lifted_start)
+        self.assertIsNone(r.lifted_end)
+        self.assertIsNone(r.target_length)
+        self.assertIsNone(r.length_change, "a length computed from a declined "
+                                           "endpoint would be invented")
+        self.assertIn("no single answer", str(r))
+        # The useful content is still reachable: the detail carries both candidates.
+        self.assertEqual(r.start_result.position, 120302)
+        self.assertEqual(tuple(r.start_result.alternatives), (6072,))
+
+    def test_the_length_change_is_stated_whenever_it_is_not_zero(self):
+        """The trap itself, on a real interval that lifts cleanly and changes length."""
+        from hsv1coords import lift_range
+        r = lift_range(33000, 33400, "AB618031.1", REFERENCE)
+        self.assertTrue(r)
+        self.assertEqual(r.source_length, 401)
+        self.assertEqual(r.target_length, 405)
+        self.assertEqual(r.length_change, 4)
+        printed = str(r)
+        self.assertIn("4 bp longer", printed)
+        self.assertIn("does NOT give the length you started with", printed)
+
+    def test_the_warning_is_conditional_and_not_boilerplate(self):
+        """A note printed on every interval would carry no information.
+
+        The control for the test above: an interval whose length does not change must
+        not carry the warning. Without this, a `NOTE:` hard-coded into `__str__`
+        would pass that test.
+        """
+        from hsv1coords import lift_range
+        clean = lift_range(55985, 56282, "JQ673480.1", REFERENCE)
+        self.assertEqual(clean.length_change, 0)
+        self.assertNotIn("NOTE:", str(clean))
+        self.assertNotIn("does NOT give the length", str(clean))
+
+    def test_the_note_appears_exactly_when_the_length_moved(self):
+        """Swept, rather than asserted on the two examples that were chosen for it.
+
+        Rule 57: one mutation target measures one mutation target. This walks a few
+        hundred intervals across the corpus and requires the printed form and the
+        field to agree every time, and requires both outcomes to actually occur, so
+        the sweep cannot pass by finding only one kind.
+        """
+        from hsv1coords import lift_range
+        moved = unmoved = 0
+        for acc in Crosswalk.available(CROSSWALK)[:25]:
+            if acc == REFERENCE:
+                continue
+            for start in range(2000, 100000, 7000):
+                r = lift_range(start, start + 300, acc, REFERENCE)
+                if not r:
+                    continue
+                has_note = "NOTE:" in str(r)
+                with self.subTest(accession=acc, start=start):
+                    self.assertEqual(has_note, r.length_change != 0,
+                                     f"{r.length_change} against {has_note}")
+                moved += bool(r.length_change)
+                unmoved += not r.length_change
+        print(f"\ninterval sweep: {moved + unmoved} intervals lifted, {moved} changed "
+              f"length and said so, {unmoved} did not and stayed silent")
+        self.assertGreater(moved, 0, "no interval in the sweep changed length, so the "
+                                     "branch this gate exists for was never reached")
+        self.assertGreater(unmoved, 0, "every interval changed length, so the negative "
+                                       "case was never reached either")
+
+    def test_a_reversed_interval_is_refused_rather_than_guessed(self):
+        from hsv1coords import lift_range
+        with self.assertRaises(ValueError) as caught:
+            lift_range(56282, 55985, "JQ673480.1", REFERENCE)
+        self.assertIn("must not be after its end", str(caught.exception))
+
+    def test_a_non_integer_endpoint_is_refused(self):
+        from hsv1coords import lift_range
+        for bad in ("55985", 55985.0, None, True):
+            with self.subTest(value=bad), self.assertRaises(TypeError):
+                lift_range(bad, 56282, "JQ673480.1", REFERENCE)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

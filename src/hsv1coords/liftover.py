@@ -573,3 +573,134 @@ def lift(position: int, source: str, target: str,
     if detailed.position is None or not detailed.well_defined:
         return None
     return detailed.position
+
+
+@dataclass(frozen=True)
+class RangeLift:
+    """An interval lifted between two genomes, with what happened to its length.
+
+    Why this type exists rather than two `lift` calls. Of the published coordinates
+    three reviewers resolved through this library on 17 November 2026, most were
+    intervals: a deletion, an amplicon, a cloned fragment, an element, an excluded
+    region, a back-splice junction. Two of them, working independently on different
+    papers, reported the same trap in the same words: lifting the two endpoints and
+    subtracting them gives the wrong length, and nothing said so.
+
+    Measured, on their two cases. Lee et al.'s CTRL2 deletion is 373 bp in
+    `KT899744.1` and 371 bp between its two correctly lifted reference endpoints,
+    because a C homopolymer differs. Dremel et al.'s circular LAT junction is 678 nt
+    in `KT899744.1` and 677 between its lifted ends, for the same reason at a
+    different homopolymer. Both endpoints were right in both cases. The subtraction
+    was wrong, and a reader doing it would have published a deletion size that is not
+    the deletion's size.
+
+    So `length_change` is a field, and it is in the printed form whenever it is not
+    zero. Standing rule 25: a correction that changes what an answer means is
+    surfaced on the answer, in the form a caller prints.
+    """
+
+    source: str
+    target: str
+    start: int
+    end: int
+    start_result: "LiftResult"
+    end_result: "LiftResult"
+
+    @property
+    def lifted_start(self) -> int | None:
+        return (self.start_result.position
+                if self.start_result.well_defined else None)
+
+    @property
+    def lifted_end(self) -> int | None:
+        return self.end_result.position if self.end_result.well_defined else None
+
+    @property
+    def source_length(self) -> int:
+        """Inclusive, which is how papers print an interval."""
+        return abs(self.end - self.start) + 1
+
+    @property
+    def target_length(self) -> int | None:
+        if self.lifted_start is None or self.lifted_end is None:
+            return None
+        return abs(self.lifted_end - self.lifted_start) + 1
+
+    @property
+    def length_change(self) -> int | None:
+        """Target length minus source length, or None when either end declined.
+
+        Non-zero means an insertion or deletion inside the interval, so the lifted
+        endpoints are both right and their difference is not the thing the paper
+        measured.
+        """
+        target = self.target_length
+        return None if target is None else target - self.source_length
+
+    @property
+    def declined(self) -> tuple[str, ...]:
+        """Which endpoints have no single honest answer, as "start" and "end"."""
+        out = []
+        if self.lifted_start is None:
+            out.append("start")
+        if self.lifted_end is None:
+            out.append("end")
+        return tuple(out)
+
+    def __bool__(self) -> bool:
+        """False when either endpoint declined.
+
+        Standing rule 54: a function either refuses or is told explicitly to answer
+        partially. This answers partially and says so, rather than returning a
+        plausible interval with one made-up end.
+        """
+        return not self.declined
+
+    def __str__(self) -> str:
+        head = f"{self.source}:{self.start:,}-{self.end:,} ({self.source_length:,} bp)"
+        if self.declined:
+            which = " and ".join(self.declined)
+            verb = "have" if len(self.declined) > 1 else "has"
+            detail = "\n  ".join(
+                str(r) for r in (self.start_result, self.end_result))
+            return (f"{head} does not lift to {self.target} as an interval: its "
+                    f"{which} {verb} no single answer.\n  {detail}")
+        note = ""
+        if self.length_change:
+            note = (f". NOTE: the lifted interval is {self.target_length:,} bp, "
+                    f"{abs(self.length_change):,} bp "
+                    f"{'longer' if self.length_change > 0 else 'shorter'} than the "
+                    f"{self.source_length:,} bp asked about, so an insertion or "
+                    f"deletion lies inside it and subtracting the lifted endpoints "
+                    f"does NOT give the length you started with")
+        strand = ""
+        if self.start_result.complemented:
+            strand = (", ON THE OPPOSITE STRAND, so the bases here are the complement "
+                      "of the bases there")
+        return (f"{head} -> {self.target}:{self.lifted_start:,}-"
+                f"{self.lifted_end:,} ({self.target_length:,} bp){strand}{note}")
+
+
+def lift_range(start: int, end: int, source: str, target: str,
+               directory: pathlib.Path | None = None) -> RangeLift:
+    """Lift an interval, and say what happened to its length.
+
+    `start` and `end` are inclusive, which is how a paper prints an interval, and
+    `start <= end` is required: a reversed pair is a caller error rather than a
+    request about the complement strand, and guessing which was meant is how a
+    coordinate silently becomes a different coordinate.
+
+    The result is returned even when an endpoint declines, with `declined` naming
+    which and the two `LiftResult`s carrying why, because "your interval starts inside
+    a repeat" is the useful answer there and `None` is not.
+    """
+    first = as_coordinate(start, "an interval start")
+    last = as_coordinate(end, "an interval end")
+    if first > last:
+        raise ValueError(
+            f"an interval start must not be after its end, got {first} to {last}. On "
+            f"the complement strand an interval is still printed low to high; pass it "
+            f"that way and read `start_result.complemented` for the strand.")
+    return RangeLift(source=source, target=target, start=first, end=last,
+                     start_result=lift_detailed(first, source, target, directory),
+                     end_result=lift_detailed(last, source, target, directory))

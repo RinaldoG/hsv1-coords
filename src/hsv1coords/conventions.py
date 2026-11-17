@@ -106,8 +106,16 @@ _INTERVAL_BASES = types.MappingProxyType({
     # basis -> (whether the intervals were read, what a reader is owed)
     "deposited_record": (True, "the convention is the deposited record itself"),
     "paper_transcribed": (
-        True, "transcribed by hand from a paper this repository does not hold, "
-              "so the quotation in data/conventions.tsv is the evidence"),
+        True, "transcribed by hand from the paper's own text, so the quotation and "
+              "the source in data/conventions.tsv are the evidence"),
+    # This said "from a paper this repository does not hold", which contradicted the
+    # `source` column of the one row that carries the basis: Lassalle's says
+    # "PMC7031915, full text read 13 November 2026". Found 17 November 2026 by a
+    # reviewer resolving that paper's published coordinates. Two different facts had
+    # been conflated, and only the second is what the basis records: whether the
+    # paper is held, and whether the numbers were typed in by hand. The caveat is a
+    # constant attached to the basis and printed for every row with it, so it cannot
+    # state anything that is true of only some of those rows.
     # Round 18: these two caveats are read by nothing today, because `basis_caveat`
     # has one caller and only for `paper_transcribed` (cause 34), and the first
     # repeated the absolute "prints no coordinates" that round 17 narrowed in the
