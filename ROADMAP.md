@@ -595,13 +595,27 @@ shrink it is to derive more figures rather than to widen the matching.
 Round 7 reported the first figure as though it described the second, which overstated
 the gate. Round 8 measured them separately.
 
-## M5b: release
+## M5b: release - v0.2.0 tagged, with two criteria still open
 
 Versioned release with a dataset DOI, a container image, and a README from which someone who
 has not seen the project can reproduce a release.
 
 **Criteria:** every figure, table and number in the repository regenerates from one command,
 tested by someone who has not seen it before.
+
+**v0.2.0 is tagged, 17 November 2026**, the first tag this repository has had. It was
+held on M3's by-hand criterion, which closed the same day. `v0.1.0` in `CHANGELOG.md`
+and in the M2 heading above is the annotation artefact's data version and was never a
+tag, so the first tag takes the next minor number rather than reusing a string that
+already means something else here.
+
+**What the tag does not yet carry, stated rather than implied.** No dataset DOI and no
+container image: both are in the criteria above and neither is done. And the second
+criterion is not met and cannot be met by the person who wrote it, because it is
+"tested by someone who has not seen it before". Three reviewers did work through the
+library from the outside on 17 November, which is the nearest thing so far and is what
+produced the list below, but none of them reproduced a release from the README alone.
+That criterion stays open and is not marked met.
 
 ## What the by-hand work asked for, and what was built
 

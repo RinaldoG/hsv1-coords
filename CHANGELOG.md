@@ -3,7 +3,21 @@
 Semantic versioning. The annotation is versioned because the thing being fixed is partly
 that the reference has no versioning discipline.
 
-## Unreleased - the by-hand criterion closed, and the two calls a reader asked for
+## v0.2.0 - 17 November 2026
+
+The first tagged release. Every acceptance criterion written in `research/PICK.md`
+before any code was written is met, the last of them being the one a test run cannot
+settle on its own: published coordinates resolved by hand out of the papers.
+
+**Why 0.2.0 and not 0.1.0.** `v0.1.0` appears above as the annotation artefact's data
+version, which is what `annotation_v0.1.0.tsv` is named for, and it was also the package
+version. It was never a tag: until today this repository had no tag at all. There is
+real added behaviour since that version string was set, so the first tag takes the next
+minor number rather than reusing one that already means something else in this project.
+Still `0.x`, so nothing here is a stability promise, and the annotation table keeps its
+own `v0.1.0` data version because that artefact has not changed.
+
+### The by-hand criterion closed, and the two calls a reader asked for
 
 **Added**
 
@@ -46,7 +60,7 @@ which is what `annotation_v0.1.0.tsv` is named for, and the package version in
 `pyproject.toml`. Nothing has been released, so the sections above are what a first
 release would contain.
 
-## Unreleased - the annotation as GFF3, and the repeat map as BED
+### The annotation as GFF3, and the repeat map as BED
 
 **Added**
 
@@ -71,7 +85,7 @@ release would contain.
   it came from, and `extract_names.parse_gtf` also keeps the GTF's sequence name, phase
   and `orf_id`. The table and its summary rebuild byte-identical.
 
-## Unreleased - library behaviour changed in rounds 16 and 17
+### Library behaviour changed in rounds 16 and 17
 
 Round 17: the library's own API changed in four ways across rounds 16 and 17 and none
 of them was recorded here, in a file whose second line claims semantic versioning. The
