@@ -132,6 +132,12 @@ caller would notice if it were.
 First annotation release. Not yet a GFF3: this is the classed and sourced feature table
 that a GFF3 will be generated from.
 
+**This was never a git tag.** `v0.1.0` is the annotation artefact's own data version,
+which is what `annotation_v0.1.0.tsv` is named for, and it was the package version until
+17 November 2026. The first tag this repository has is `v0.2.0`. Said here because the
+heading looks exactly like a release heading and `DECISIONS.md` in the parent folder had
+itself read it that way.
+
 **Added**
 
 - `data/derived/annotation_v0.1.0.tsv`: 1,779 feature rows across three sources (1,723 as first released, before review found the inverted repeats were being dropped), each row
@@ -185,10 +191,15 @@ class, which is what the class column exists to enforce. See `FINDINGS.md`.
 - The 56 features without a `/gene` qualifier, the inverted repeats among them, were
   missing entirely. Fixed above.
 
-## Unreleased - 13 November 2026
+## Milestones 3 to 6 - built 13 November 2026, first tagged in v0.2.0
 
-Milestones 3 to 6, not yet cut as a version because the acceptance criteria for the
-annotation's GFF3 output are still outstanding.
+Kept in date order rather than folded into v0.2.0, so that when each component was built
+stays readable. It was headed "Unreleased" until 17 November 2026, which was true when
+it was written and became misleading the moment a release was tagged: a reader of a
+tagged release reads "Unreleased" as outstanding work, and all of this shipped. Its own
+stated reason for not being cut, that "the acceptance criteria for the annotation's GFF3
+output are still outstanding", was also obsolete: the GFF3 output shipped and is listed
+under v0.2.0 above.
 
 **Added**
 
