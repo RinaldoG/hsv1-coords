@@ -1039,7 +1039,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
         "test_m1_dictionary": 48,
         "test_m2_annotation": 58,
         "test_m2_gff3": 17,
-        "test_m3_crosswalk": 61,
+        "test_m3_crosswalk": 63,
         "test_m3_published_coordinates": 18,
         "test_m4_repeat_map": 61,
         "test_m5_conventions": 125,
@@ -1260,7 +1260,7 @@ class EveryTestFileRunsAllOfItself(unittest.TestCase):
 
     ASSERTIONS_PER_FILE = {
         "test_docs_match_artefacts": 28, "test_m1_dictionary": 101,
-        "test_m2_annotation": 112, "test_m2_gff3": 52, "test_m3_crosswalk": 165,
+        "test_m2_annotation": 112, "test_m2_gff3": 52, "test_m3_crosswalk": 169,
         "test_m3_published_coordinates": 25,
         "test_m4_repeat_map": 137, "test_m5_conventions": 273,
         "test_placeholder": 1, "test_readme_examples": 19,

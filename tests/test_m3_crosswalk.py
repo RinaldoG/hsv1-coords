@@ -1572,5 +1572,56 @@ class LiftingAnInterval(unittest.TestCase):
                 lift_range(bad, 56282, "JQ673480.1", REFERENCE)
 
 
+class TheVersionFigureInTheRefusalIsDerivable(unittest.TestCase):
+    """The one number this library quotes at a reader in a refusal message.
+
+    `_the_version_question` tells a caller that "125,072 of the 152,261 positions mean
+    something different in NC_001806.1". That figure is typed into library code, it is
+    the most load-bearing number in the message that stops someone using the wrong
+    reference version, and until 17 November 2026 nothing derived it: the documentation
+    gate reads the documents and not the source. It was then quoted in a draft message
+    to people outside this project, which is the point at which standing rule 4 applies,
+    a number is re-derived before it is repeated to a person.
+
+    It is correct. This keeps it correct.
+    """
+
+    V1_BP = 152261
+
+    def test_the_quoted_figure_equals_the_crosswalk_s_own_count(self):
+        from hsv1coords.versions import VersionCrosswalk
+        from hsv1coords.liftover import _the_version_question
+        crosswalk = VersionCrosswalk.load()
+        moved = sum(1 for p in range(1, self.V1_BP + 1)
+                    if (got := crosswalk.to_new(p)) is not None and got != p)
+        absent = sum(1 for p in range(1, self.V1_BP + 1)
+                     if crosswalk.to_new(p) is None)
+        message = _the_version_question("NC_001806.1")
+        print(f"\nversion figures: of {self.V1_BP:,} NC_001806.1 positions, "
+              f"{moved:,} translate to a different number and {absent:,} to none")
+        self.assertIn(f"{moved:,} of the {self.V1_BP:,} positions", message,
+                      f"the refusal message does not state the derived figure of "
+                      f"{moved:,}; it says: {message[:200]}")
+        self.assertIn(f"{absent} of the NC_001806.1 positions have no equivalent",
+                      message,
+                      f"the refusal message does not state the derived count of "
+                      f"{absent} positions with no equivalent")
+
+    def test_the_figure_is_not_the_whole_genome_or_none_of_it(self):
+        """The control: a count that came out at 0 or at every position would mean the
+        crosswalk was empty or the identity, and either would satisfy an assertion that
+        only compared two numbers computed the same way."""
+        from hsv1coords.versions import VersionCrosswalk
+        crosswalk = VersionCrosswalk.load()
+        moved = sum(1 for p in range(1, self.V1_BP + 1)
+                    if (got := crosswalk.to_new(p)) is not None and got != p)
+        self.assertGreater(moved, self.V1_BP // 2,
+                           "fewer than half the positions move, which contradicts the "
+                           "premise the version crosswalk exists for")
+        self.assertLess(moved, self.V1_BP,
+                        "every position moves, so no position is shared between the "
+                        "two versions, which cannot be right for one record's revision")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

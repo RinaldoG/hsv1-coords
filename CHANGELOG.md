@@ -3,6 +3,49 @@
 Semantic versioning. The annotation is versioned because the thing being fixed is partly
 that the reference has no versioning discipline.
 
+## Unreleased - the by-hand criterion closed, and the two calls a reader asked for
+
+**Added**
+
+- `data/published_coordinates.tsv` and `data/published_coordinate_checks.tsv`: the
+  record of M3's by-hand criterion, one row per paper opened and one row per mechanical
+  check. Rendered as `data/derived/published_coordinates.md` by
+  `make published-coordinates` and gated by `tests/test_m3_published_coordinates.py`.
+  Six published coordinates resolved by hand across four strains, against a threshold
+  of five and three. The published coordinate, the quote and the fetch route in each
+  row are hand transcription, flagged in a `transcribed` column; everything downstream
+  of the transcription is checked against the records and the artefacts, and no
+  expected value was produced by calling the function it checks.
+- `hsv1coords.features_at`, `introns_at` and `describe`: what is at a reference
+  position. An intron is answered separately from an exon, and `describe` leads with
+  the repeat ambiguity when a position names more than one place.
+- `hsv1coords.lift_range` and `RangeLift`: an interval lifted as an interval, with
+  `length_change` as a field and in the printed form whenever it is not zero. Lifting
+  two endpoints and subtracting them gives the wrong length when an indel lies between
+  them, and two independent reviewers hit that on two different papers.
+- `hsv1coords.AnnotatedFeature` and `hsv1coords.sources()`, the types behind the above.
+
+**Changed, and a caller may see different text**
+
+- The `paper_transcribed` caveat printed by `ConventionSet.report` no longer says the
+  numbers were transcribed "from a paper this repository does not hold". That
+  contradicted the `source` column of the one row carrying the basis, which records the
+  full text as read. Two facts had been conflated and only one is what the basis
+  records.
+
+**Not changed, and listed because it was asked for**
+
+- `lift()` still returns a bare `None` where it declines, with the explanation only in
+  `lift_detailed`. All three reviewers raised it. Changing what `lift` returns is an
+  API break and belongs in a release rather than a patch; `ROADMAP.md` records it with
+  the rest of what the by-hand work asked for and did not get.
+
+**A note on versions, since this file claims semantic versioning.** There is no git tag
+in this repository at all. `v0.1.0` above is the annotation artefact's data version,
+which is what `annotation_v0.1.0.tsv` is named for, and the package version in
+`pyproject.toml`. Nothing has been released, so the sections above are what a first
+release would contain.
+
 ## Unreleased - the annotation as GFF3, and the repeat map as BED
 
 **Added**
